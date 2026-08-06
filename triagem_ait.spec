@@ -3,16 +3,29 @@ import os
 import shutil
 
 a = Analysis(
-    ['app.py'],
+    ['main_tray.py'],
     pathex=[],
     binaries=[],
     datas=[
         ('templates', 'templates'),
         ('static', 'static'),
         ('audit.py', '.'),
+        ('scripts', 'scripts'),
         ('app_icon.ico', '.')
     ],
-    hiddenimports=['audit', 'sqlite3', 'werkzeug.security'],
+    hiddenimports=[
+        'pystray',
+        'pystray._win32',
+        'PIL',
+        'PIL.Image',
+        'PIL.ImageDraw',
+        'ctypes',
+        'winreg',
+        'audit',
+        'sqlite3',
+        'werkzeug.security',
+        'scripts.migrate_v3'
+    ],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
