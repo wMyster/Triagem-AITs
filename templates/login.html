@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login — Triagem AIT</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <style>
         body {
@@ -15,39 +15,92 @@
             align-items: center;
             justify-content: center;
             margin: 0;
+            padding: 2rem 1rem;
             font-family: 'Inter', sans-serif;
         }
+        .login-wrapper {
+            width: 100%;
+            max-width: 900px;
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+        }
+        .login-header-main {
+            text-align: center;
+            color: #ffffff;
+        }
+        .login-header-main h1 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 2.2rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin: 0 0 0.5rem 0;
+        }
+        .login-header-main p {
+            color: #94a3b8;
+            font-size: 1rem;
+            margin: 0;
+        }
+
+        /* Sector Cards Selection */
+        .sector-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 1.25rem;
+        }
+        .sector-card {
+            background: rgba(30, 41, 59, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 1rem;
+            padding: 1.25rem;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            color: white;
+        }
+        .sector-card:hover, .sector-card.active {
+            transform: translateY(-3px);
+            border-color: #f97316;
+            background: rgba(30, 41, 59, 0.9);
+            box-shadow: 0 10px 25px -5px rgba(249, 115, 22, 0.25);
+        }
+        .sector-card-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 0.75rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.4rem;
+        }
+        .icon-transporte { background: rgba(16, 185, 129, 0.15); color: #34d399; }
+        .icon-dct { background: rgba(59, 130, 246, 0.15); color: #60a5fa; }
+        .icon-admin { background: rgba(244, 63, 94, 0.15); color: #fb7185; }
+
+        .sector-card-info h3 {
+            font-size: 1rem;
+            margin: 0 0 0.2rem 0;
+            font-weight: 700;
+        }
+        .sector-card-info p {
+            font-size: 0.8rem;
+            color: #94a3b8;
+            margin: 0;
+        }
+
+        /* Login Card */
         .login-card {
             background: rgba(30, 41, 59, 0.85);
             backdrop-filter: blur(16px);
             border: 1px solid rgba(255, 255, 255, 0.1);
             border-radius: 1.25rem;
             box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-            width: 100%;
-            max-width: 420px;
             padding: 2.5rem;
             color: #f8fafc;
-        }
-        .login-header {
-            text-align: center;
-            margin-bottom: 2rem;
-        }
-        .login-header i {
-            font-size: 3rem;
-            color: #f97316;
-            margin-bottom: 0.75rem;
-            filter: drop-shadow(0 0 10px rgba(249, 115, 22, 0.4));
-        }
-        .login-header h1 {
-            font-size: 1.6rem;
-            font-weight: 700;
-            margin: 0 0 0.25rem 0;
-            color: #ffffff;
-        }
-        .login-header p {
-            color: #94a3b8;
-            font-size: 0.9rem;
-            margin: 0;
         }
         .form-group {
             margin-bottom: 1.25rem;
@@ -71,7 +124,7 @@
         }
         .input-group input {
             width: 100%;
-            padding: 0.8rem 1rem 0.8rem 2.8rem;
+            padding: 0.85rem 1rem 0.85rem 2.8rem;
             background: rgba(15, 23, 42, 0.6);
             border: 1px solid rgba(255, 255, 255, 0.15);
             border-radius: 0.5rem;
@@ -88,13 +141,13 @@
         }
         .btn-login {
             width: 100%;
-            padding: 0.85rem;
+            padding: 0.9rem;
             background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
             border: none;
             border-radius: 0.5rem;
             color: #ffffff;
             font-size: 1rem;
-            font-weight: 600;
+            font-weight: 700;
             cursor: pointer;
             transition: all 0.2s ease;
             box-shadow: 0 4px 12px rgba(249, 115, 22, 0.3);
@@ -110,69 +163,107 @@
             margin-bottom: 1.25rem;
             font-size: 0.875rem;
         }
-        .alert-danger {
-            background: rgba(239, 68, 68, 0.2);
-            border: 1px solid rgba(239, 68, 68, 0.4);
-            color: #fca5a5;
-        }
-        .alert-success {
-            background: rgba(16, 185, 129, 0.2);
-            border: 1px solid rgba(16, 185, 129, 0.4);
-            color: #6ee7b7;
-        }
-        .login-footer {
-            margin-top: 2rem;
-            text-align: center;
-            font-size: 0.8rem;
-            color: #64748b;
-        }
+        .alert-danger { background: rgba(239, 68, 68, 0.2); border: 1px solid rgba(239, 68, 68, 0.4); color: #fca5a5; }
+        .alert-success { background: rgba(16, 185, 129, 0.2); border: 1px solid rgba(16, 185, 129, 0.4); color: #6ee7b7; }
     </style>
 </head>
 <body>
 
-    <div class="login-card">
-        <div class="login-header">
-            <i class="fa-solid fa-shield-halved"></i>
-            <h1>Triagem AIT</h1>
-            <p>Sistema Integrado de Triagem de Trânsito</p>
+    <div class="login-wrapper">
+        <div class="login-header-main">
+            <i class="fa-solid fa-shield-halved" style="font-size: 3rem; color: #f97316; margin-bottom: 0.5rem;"></i>
+            <h1>TRIAGEM AIT — SISTEMA DE GESTÃO</h1>
+            <p>Selecione o seu setor de trabalho e informe suas credenciais</p>
         </div>
 
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                {% for category, message in messages %}
-                    <div class="alert alert-{{ category if category != 'error' else 'danger' }}">
-                        <i class="fa-solid fa-circle-info" style="margin-right: 0.4rem;"></i> {{ message }}
+        <!-- Sector Panels Selection -->
+        <div class="sector-cards">
+            <div class="sector-card active" id="card-transporte" onclick="selectSector('transporte')">
+                <div class="sector-card-icon icon-transporte">
+                    <i class="fa-solid fa-truck-fast"></i>
+                </div>
+                <div class="sector-card-info">
+                    <h3>Setor Transporte</h3>
+                    <p>Digitação e Lançamentos</p>
+                </div>
+            </div>
+
+            <div class="sector-card" id="card-dct" onclick="selectSector('dct')">
+                <div class="sector-card-icon icon-dct">
+                    <i class="fa-solid fa-clipboard-check"></i>
+                </div>
+                <div class="sector-card-info">
+                    <h3>Setor DCT</h3>
+                    <p>Conferência e Auditoria</p>
+                </div>
+            </div>
+
+            <div class="sector-card" id="card-admin" onclick="selectSector('admin')">
+                <div class="sector-card-icon icon-admin">
+                    <i class="fa-solid fa-user-gear"></i>
+                </div>
+                <div class="sector-card-info">
+                    <h3>Administração</h3>
+                    <p>Gestão Geral e Sessões</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="login-card">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category if category != 'error' else 'danger' }}">
+                            <i class="fa-solid fa-circle-info" style="margin-right: 0.4rem;"></i> {{ message }}
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            <form action="{{ url_for('login') }}" method="POST">
+                <div class="form-group">
+                    <label for="username">Usuário (Login)</label>
+                    <div class="input-group">
+                        <i class="fa-solid fa-user"></i>
+                        <input type="text" id="username" name="username" value="transporte" placeholder="Digite seu usuário" required autofocus>
                     </div>
-                {% endfor %}
-            {% endif %}
-        {% endwith %}
-
-        <form action="{{ url_for('login') }}" method="POST">
-            <div class="form-group">
-                <label for="username">Usuário</label>
-                <div class="input-group">
-                    <i class="fa-solid fa-user"></i>
-                    <input type="text" id="username" name="username" placeholder="Digite seu usuário" required autofocus>
                 </div>
-            </div>
 
-            <div class="form-group">
-                <label for="password">Senha</label>
-                <div class="input-group">
-                    <i class="fa-solid fa-lock"></i>
-                    <input type="password" id="password" name="password" placeholder="Digite sua senha" required>
+                <div class="form-group">
+                    <label for="password">Senha</label>
+                    <div class="input-group">
+                        <i class="fa-solid fa-lock"></i>
+                        <input type="password" id="password" name="password" placeholder="Digite sua senha" required>
+                    </div>
                 </div>
-            </div>
 
-            <button type="submit" class="btn-login">
-                Entrar no Sistema <i class="fa-solid fa-right-to-bracket" style="margin-left: 0.5rem;"></i>
-            </button>
-        </form>
-
-        <div class="login-footer">
-            <p>Usuários padrão: <strong>transporte</strong>, <strong>dct</strong> ou <strong>admin</strong></p>
+                <button type="submit" class="btn-login" id="btn-login-submit">
+                    Acessar Painel Transporte <i class="fa-solid fa-right-to-bracket" style="margin-left: 0.5rem;"></i>
+                </button>
+            </form>
         </div>
     </div>
 
+    <script>
+        function selectSector(sector) {
+            document.querySelectorAll('.sector-card').forEach(c => c.classList.remove('active'));
+            document.getElementById(`card-${sector}`).classList.add('active');
+            
+            const userInput = document.getElementById('username');
+            const submitBtn = document.getElementById('btn-login-submit');
+
+            if (sector === 'transporte') {
+                userInput.value = 'transporte';
+                submitBtn.innerHTML = 'Acessar Painel Transporte <i class="fa-solid fa-right-to-bracket" style="margin-left: 0.5rem;"></i>';
+            } else if (sector === 'dct') {
+                userInput.value = 'dct';
+                submitBtn.innerHTML = 'Acessar Painel DCT <i class="fa-solid fa-right-to-bracket" style="margin-left: 0.5rem;"></i>';
+            } else if (sector === 'admin') {
+                userInput.value = 'admin';
+                submitBtn.innerHTML = 'Acessar Painel Administração <i class="fa-solid fa-right-to-bracket" style="margin-left: 0.5rem;"></i>';
+            }
+            document.getElementById('password').focus();
+        }
+    </script>
 </body>
 </html>

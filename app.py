@@ -98,6 +98,33 @@ def inject_globals():
         'current_user': session.get('user')
     }
 
+@app.before_request
+def update_last_seen():
+    if "user" in session:
+        try:
+            conn = get_db_connection()
+            now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            conn.execute("UPDATE usuarios SET ultimo_acesso = ? WHERE id = ?", (now_str, session["user"]["id"]))
+            conn.commit()
+            conn.close()
+        except Exception:
+            pass
+
+@app.route("/quem_esta_logado")
+@login_required
+@role_required("admin", "dct")
+def quem_esta_logado():
+    conn = get_db_connection()
+    users_active = conn.execute("""
+        SELECT id, username, nome_completo, setor, vinculo, ultimo_acesso, ativo
+        FROM usuarios
+        WHERE ultimo_acesso IS NOT NULL
+        ORDER BY ultimo_acesso DESC
+    """).fetchall()
+    conn.close()
+    return render_template("quem_esta_logado.html", users_active=users_active)
+
+
 STATUS_OPTIONS = ["DCT PROCESSAR", "PROCESSADO DCT", "CANCELADO", "AIT SUBSTITUIDA", "RENAINF"]
 
 # --- API Status de Rede ---

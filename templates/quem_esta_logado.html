@@ -1,0 +1,56 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="panel">
+    <div class="panel-header">
+        <div class="panel-title">
+            <h2><i class="fa-solid fa-users-viewfinder" style="color: #38bdf8; margin-right: 0.5rem;"></i> Usuários Ativos e Sessões Logadas</h2>
+            <p>Monitoramento em Tempo Real de Operadores Conectados nas Máquinas</p>
+        </div>
+        <div class="panel-actions">
+            <a href="{{ url_for('index') }}" class="btn btn-secondary"><i class="fa-solid fa-house"></i> Voltar</a>
+        </div>
+    </div>
+
+    <!-- Active Users Table -->
+    <h3 style="color: #ffffff; font-size: 1.1rem; margin-bottom: 1rem;"><i class="fa-solid fa-signal" style="color: #34d399;"></i> Usuários com Atividade Recente</h3>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Usuário (Login)</th>
+                <th>Nome Completo</th>
+                <th>Setor / Perfil</th>
+                <th>Vínculo</th>
+                <th>Última Atividade</th>
+                <th>Status da Sessão</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for u in users_active %}
+            <tr>
+                <td>#{{ u.id }}</td>
+                <td><strong>{{ u.username }}</strong></td>
+                <td>{{ u.nome_completo }}</td>
+                <td>
+                    <span class="badge badge-{{ 'danger' if u.setor == 'admin' else ('info' if u.setor == 'dct' else ('warning' if u.setor == 'empresa' else 'success')) }}">
+                        {{ u.setor.upper() }}
+                    </span>
+                </td>
+                <td><small style="color: #cbd5e1;">{{ u.vinculo }}</small></td>
+                <td><small style="color: #94a3b8;"><i class="fa-solid fa-clock"></i> {{ u.ultimo_acesso }}</small></td>
+                <td>
+                    <span style="color: #34d399; font-weight: 600;"><i class="fa-solid fa-circle" style="font-size: 0.6rem; margin-right: 0.3rem;"></i> Online / Ativo</span>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="7" style="text-align: center; color: #94a3b8; padding: 2rem;">
+                    Nenhum usuário ativo registrado no momento.
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
