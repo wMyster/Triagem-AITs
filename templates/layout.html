@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Triagem AIT - Sistema Integrado de Triagem e Remessa</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .user-badge {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 0.4rem 0.8rem;
+            border-radius: 2rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .sector-tag {
+            font-size: 0.7rem;
+            font-weight: 700;
+            padding: 0.2rem 0.6rem;
+            border-radius: 1rem;
+            text-transform: uppercase;
+        }
+        .sector-transporte { background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); }
+        .sector-dct { background: rgba(59, 130, 246, 0.2); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.3); }
+        .sector-empresa { background: rgba(139, 92, 246, 0.2); color: #a78bfa; border: 1px solid rgba(139, 92, 246, 0.3); }
+        .sector-admin { background: rgba(244, 63, 94, 0.2); color: #fb7185; border: 1px solid rgba(244, 63, 94, 0.3); }
+        .sector-consulta { background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3); }
+    </style>
+</head>
+<body>
+    <!-- Network Disconnection Alert Banner -->
+    <div id="net-warning-banner" class="no-print" style="display: none; background: #ef4444; color: white; padding: 0.75rem 1rem; text-align: center; font-weight: bold; font-size: 0.95rem; z-index: 10000; position: sticky; top: 0;">
+        <i class="fa-solid fa-triangle-exclamation" style="margin-right: 0.5rem;"></i> CONEXÃO COM O BANCO DE DADOS EM REDE (G:\Triagem AITs) INTERROMPIDA! Salvamentos pausados para evitar desalinhamento de base.
+    </div>
+
+    <div class="app-container">
+        <!-- Brand Header (Hidden on print) -->
+        <header class="no-print">
+            <div class="brand-container">
+                <a href="{{ url_for('index') }}" style="text-decoration: none; display: flex; align-items: center; gap: 1rem;">
+                    <div class="brand-logo">AIT</div>
+                    <div class="brand-title">
+                        <h1>SETOR DE TRIAGEM E ESTATÍSTICA</h1>
+                        <p>Controle Integrado de AITs, Talões e Remessas</p>
+                    </div>
+                </a>
+            </div>
+
+            <!-- Hamburger Button for Mobile -->
+            <button class="nav-toggle" id="nav-toggle" aria-label="Toggle navigation">
+                <i class="fa-solid fa-bars"></i>
+            </button>
+
+            <!-- Navigation Links (Pills with glassmorphism) -->
+            <nav class="nav-menu" id="nav-menu">
+                <a href="{{ url_for('index') }}" class="nav-link {% if request.path == '/' %}active{% endif %}">
+                    <i class="fa-solid fa-house"></i> Início
+                </a>
+
+                {% if session.get('user') and session['user']['setor'] in ['transporte', 'dct', 'admin'] %}
+                <a href="{{ url_for('agentes') }}" class="nav-link {% if request.path.startswith('/agentes') %}active{% endif %}">
+                    <i class="fa-solid fa-user-shield"></i> Servidores
+                </a>
+                <a href="{{ url_for('taloes') }}" class="nav-link {% if request.path.startswith('/taloes') %}active{% endif %}">
+                    <i class="fa-solid fa-book"></i> Talões
+                </a>
+                <a href="{{ url_for('cadastro') }}" class="nav-link {% if request.path.startswith('/cadastro') %}active{% endif %}">
+                    <i class="fa-solid fa-file-signature"></i> Receber AIT
+                </a>
+                <a href="{{ url_for('faltantes') }}" class="nav-link {% if request.path.startswith('/faltantes') %}active{% endif %}" style="color: #ef4444;">
+                    <i class="fa-solid fa-clock-rotate-left"></i> Faltantes
+                </a>
+                <a href="{{ url_for('remessas') }}" class="nav-link {% if request.path.startswith('/remessas') %}active{% endif %}">
+                    <i class="fa-solid fa-truck-ramp-box"></i> Remessas
+                </a>
+                {% endif %}
+
+                {% if session.get('user') and session['user']['setor'] in ['dct', 'admin'] %}
+                <a href="{{ url_for('dct_conferencia') }}" class="nav-link {% if request.path.startswith('/dct') %}active{% endif %}" style="background: rgba(59, 130, 246, 0.15); border-color: rgba(59, 130, 246, 0.3);">
+                    <i class="fa-solid fa-clipboard-check"></i> Conferência DCT
+                </a>
+                <a href="{{ url_for('divergencias') }}" class="nav-link {% if request.path.startswith('/divergencias') %}active{% endif %}">
+                    <i class="fa-solid fa-triangle-exclamation"></i> Divergências
+                </a>
+                {% endif %}
+
+                {% if session.get('user') and session['user']['setor'] in ['empresa', 'admin'] %}
+                <a href="{{ url_for('empresa_conferencia') }}" class="nav-link {% if request.path.startswith('/empresa') %}active{% endif %}" style="background: rgba(139, 92, 246, 0.2); border-color: rgba(139, 92, 246, 0.4); color: #a78bfa;">
+                    <i class="fa-solid fa-building-circle-check"></i> Portal Empresa
+                </a>
+                {% endif %}
+
+                <a href="{{ url_for('consultas') }}" class="nav-link {% if request.path.startswith('/consultas') %}active{% endif %}">
+                    <i class="fa-solid fa-magnifying-glass"></i> Consultas
+                </a>
+
+                {% if session.get('user') and session['user']['setor'] in ['dct', 'admin'] %}
+                <a href="{{ url_for('auditoria') }}" class="nav-link {% if request.path.startswith('/auditoria') %}active{% endif %}">
+                    <i class="fa-solid fa-file-shield"></i> Auditoria
+                </a>
+                {% endif %}
+
+                {% if session.get('user') and session['user']['setor'] == 'admin' %}
+                <a href="{{ url_for('usuarios') }}" class="nav-link {% if request.path.startswith('/usuarios') %}active{% endif %}">
+                    <i class="fa-solid fa-users-gear"></i> Usuários
+                </a>
+                {% endif %}
+            </nav>
+
+            <div style="display: flex; align-items: center; gap: 0.75rem;">
+                <!-- Network Status Pill Badge -->
+                <div id="net-status-badge" class="user-badge" style="background: rgba(16, 185, 129, 0.1); border-color: rgba(16, 185, 129, 0.3);" title="Status da conexão com a base de dados G:\">
+                    <span id="net-status-dot" style="height: 10px; width: 10px; background-color: #34d399; border-radius: 50%; display: inline-block; box-shadow: 0 0 8px #34d399;"></span>
+                    <span id="net-status-text" style="font-size: 0.75rem; font-weight: 600; color: #34d399;">Verificando...</span>
+                </div>
+
+                {% if session.get('user') %}
+                <div class="user-badge">
+                    <i class="fa-solid fa-user-circle" style="color: #cbd5e1; font-size: 1.2rem;"></i>
+                    <div style="display: flex; flex-direction: column;">
+                        <span style="font-size: 0.85rem; font-weight: 600; color: #f8fafc;">{{ session['user']['nome_completo'].split(' ')[0] }}</span>
+                        <span class="sector-tag sector-{{ session['user']['setor'] }}">{{ session['user']['setor'] }}</span>
+                    </div>
+                    <a href="{{ url_for('logout') }}" title="Sair do sistema" style="color: #ef4444; margin-left: 0.4rem; padding: 0.2rem 0.4rem; text-decoration: none;">
+                        <i class="fa-solid fa-right-from-bracket"></i>
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </header>
+
+        <!-- Flash Messages Block -->
+        <div class="flash-container no-print">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category if category != 'error' else 'danger' }}">
+                            <span>{{ message }}</span>
+                            <i class="fa-solid fa-xmark" style="cursor: pointer;" onclick="this.parentElement.remove()"></i>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+        </div>
+
+        <!-- Main Content Area -->
+        <main>
+            {% block content %}{% endblock %}
+        </main>
+
+        <!-- Dynamic Date Footer (Hidden on print) -->
+        <footer class="no-print">
+            <p id="footer-date-text">Carregando data...</p>
+            <p style="margin-top: 0.5rem; opacity: 0.5; font-size: 0.75rem;">Setor de Triagem e Estatística &copy; 2026 - Versão 1.2 Integrada com Status de Rede</p>
+        </footer>
+    </div>
+
+    <!-- Javascript for Dynamic Date, Network Health Monitoring and interactions -->
+    <script>
+        function updateDate() {
+            const footerElement = document.getElementById("footer-date-text");
+            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            const now = new Date();
+            if (footerElement) {
+                footerElement.textContent = now.toLocaleDateString('pt-BR', options);
+            }
+        }
+
+        function checkNetworkStatus() {
+            fetch('/api/status_rede')
+                .then(res => res.json())
+                .then(data => {
+                    const badge = document.getElementById('net-status-badge');
+                    const dot = document.getElementById('net-status-dot');
+                    const text = document.getElementById('net-status-text');
+                    const banner = document.getElementById('net-warning-banner');
+                    const submitBtns = document.querySelectorAll('button[type="submit"]');
+
+                    if (data.status === 'online') {
+                        if (badge) badge.style.borderColor = 'rgba(16, 185, 129, 0.3)';
+                        if (dot) { dot.style.backgroundColor = '#34d399'; dot.style.boxShadow = '0 0 8px #34d399'; }
+                        if (text) text.textContent = data.modo === 'REDE_COMPARTILHADA' ? `Rede G:\\ OK (${data.latencia_ms}ms)` : 'Base Local OK';
+                        if (banner) banner.style.display = 'none';
+                        submitBtns.forEach(btn => { if (!btn.dataset.locked) btn.disabled = false; });
+                    } else {
+                        if (badge) badge.style.borderColor = 'rgba(239, 68, 68, 0.5)';
+                        if (dot) { dot.style.backgroundColor = '#ef4444'; dot.style.boxShadow = '0 0 8px #ef4444'; }
+                        if (text) text.textContent = 'Rede G:\\ Queda';
+                        if (banner) banner.style.display = 'block';
+                        submitBtns.forEach(btn => { btn.disabled = true; });
+                    }
+                })
+                .catch(() => {
+                    const text = document.getElementById('net-status-text');
+                    if (text) text.textContent = 'Servidor Offline';
+                });
+        }
+        
+        document.addEventListener("DOMContentLoaded", function() {
+            updateDate();
+            checkNetworkStatus();
+            setInterval(checkNetworkStatus, 15000);
+
+            const navToggle = document.getElementById("nav-toggle");
+            const navMenu = document.getElementById("nav-menu");
+            if (navToggle && navMenu) {
+                navToggle.addEventListener("click", function(e) {
+                    e.stopPropagation();
+                    navMenu.classList.toggle("open");
+                });
+            }
+        });
+    </script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

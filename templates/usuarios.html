@@ -1,0 +1,86 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="panel">
+    <div class="panel-header">
+        <div class="panel-title">
+            <h2><i class="fa-solid fa-users-gear" style="color: #8b5cf6; margin-right: 0.5rem;"></i> Gestão de Usuários e Permissões</h2>
+            <p>Cadastro e Administração de Contas dos Setores Transporte e DCT</p>
+        </div>
+        <div class="panel-actions">
+            <a href="{{ url_for('index') }}" class="btn btn-secondary">
+                <i class="fa-solid fa-house"></i> Voltar ao Menu
+            </a>
+        </div>
+    </div>
+
+    <!-- User Creation Form -->
+    <div style="background: rgba(255,255,255,0.02); padding: 1.5rem; border-radius: 0.75rem; border: 1px solid rgba(255,255,255,0.08); margin-bottom: 2rem;">
+        <h3 style="margin-top: 0; color: #a78bfa; font-size: 1.1rem; margin-bottom: 1rem;"><i class="fa-solid fa-user-plus"></i> Novo Usuário</h3>
+        <form action="{{ url_for('usuarios_criar') }}" method="POST">
+            <div class="grid-form" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+                <div class="form-group">
+                    <label for="username">Usuário (Login) *</label>
+                    <input type="text" id="username" name="username" required placeholder="Ex: joao.silva">
+                </div>
+                <div class="form-group">
+                    <label for="nome_completo">Nome Completo *</label>
+                    <input type="text" id="nome_completo" name="nome_completo" required placeholder="Ex: João da Silva">
+                </div>
+                <div class="form-group">
+                    <label for="senha">Senha *</label>
+                    <input type="password" id="senha" name="senha" required placeholder="******">
+                </div>
+                <div class="form-group">
+                    <label for="setor">Setor / Perfil *</label>
+                    <select id="setor" name="setor" required>
+                        <option value="transporte">Setor Transporte (Digitação)</option>
+                        <option value="dct">Setor DCT (Conferência)</option>
+                        <option value="admin">Administrador Geral</option>
+                    </select>
+                </div>
+            </div>
+            <div style="margin-top: 1rem; text-align: right;">
+                <button type="submit" class="btn btn-primary" style="background: #8b5cf6;"><i class="fa-solid fa-floppy-disk"></i> Salvar Usuário</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Users List -->
+    <h3 style="color: #ffffff; font-size: 1.1rem; margin-bottom: 1rem;"><i class="fa-solid fa-users"></i> Usuários Cadastrados</h3>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Usuário</th>
+                <th>Nome Completo</th>
+                <th>Setor / Perfil</th>
+                <th>Status</th>
+                <th>Criado Em</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for user in usuarios %}
+            <tr>
+                <td>#{{ user.id }}</td>
+                <td><strong>{{ user.username }}</strong></td>
+                <td>{{ user.nome_completo }}</td>
+                <td>
+                    <span class="badge badge-{{ 'primary' if user.setor == 'admin' else ('info' if user.setor == 'dct' else 'success') }}">
+                        {{ user.setor.upper() }}
+                    </span>
+                </td>
+                <td>
+                    {% if user.ativo %}
+                        <span style="color: #34d399;"><i class="fa-solid fa-circle-check"></i> Ativo</span>
+                    {% else %}
+                        <span style="color: #f87171;"><i class="fa-solid fa-circle-xmark"></i> Inativo</span>
+                    {% endif %}
+                </td>
+                <td>{{ user.criado_em }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

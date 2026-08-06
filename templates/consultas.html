@@ -1,0 +1,420 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="panel">
+    <div class="panel-header">
+        <div class="panel-title">
+            <h2><i class="fa-solid fa-magnifying-glass" style="color: var(--success); margin-right: 0.5rem;"></i> Consultas ao Banco de Dados</h2>
+            <p>Busca e pesquisa de registros AIT</p>
+        </div>
+        <a href="{{ url_for('index') }}" class="btn btn-secondary">
+            <i class="fa-solid fa-house"></i> Voltar ao Menu
+        </a>
+    </div>
+
+    <!-- Switch Query Types -->
+    <div style="display: flex; gap: 0.75rem; margin-bottom: 2rem; flex-wrap: wrap;">
+        <a href="{{ url_for('consultas', tipo='data') }}" class="btn {% if query_type == 'data' %}btn-primary{% else %}btn-secondary{% endif %}" style="{% if query_type == 'data' %}background: var(--success); box-shadow: 0 4px 15px rgba(16, 185, 129, 0.25);{% endif %}">
+            <i class="fa-solid fa-calendar-days"></i> Consulta por Data
+        </a>
+        <a href="{{ url_for('consultas', tipo='digitacao') }}" class="btn {% if query_type == 'digitacao' %}btn-primary{% else %}btn-secondary{% endif %}" style="{% if query_type == 'digitacao' %}background: var(--success); box-shadow: 0 4px 15px rgba(16, 185, 129, 0.25);{% endif %}">
+            <i class="fa-solid fa-keyboard"></i> Por Data de Digitação
+        </a>
+        <a href="{{ url_for('consultas', tipo='matricula') }}" class="btn {% if query_type == 'matricula' %}btn-primary{% else %}btn-secondary{% endif %}" style="{% if query_type == 'matricula' %}background: var(--success); box-shadow: 0 4px 15px rgba(16, 185, 129, 0.25);{% endif %}">
+            <i class="fa-solid fa-id-badge"></i> Por Matrícula do Agente
+        </a>
+    </div>
+
+    <!-- Query Forms -->
+    {% if query_type == 'data' %}
+    <form action="{{ url_for('consultas') }}" method="GET" style="background: rgba(0,0,0,0.1); padding: 1.5rem; border-radius: var(--border-radius-md); border: 1px solid var(--card-border); margin-bottom: 2rem; display: flex; flex-direction: column; gap: 1.25rem;">
+        <input type="hidden" name="tipo" value="data">
+        
+        <!-- Inputs Row -->
+        <div style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: flex-end;">
+            <div class="form-group" style="flex: 1; min-width: 200px;">
+                <label for="data_inicial">Data Inicial</label>
+                <input type="date" id="data_inicial" name="data_inicial" value="{{ request.args.get('data_inicial', '') }}" required style="width: 100%;">
+            </div>
+            <div class="form-group" style="flex: 1; min-width: 200px;">
+                <label for="data_final">Data Final</label>
+                <input type="date" id="data_final" name="data_final" value="{{ request.args.get('data_final', '') }}" required style="width: 100%;">
+            </div>
+            <button type="submit" class="btn btn-primary" style="background: var(--success); height: 46px; padding: 0 2rem;">
+                <i class="fa-solid fa-search"></i> Filtrar
+            </button>
+        </div>
+
+        <!-- Checkbox Filters -->
+        <div style="display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.5rem;">
+            <label style="font-size: 0.75rem; letter-spacing: 0.05em; color: var(--text-muted);">Opções de Visualização (Selecione uma ou mais)</label>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 0.75rem;">
+                <label style="display: flex; align-items: center; gap: 0.75rem; text-transform: none; font-weight: normal; cursor: pointer; background: rgba(255,255,255,0.02); border: 1px solid var(--card-border); padding: 0.75rem 1rem; border-radius: var(--border-radius-md); transition: var(--transition-smooth);" onmouseover="this.style.background='rgba(255,255,255,0.05)'; this.style.borderColor='var(--success)';" onmouseout="this.style.background='rgba(255,255,255,0.02)'; this.style.borderColor='var(--card-border)';">
+                    <input type="checkbox" name="opcao_filtro" value="lista" {% if 'lista' in request.args.getlist('opcao_filtro') or not request.args.getlist('opcao_filtro') %}checked{% endif %} style="width: 18px; height: 18px; accent-color: var(--success); cursor: pointer;">
+                    <span style="font-size: 0.9rem; color: var(--text-primary);">Somente Lista de Ocorrências Relacionadas</span>
+                </label>
+                
+                <label style="display: flex; align-items: center; gap: 0.75rem; text-transform: none; font-weight: normal; cursor: pointer; background: rgba(255,255,255,0.02); border: 1px solid var(--card-border); padding: 0.75rem 1rem; border-radius: var(--border-radius-md); transition: var(--transition-smooth);" onmouseover="this.style.background='rgba(255,255,255,0.05)'; this.style.borderColor='var(--success)';" onmouseout="this.style.background='rgba(255,255,255,0.02)'; this.style.borderColor='var(--card-border)';">
+                    <input type="checkbox" name="opcao_filtro" value="qtd_mes" {% if 'qtd_mes' in request.args.getlist('opcao_filtro') %}checked{% endif %} style="width: 18px; height: 18px; accent-color: var(--success); cursor: pointer;">
+                    <span style="font-size: 0.9rem; color: var(--text-primary);">Somente a quantidade do mês</span>
+                </label>
+                
+                <label style="display: flex; align-items: center; gap: 0.75rem; text-transform: none; font-weight: normal; cursor: pointer; background: rgba(255,255,255,0.02); border: 1px solid var(--card-border); padding: 0.75rem 1rem; border-radius: var(--border-radius-md); transition: var(--transition-smooth);" onmouseover="this.style.background='rgba(255,255,255,0.05)'; this.style.borderColor='var(--success)';" onmouseout="this.style.background='rgba(255,255,255,0.02)'; this.style.borderColor='var(--card-border)';">
+                    <input type="checkbox" name="opcao_filtro" value="qtd_agentes" {% if 'qtd_agentes' in request.args.getlist('opcao_filtro') %}checked{% endif %} style="width: 18px; height: 18px; accent-color: var(--success); cursor: pointer;">
+                    <span style="font-size: 0.9rem; color: var(--text-primary);">Quantidade com Distribuição dos Agentes</span>
+                </label>
+                
+                <label style="display: flex; align-items: center; gap: 0.75rem; text-transform: none; font-weight: normal; cursor: pointer; background: rgba(255,255,255,0.02); border: 1px solid var(--card-border); padding: 0.75rem 1rem; border-radius: var(--border-radius-md); transition: var(--transition-smooth);" onmouseover="this.style.background='rgba(255,255,255,0.05)'; this.style.borderColor='var(--success)';" onmouseout="this.style.background='rgba(255,255,255,0.02)'; this.style.borderColor='var(--card-border)';">
+                    <input type="checkbox" name="opcao_filtro" value="dist_agentes" {% if 'dist_agentes' in request.args.getlist('opcao_filtro') %}checked{% endif %} style="width: 18px; height: 18px; accent-color: var(--success); cursor: pointer;">
+                    <span style="font-size: 0.9rem; color: var(--text-primary);">Somente Distribuição dos agentes</span>
+                </label>
+
+                <label style="display: flex; align-items: center; gap: 0.75rem; text-transform: none; font-weight: normal; cursor: pointer; background: rgba(255,255,255,0.02); border: 1px solid var(--card-border); padding: 0.75rem 1rem; border-radius: var(--border-radius-md); transition: var(--transition-smooth);" onmouseover="this.style.background='rgba(255,255,255,0.05)'; this.style.borderColor='var(--success)';" onmouseout="this.style.background='rgba(255,255,255,0.02)'; this.style.borderColor='var(--card-border)';">
+                    <input type="checkbox" name="opcao_filtro" value="tipo_mes" {% if 'tipo_mes' in request.args.getlist('opcao_filtro') %}checked{% endif %} style="width: 18px; height: 18px; accent-color: var(--success); cursor: pointer;">
+                    <span style="font-size: 0.9rem; color: var(--text-primary);">Tipo de ocorrência por mês</span>
+                </label>
+
+                <label style="display: flex; align-items: center; gap: 0.75rem; text-transform: none; font-weight: normal; cursor: pointer; background: rgba(255,255,255,0.02); border: 1px solid var(--card-border); padding: 0.75rem 1rem; border-radius: var(--border-radius-md); transition: var(--transition-smooth);" onmouseover="this.style.background='rgba(255,255,255,0.05)'; this.style.borderColor='var(--success)';" onmouseout="this.style.background='rgba(255,255,255,0.02)'; this.style.borderColor='var(--card-border)';">
+                    <input type="checkbox" name="opcao_filtro" value="agente_mes" {% if 'agente_mes' in request.args.getlist('opcao_filtro') %}checked{% endif %} style="width: 18px; height: 18px; accent-color: var(--success); cursor: pointer;">
+                    <span style="font-size: 0.9rem; color: var(--text-primary);">Agentes por mês</span>
+                </label>
+            </div>
+        </div>
+    </form>
+    {% elif query_type == 'digitacao' %}
+    <form action="{{ url_for('consultas') }}" method="GET" style="background: rgba(0,0,0,0.1); padding: 1.5rem; border-radius: var(--border-radius-md); border: 1px solid var(--card-border); margin-bottom: 2rem; display: flex; flex-direction: column; gap: 1.25rem;">
+        <input type="hidden" name="tipo" value="digitacao">
+        
+        <!-- Inputs Row -->
+        <div style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: flex-end;">
+            <div class="form-group" style="flex: 1; min-width: 250px;">
+                <label for="data_digitacao">Data da Digitação</label>
+                <input type="date" id="data_digitacao" name="data_digitacao" value="{{ request.args.get('data_digitacao', '') }}" required style="width: 100%;">
+            </div>
+            <button type="submit" class="btn btn-primary" style="background: var(--success); height: 46px; padding: 0 2rem;">
+                <i class="fa-solid fa-search"></i> Buscar Lote
+            </button>
+        </div>
+
+        <!-- Checkbox Filters -->
+        <div style="display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.5rem;">
+            <label style="font-size: 0.75rem; letter-spacing: 0.05em; color: var(--text-muted);">Opções de Visualização (Selecione uma ou mais)</label>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 0.75rem;">
+                <label style="display: flex; align-items: center; gap: 0.75rem; text-transform: none; font-weight: normal; cursor: pointer; background: rgba(255,255,255,0.02); border: 1px solid var(--card-border); padding: 0.75rem 1rem; border-radius: var(--border-radius-md); transition: var(--transition-smooth);" onmouseover="this.style.background='rgba(255,255,255,0.05)'; this.style.borderColor='var(--success)';" onmouseout="this.style.background='rgba(255,255,255,0.02)'; this.style.borderColor='var(--card-border)';">
+                    <input type="checkbox" name="opcao_filtro" value="lista" {% if 'lista' in request.args.getlist('opcao_filtro') or not request.args.getlist('opcao_filtro') %}checked{% endif %} style="width: 18px; height: 18px; accent-color: var(--success); cursor: pointer;">
+                    <span style="font-size: 0.9rem; color: var(--text-primary);">Somente Lista de Ocorrências Relacionadas</span>
+                </label>
+                
+                <label style="display: flex; align-items: center; gap: 0.75rem; text-transform: none; font-weight: normal; cursor: pointer; background: rgba(255,255,255,0.02); border: 1px solid var(--card-border); padding: 0.75rem 1rem; border-radius: var(--border-radius-md); transition: var(--transition-smooth);" onmouseover="this.style.background='rgba(255,255,255,0.05)'; this.style.borderColor='var(--success)';" onmouseout="this.style.background='rgba(255,255,255,0.02)'; this.style.borderColor='var(--card-border)';">
+                    <input type="checkbox" name="opcao_filtro" value="qtd_mes" {% if 'qtd_mes' in request.args.getlist('opcao_filtro') %}checked{% endif %} style="width: 18px; height: 18px; accent-color: var(--success); cursor: pointer;">
+                    <span style="font-size: 0.9rem; color: var(--text-primary);">Somente a quantidade do mês</span>
+                </label>
+                
+                <label style="display: flex; align-items: center; gap: 0.75rem; text-transform: none; font-weight: normal; cursor: pointer; background: rgba(255,255,255,0.02); border: 1px solid var(--card-border); padding: 0.75rem 1rem; border-radius: var(--border-radius-md); transition: var(--transition-smooth);" onmouseover="this.style.background='rgba(255,255,255,0.05)'; this.style.borderColor='var(--success)';" onmouseout="this.style.background='rgba(255,255,255,0.02)'; this.style.borderColor='var(--card-border)';">
+                    <input type="checkbox" name="opcao_filtro" value="qtd_agentes" {% if 'qtd_agentes' in request.args.getlist('opcao_filtro') %}checked{% endif %} style="width: 18px; height: 18px; accent-color: var(--success); cursor: pointer;">
+                    <span style="font-size: 0.9rem; color: var(--text-primary);">Quantidade com Distribuição dos Agentes</span>
+                </label>
+                
+                <label style="display: flex; align-items: center; gap: 0.75rem; text-transform: none; font-weight: normal; cursor: pointer; background: rgba(255,255,255,0.02); border: 1px solid var(--card-border); padding: 0.75rem 1rem; border-radius: var(--border-radius-md); transition: var(--transition-smooth);" onmouseover="this.style.background='rgba(255,255,255,0.05)'; this.style.borderColor='var(--success)';" onmouseout="this.style.background='rgba(255,255,255,0.02)'; this.style.borderColor='var(--card-border)';">
+                    <input type="checkbox" name="opcao_filtro" value="dist_agentes" {% if 'dist_agentes' in request.args.getlist('opcao_filtro') %}checked{% endif %} style="width: 18px; height: 18px; accent-color: var(--success); cursor: pointer;">
+                    <span style="font-size: 0.9rem; color: var(--text-primary);">Somente Distribuição dos agentes</span>
+                </label>
+
+                <label style="display: flex; align-items: center; gap: 0.75rem; text-transform: none; font-weight: normal; cursor: pointer; background: rgba(255,255,255,0.02); border: 1px solid var(--card-border); padding: 0.75rem 1rem; border-radius: var(--border-radius-md); transition: var(--transition-smooth);" onmouseover="this.style.background='rgba(255,255,255,0.05)'; this.style.borderColor='var(--success)';" onmouseout="this.style.background='rgba(255,255,255,0.02)'; this.style.borderColor='var(--card-border)';">
+                    <input type="checkbox" name="opcao_filtro" value="tipo_mes" {% if 'tipo_mes' in request.args.getlist('opcao_filtro') %}checked{% endif %} style="width: 18px; height: 18px; accent-color: var(--success); cursor: pointer;">
+                    <span style="font-size: 0.9rem; color: var(--text-primary);">Tipo de ocorrência por mês</span>
+                </label>
+
+                <label style="display: flex; align-items: center; gap: 0.75rem; text-transform: none; font-weight: normal; cursor: pointer; background: rgba(255,255,255,0.02); border: 1px solid var(--card-border); padding: 0.75rem 1rem; border-radius: var(--border-radius-md); transition: var(--transition-smooth);" onmouseover="this.style.background='rgba(255,255,255,0.05)'; this.style.borderColor='var(--success)';" onmouseout="this.style.background='rgba(255,255,255,0.02)'; this.style.borderColor='var(--card-border)';">
+                    <input type="checkbox" name="opcao_filtro" value="agente_mes" {% if 'agente_mes' in request.args.getlist('opcao_filtro') %}checked{% endif %} style="width: 18px; height: 18px; accent-color: var(--success); cursor: pointer;">
+                    <span style="font-size: 0.9rem; color: var(--text-primary);">Agentes por mês</span>
+                </label>
+            </div>
+        </div>
+    </form>
+    {% elif query_type == 'matricula' %}
+    <form action="{{ url_for('consultas') }}" method="GET" style="background: rgba(0,0,0,0.1); padding: 1.5rem; border-radius: var(--border-radius-md); border: 1px solid var(--card-border); margin-bottom: 2rem; display: flex; flex-direction: column; gap: 1.25rem;">
+        <input type="hidden" name="tipo" value="matricula">
+        
+        <!-- Inputs Row -->
+        <div style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: flex-end;">
+            <div class="form-group" style="flex: 1; min-width: 250px;">
+                <label for="matricula">Digite a Matrícula do Agente</label>
+                <input type="text" id="matricula" name="matricula" value="{{ request.args.get('matricula', '') }}" placeholder="Ex: 25845" required pattern="\d+" style="width: 100%;">
+            </div>
+            <button type="submit" class="btn btn-primary" style="background: var(--success); height: 46px; padding: 0 2rem;">
+                <i class="fa-solid fa-search"></i> Consultar Agente
+            </button>
+        </div>
+
+        <!-- Checkbox Filters -->
+        <div style="display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.5rem;">
+            <label style="font-size: 0.75rem; letter-spacing: 0.05em; color: var(--text-muted);">Opções de Visualização (Selecione uma ou mais)</label>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 0.75rem;">
+                <label style="display: flex; align-items: center; gap: 0.75rem; text-transform: none; font-weight: normal; cursor: pointer; background: rgba(255,255,255,0.02); border: 1px solid var(--card-border); padding: 0.75rem 1rem; border-radius: var(--border-radius-md); transition: var(--transition-smooth);" onmouseover="this.style.background='rgba(255,255,255,0.05)'; this.style.borderColor='var(--success)';" onmouseout="this.style.background='rgba(255,255,255,0.02)'; this.style.borderColor='var(--card-border)';">
+                    <input type="checkbox" name="opcao_filtro" value="lista" {% if 'lista' in request.args.getlist('opcao_filtro') or not request.args.getlist('opcao_filtro') %}checked{% endif %} style="width: 18px; height: 18px; accent-color: var(--success); cursor: pointer;">
+                    <span style="font-size: 0.9rem; color: var(--text-primary);">Somente Lista de Ocorrências Relacionadas</span>
+                </label>
+                
+                <label style="display: flex; align-items: center; gap: 0.75rem; text-transform: none; font-weight: normal; cursor: pointer; background: rgba(255,255,255,0.02); border: 1px solid var(--card-border); padding: 0.75rem 1rem; border-radius: var(--border-radius-md); transition: var(--transition-smooth);" onmouseover="this.style.background='rgba(255,255,255,0.05)'; this.style.borderColor='var(--success)';" onmouseout="this.style.background='rgba(255,255,255,0.02)'; this.style.borderColor='var(--card-border)';">
+                    <input type="checkbox" name="opcao_filtro" value="qtd_mes" {% if 'qtd_mes' in request.args.getlist('opcao_filtro') %}checked{% endif %} style="width: 18px; height: 18px; accent-color: var(--success); cursor: pointer;">
+                    <span style="font-size: 0.9rem; color: var(--text-primary);">Somente a quantidade do mês</span>
+                </label>
+                
+                <label style="display: flex; align-items: center; gap: 0.75rem; text-transform: none; font-weight: normal; cursor: pointer; background: rgba(255,255,255,0.02); border: 1px solid var(--card-border); padding: 0.75rem 1rem; border-radius: var(--border-radius-md); transition: var(--transition-smooth);" onmouseover="this.style.background='rgba(255,255,255,0.05)'; this.style.borderColor='var(--success)';" onmouseout="this.style.background='rgba(255,255,255,0.02)'; this.style.borderColor='var(--card-border)';">
+                    <input type="checkbox" name="opcao_filtro" value="qtd_agentes" {% if 'qtd_agentes' in request.args.getlist('opcao_filtro') %}checked{% endif %} style="width: 18px; height: 18px; accent-color: var(--success); cursor: pointer;">
+                    <span style="font-size: 0.9rem; color: var(--text-primary);">Quantidade com Distribuição dos Agentes</span>
+                </label>
+                
+                <label style="display: flex; align-items: center; gap: 0.75rem; text-transform: none; font-weight: normal; cursor: pointer; background: rgba(255,255,255,0.02); border: 1px solid var(--card-border); padding: 0.75rem 1rem; border-radius: var(--border-radius-md); transition: var(--transition-smooth);" onmouseover="this.style.background='rgba(255,255,255,0.05)'; this.style.borderColor='var(--success)';" onmouseout="this.style.background='rgba(255,255,255,0.02)'; this.style.borderColor='var(--card-border)';">
+                    <input type="checkbox" name="opcao_filtro" value="dist_agentes" {% if 'dist_agentes' in request.args.getlist('opcao_filtro') %}checked{% endif %} style="width: 18px; height: 18px; accent-color: var(--success); cursor: pointer;">
+                    <span style="font-size: 0.9rem; color: var(--text-primary);">Somente Distribuição dos agentes</span>
+                </label>
+
+                <label style="display: flex; align-items: center; gap: 0.75rem; text-transform: none; font-weight: normal; cursor: pointer; background: rgba(255,255,255,0.02); border: 1px solid var(--card-border); padding: 0.75rem 1rem; border-radius: var(--border-radius-md); transition: var(--transition-smooth);" onmouseover="this.style.background='rgba(255,255,255,0.05)'; this.style.borderColor='var(--success)';" onmouseout="this.style.background='rgba(255,255,255,0.02)'; this.style.borderColor='var(--card-border)';">
+                    <input type="checkbox" name="opcao_filtro" value="tipo_mes" {% if 'tipo_mes' in request.args.getlist('opcao_filtro') %}checked{% endif %} style="width: 18px; height: 18px; accent-color: var(--success); cursor: pointer;">
+                    <span style="font-size: 0.9rem; color: var(--text-primary);">Tipo de ocorrência por mês</span>
+                </label>
+
+                <label style="display: flex; align-items: center; gap: 0.75rem; text-transform: none; font-weight: normal; cursor: pointer; background: rgba(255,255,255,0.02); border: 1px solid var(--card-border); padding: 0.75rem 1rem; border-radius: var(--border-radius-md); transition: var(--transition-smooth);" onmouseover="this.style.background='rgba(255,255,255,0.05)'; this.style.borderColor='var(--success)';" onmouseout="this.style.background='rgba(255,255,255,0.02)'; this.style.borderColor='var(--card-border)';">
+                    <input type="checkbox" name="opcao_filtro" value="agente_mes" {% if 'agente_mes' in request.args.getlist('opcao_filtro') %}checked{% endif %} style="width: 18px; height: 18px; accent-color: var(--success); cursor: pointer;">
+                    <span style="font-size: 0.9rem; color: var(--text-primary);">Agentes por mês</span>
+                </label>
+            </div>
+        </div>
+    </form>
+    {% else %}
+    <div style="text-align: center; padding: 3rem 1.5rem; border: 1px dashed var(--card-border); border-radius: var(--border-radius-md); color: var(--text-secondary);">
+        <i class="fa-solid fa-arrow-pointer" style="font-size: 2rem; color: var(--text-muted); margin-bottom: 1rem;"></i>
+        <p>Selecione um dos métodos de consulta acima para pesquisar registros de AIT.</p>
+    </div>
+    {% endif %}
+
+    <!-- Query Results List -->
+    {% if query_type and results %}
+    <div style="margin-top: 2rem;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+            <h3 style="font-size: 1.15rem; font-weight: 600;">Resultados da Consulta</h3>
+            <span style="font-size: 0.85rem; background: rgba(255,255,255,0.05); padding: 0.25rem 0.75rem; border-radius: 12px; border: 1px solid var(--card-border);">
+                Total Encontrado: <strong>{{ total_geral if query_type in ['data', 'digitacao', 'matricula'] else 0 }}</strong>
+            </span>
+        </div>
+        
+        <div style="display: flex; flex-direction: column; gap: 2.5rem;">
+            <!-- 1. Quantidade Total (Card de Resumo) -->
+            {% if 'qtd_agentes' in request.args.getlist('opcao_filtro') %}
+            <div style="background: rgba(16, 185, 129, 0.08); padding: 1.25rem; border-radius: var(--border-radius-md); border: 1px solid var(--card-border); display: flex; align-items: center; justify-content: space-between;">
+                <div>
+                    <h4 style="margin: 0; font-size: 1.05rem; font-weight: 600; color: var(--success);"><i class="fa-solid fa-calculator"></i> Quantidade Total de Ocorrências</h4>
+                    <p style="margin: 0.25rem 0 0 0; font-size: 0.85rem; color: var(--text-secondary);">Soma de todas as autuações no período/critério selecionado</p>
+                </div>
+                <div style="font-size: 1.75rem; font-weight: 700; color: var(--success);">{{ total_geral }}</div>
+            </div>
+            {% endif %}
+
+            <!-- 2. Tabela: Quantidade do Mês -->
+            {% if 'qtd_mes' in results %}
+            <div style="border: 1px solid var(--card-border); border-radius: var(--border-radius-md); padding: 1.5rem; background: rgba(255,255,255,0.015);">
+                <h4 style="font-size: 1.1rem; font-weight: 600; margin-bottom: 1.25rem; color: var(--accent-orange); display: flex; align-items: center; gap: 0.5rem;">
+                    <i class="fa-solid fa-calendar-check"></i> Somente a quantidade do mês
+                </h4>
+                <div class="table-container" style="margin-top: 0;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="text-align: center;">Mês/Ano</th>
+                                <th style="text-align: center;">Quantidade de Ocorrências</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in results['qtd_mes'] %}
+                            <tr>
+                                <td style="text-align: center;"><strong>{{ row.mes_ano | format_month_year }}</strong></td>
+                                <td style="text-align: center;">{{ row.total }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot>
+                            <tr style="background: rgba(255, 255, 255, 0.05); font-weight: bold;">
+                                <td style="text-align: center; border-top: 1px solid var(--card-border);">Total Geral</td>
+                                <td style="text-align: center; border-top: 1px solid var(--card-border); color: var(--success);">{{ total_geral }}</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- 3. Tabela: Distribuição dos Agentes -->
+            {% if 'agentes' in results %}
+            <div style="border: 1px solid var(--card-border); border-radius: var(--border-radius-md); padding: 1.5rem; background: rgba(255,255,255,0.015);">
+                <h4 style="font-size: 1.1rem; font-weight: 600; margin-bottom: 1.25rem; color: var(--accent-blue); display: flex; align-items: center; gap: 0.5rem;">
+                    <i class="fa-solid fa-users-gear"></i> Distribuição e Participação dos Agentes
+                </h4>
+                <div class="table-container" style="margin-top: 0;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="text-align: center;">Agente</th>
+                                <th style="text-align: center;">Quantidade</th>
+                                {% if 'qtd_agentes' in request.args.getlist('opcao_filtro') %}
+                                <th style="text-align: center;">Percentual de Participação</th>
+                                {% endif %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in results['agentes'] %}
+                            <tr>
+                                <td style="text-align: center;"><strong>{{ row.agente }}</strong></td>
+                                <td style="text-align: center;">{{ row.total }}</td>
+                                {% if 'qtd_agentes' in request.args.getlist('opcao_filtro') %}
+                                <td style="text-align: center; color: var(--text-secondary);">
+                                    {{ "%.2f"|format((row.total / total_geral) * 100) if total_geral > 0 else "0.00" }}%
+                                </td>
+                                {% endif %}
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- 4. Tabela: Tipo de Ocorrência por Mês (Novo) -->
+            {% if 'tipo_mes' in results %}
+            <div style="border: 1px solid var(--card-border); border-radius: var(--border-radius-md); padding: 1.5rem; background: rgba(255,255,255,0.015);">
+                <h4 style="font-size: 1.1rem; font-weight: 600; margin-bottom: 1.25rem; color: var(--warning); display: flex; align-items: center; gap: 0.5rem;">
+                    <i class="fa-solid fa-chart-pie"></i> Tipo de Ocorrência por Mês
+                </h4>
+                <div class="table-container" style="margin-top: 0;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="text-align: center;">Mês/Ano</th>
+                                <th style="text-align: center;">Status / Tipo do Auto</th>
+                                <th style="text-align: center;">Quantidade</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in results['tipo_mes'] %}
+                            <tr>
+                                <td style="text-align: center;"><strong>{{ row.mes_ano | format_month_year }}</strong></td>
+                                <td style="text-align: center;">
+                                    {% if row.status == 'DCT PROCESSAR' %}
+                                        <span class="badge badge-dct">A Processar</span>
+                                    {% elif row.status == 'CANCELADO' %}
+                                        <span class="badge badge-cancel">Cancelado</span>
+                                    {% elif row.status == 'AIT SUBSTITUIDA' %}
+                                        <span class="badge badge-subst">Substituído</span>
+                                    {% elif row.status == 'RENAINF' %}
+                                        <span class="badge badge-renainf">Renainf</span>
+                                    {% elif row.status %}
+                                        <span class="badge" style="background: rgba(255,255,255,0.05); color: var(--text-secondary);">{{ row.status }}</span>
+                                    {% else %}
+                                        <span style="color: var(--text-muted);">---</span>
+                                    {% endif %}
+                                </td>
+                                <td style="text-align: center;">{{ row.total }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- 5. Tabela: Agentes por Mês (Novo) -->
+            {% if 'agente_mes' in results %}
+            <div style="border: 1px solid var(--card-border); border-radius: var(--border-radius-md); padding: 1.5rem; background: rgba(255,255,255,0.015);">
+                <h4 style="font-size: 1.1rem; font-weight: 600; margin-bottom: 1.25rem; color: var(--accent-blue); display: flex; align-items: center; gap: 0.5rem;">
+                    <i class="fa-solid fa-user-clock"></i> Produtividade dos Agentes por Mês
+                </h4>
+                <div class="table-container" style="margin-top: 0;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="text-align: center;">Mês/Ano</th>
+                                <th style="text-align: center;">Agente (Matrícula)</th>
+                                <th style="text-align: center;">Quantidade de Ocorrências</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in results['agente_mes'] %}
+                            <tr>
+                                <td style="text-align: center;"><strong>{{ row.mes_ano | format_month_year }}</strong></td>
+                                <td style="text-align: center;">{{ row.agente }}</td>
+                                <td style="text-align: center;">{{ row.total }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- 6. Tabela: Lista de Ocorrências Relacionadas -->
+            {% if 'lista' in results %}
+            <div style="border: 1px solid var(--card-border); border-radius: var(--border-radius-md); padding: 1.5rem; background: rgba(255,255,255,0.015);">
+                <h4 style="font-size: 1.1rem; font-weight: 600; margin-bottom: 1.25rem; color: var(--success); display: flex; align-items: center; gap: 0.5rem;">
+                    <i class="fa-solid fa-list-ul"></i> Lista de Ocorrências Relacionadas
+                </h4>
+                <div class="table-container" style="margin-top: 0;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Código</th>
+                                <th>Nº AIT</th>
+                                <th>Placa</th>
+                                <th>Data Infração</th>
+                                <th>Agente</th>
+                                <th>Status</th>
+                                <th>Observação</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in results['lista'] %}
+                            <tr>
+                                <td><strong>{{ row.id }}</strong></td>
+                                <td>{{ row.numero_ait }}</td>
+                                <td><span style="font-family: monospace; font-size: 0.95rem; font-weight: 600; letter-spacing: 0.05em;">{{ row.placa if row.placa else '---' }}</span></td>
+                                <td>{{ row.data_ait | format_date }}</td>
+                                <td>{{ row.agente }}</td>
+                                <td>
+                                    {% if row.status == 'DCT PROCESSAR' %}
+                                        <span class="badge badge-dct">A Processar</span>
+                                    {% elif row.status == 'CANCELADO' %}
+                                        <span class="badge badge-cancel">Cancelado</span>
+                                    {% elif row.status == 'AIT SUBSTITUIDA' %}
+                                        <span class="badge badge-subst">Substituído</span>
+                                    {% elif row.status == 'RENAINF' %}
+                                        <span class="badge badge-renainf">Renainf</span>
+                                    {% else %}
+                                        <span class="badge" style="background: rgba(255,255,255,0.05); color: var(--text-secondary);">{{ row.status }}</span>
+                                    {% endif %}
+                                </td>
+                                <td style="max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ row.observacao }}">
+                                    {{ row.observacao if row.observacao else '' }}
+                                </td>
+                                <td>
+                                    <a href="{{ url_for('cadastro', ait_id=row.id) }}" class="btn btn-secondary btn-action" style="padding: 0.25rem 0.5rem;">
+                                        <i class="fa-solid fa-pen-to-square"></i> Editar
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% elif query_type and request.args %}
+    <div style="text-align: center; padding: 3rem 1.5rem; border: 1px dashed var(--card-border); border-radius: var(--border-radius-md); color: var(--text-muted); margin-top: 2rem;">
+        <i class="fa-solid fa-ban" style="font-size: 2rem; margin-bottom: 1rem;"></i>
+        <p>Nenhum registro encontrado para os critérios de busca informados.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

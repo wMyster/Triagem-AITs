@@ -1,0 +1,203 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="panel">
+    <div class="panel-header">
+        <div class="panel-title">
+            <h2><i class="fa-solid fa-building-circle-check" style="color: #8b5cf6; margin-right: 0.5rem;"></i> Portal da Empresa — Conferência de Remessas</h2>
+            <p>Conferência Individual Item a Item e Registro Eletrônico de Recebimento</p>
+        </div>
+        <div class="panel-actions">
+            <a href="{{ url_for('index') }}" class="btn btn-secondary"><i class="fa-solid fa-house"></i> Voltar</a>
+        </div>
+    </div>
+
+    <!-- Select Remessa Form -->
+    <form action="{{ url_for('empresa_conferencia') }}" method="GET" style="background: rgba(255,255,255,0.02); padding: 1.25rem; border-radius: 0.75rem; border: 1px solid rgba(255,255,255,0.08); margin-bottom: 2rem;">
+        <div style="display: flex; gap: 1rem; align-items: flex-end; flex-wrap: wrap;">
+            <div class="form-group" style="flex: 1; min-width: 250px; margin: 0;">
+                <label for="remessa_id">Selecione a Remessa para Conferência</label>
+                <select id="remessa_id" name="remessa_id" required>
+                    <option value="">Selecione uma remessa...</option>
+                    {% for r in remessas_disponiveis %}
+                        <option value="{{ r.id }}" {% if remessa_selecionada and remessa_selecionada.id == r.id %}selected{% endif %}>{{ r.numero_remessa }} — {{ r.quantidade_aits }} AITs (Criada em: {{ r.data_criacao }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button type="submit" class="btn btn-primary" style="background: #8b5cf6; margin: 0;"><i class="fa-solid fa-folder-open"></i> Abrir Remessa</button>
+        </div>
+    </form>
+
+    {% if remessa_selecionada %}
+    <!-- Remessa Info Header & Barcode Scanner Simulator -->
+    <div style="background: rgba(139, 92, 246, 0.1); border: 1px solid rgba(139, 92, 246, 0.3); padding: 1.5rem; border-radius: 0.75rem; margin-bottom: 2rem;">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 1rem;">
+            <div>
+                <h3 style="margin: 0; color: #a78bfa;"><i class="fa-solid fa-box"></i> Remessa {{ remessa_selecionada.numero_remessa }}</h3>
+                <p style="margin: 0.25rem 0 0 0; color: #94a3b8; font-size: 0.9rem;">Status: <strong>{{ remessa_selecionada.situacao }}</strong> | Quantidade Total: <strong>{{ remessa_selecionada.quantidade_aits }} AITs</strong></p>
+            </div>
+            <div style="display: flex; gap: 0.75rem;">
+                <span class="badge" style="background: rgba(16, 185, 129, 0.2); color: #34d399; font-size: 0.9rem; padding: 0.5rem 1rem;">
+                    Conferidos: {{ aits_conferidos_count }} / {{ remessa_selecionada.quantidade_aits }}
+                </span>
+            </div>
+        </div>
+
+        <!-- Barcode Scanner Input Box -->
+        <div style="background: rgba(15, 23, 42, 0.7); padding: 1rem; border-radius: 0.5rem; border: 1px solid rgba(255,255,255,0.1);">
+            <label for="barcode_scanner_input" style="color: #a78bfa; font-weight: bold; display: block; margin-bottom: 0.4rem;">
+                <i class="fa-solid fa-barcode"></i> Leitor de Código de Barras / Digitação Rápida para Conferência:
+            </label>
+            <div style="display: flex; gap: 0.75rem;">
+                <input type="text" id="barcode_scanner_input" placeholder="Bipe o código de barras ou digite o Número AIT e aperte Enter..." autofocus style="flex: 1; padding: 0.75rem; font-size: 1rem; background: #0f172a; color: white; border: 1px solid #8b5cf6; border-radius: 0.4rem;">
+                <button type="button" id="btn-biper" class="btn btn-primary" style="background: #8b5cf6;"><i class="fa-solid fa-check"></i> Conferir Bipagem</button>
+            </div>
+            <small style="color: #94a3b8; margin-top: 0.4rem; display: block;">* Suporta scanners USB leitores de código de barras ou digitação manual individual.</small>
+        </div>
+    </div>
+
+    <!-- Items Table -->
+    <h3 style="color: #ffffff; font-size: 1.1rem; margin-bottom: 1rem;"><i class="fa-solid fa-list-check"></i> Itens da Remessa</h3>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Código BD</th>
+                <th>Número AIT</th>
+                <th>Código Barras</th>
+                <th>Placa</th>
+                <th>Data Auto</th>
+                <th>Agente Emissor</th>
+                <th>Situação Conferência</th>
+                <th>Conferido Por</th>
+                <th>Ações de Conferência</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in aits_remessa %}
+            <tr id="row-ait-{{ item.numero_ait }}">
+                <td>#{{ item.id }}</td>
+                <td><strong style="color: #f97316; font-size: 1.05rem;">{{ item.numero_ait }}</strong></td>
+                <td><code>{{ item.codigo_barras if item.codigo_barras else item.numero_ait }}</code></td>
+                <td>{{ item.placa if item.placa else '-' }}</td>
+                <td>{{ item.data_ait|format_date }}</td>
+                <td>{{ item.agente_nome }} (Mat: {{ item.agente_matricula }})</td>
+                <td>
+                    {% if item.status_conferencia == 'CONFERIDO' %}
+                        <span class="badge" style="background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.4);"><i class="fa-solid fa-check-double"></i> RECEBIDO</span>
+                    {% elif item.status_conferencia == 'DIVERGENTE' %}
+                        <span class="badge badge-danger"><i class="fa-solid fa-triangle-exclamation"></i> DIVERGÊNCIA</span>
+                    {% else %}
+                        <span class="badge badge-warning"><i class="fa-solid fa-clock"></i> PENDENTE</span>
+                    {% endif %}
+                </td>
+                <td><small style="color: #94a3b8;">{{ item.conferido_por if item.conferido_por else '-' }}</small></td>
+                <td>
+                    {% if item.status_conferencia != 'CONFERIDO' %}
+                    <div style="display: flex; gap: 0.4rem;">
+                        <form action="{{ url_for('empresa_conferir_item', ait_id=item.id) }}" method="POST" style="display: inline;">
+                            <input type="hidden" name="remessa_id" value="{{ remessa_selecionada.id }}">
+                            <button type="submit" class="btn btn-secondary" style="padding: 0.3rem 0.6rem; font-size: 0.75rem; background: #10b981; color: white; border: none;">
+                                <i class="fa-solid fa-check"></i> Confirmar
+                            </button>
+                        </form>
+                        <button type="button" class="btn btn-secondary" style="padding: 0.3rem 0.6rem; font-size: 0.75rem; background: #ef4444; color: white; border: none;" onclick="abrirModalDivergencia({{ item.id }}, '{{ item.numero_ait }}')">
+                            <i class="fa-solid fa-triangle-exclamation"></i> Divergência
+                        </button>
+                    </div>
+                    {% else %}
+                        <span style="color: #34d399; font-size: 0.85rem;"><i class="fa-solid fa-lock"></i> Conferido</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+</div>
+
+<!-- Modal Divergência -->
+<div id="modal-divergencia" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); backdrop-filter: blur(5px); align-items: center; justify-content: center; z-index: 9999;">
+    <div style="background: #1e293b; border: 1px solid rgba(255,255,255,0.1); border-radius: 0.75rem; padding: 2rem; width: 100%; max-width: 450px; color: white;">
+        <h3 style="margin-top: 0; color: #ef4444;"><i class="fa-solid fa-triangle-exclamation"></i> Registrar Divergência em AIT</h3>
+        <form action="{{ url_for('empresa_registrar_divergencia') }}" method="POST">
+            <input type="hidden" name="remessa_id" value="{{ remessa_selecionada.id if remessa_selecionada else '' }}">
+            <input type="hidden" id="modal_ait_id" name="ait_id">
+            
+            <div class="form-group" style="margin-bottom: 1rem;">
+                <label>Número do AIT:</label>
+                <input type="text" id="modal_numero_ait" readonly style="background: rgba(255,255,255,0.05); color: #f97316; font-weight: bold;">
+            </div>
+            
+            <div class="form-group" style="margin-bottom: 1rem;">
+                <label for="situacao_informada">Tipo de Divergência *</label>
+                <select id="situacao_informada" name="situacao_informada" required>
+                    <option value="NAO_LOCALIZADO">AIT Não Localizado no Lote Físico</option>
+                    <option value="ILEGIVEL">AIT Ilegível / Rasurado</option>
+                    <option value="DANIFICADO">AIT Danificado / Rasgado</option>
+                    <option value="OUTRO">Outra Inconsistência</option>
+                </select>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 1.5rem;">
+                <label for="observacao_empresa">Observações / Detalhes *</label>
+                <textarea id="observacao_empresa" name="observacao_empresa" required placeholder="Explique o motivo da divergência..."></textarea>
+            </div>
+
+            <div style="display: flex; gap: 0.75rem; justify-content: flex-end;">
+                <button type="button" class="btn btn-secondary" onclick="fecharModalDivergencia()">Cancelar</button>
+                <button type="submit" class="btn btn-primary" style="background: #ef4444; border: none;">Registrar Divergência</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function abrirModalDivergencia(aitId, numAit) {
+        document.getElementById('modal_ait_id').value = aitId;
+        document.getElementById('modal_numero_ait').value = numAit;
+        document.getElementById('modal-divergencia').style.display = 'flex';
+    }
+    function fecharModalDivergencia() {
+        document.getElementById('modal-divergencia').style.display = 'none';
+    }
+
+    // Barcode scanner simulator / Enter listener
+    document.addEventListener('DOMContentLoaded', function() {
+        const input = document.getElementById('barcode_scanner_input');
+        const btn = document.getElementById('btn-biper');
+
+        if (input) {
+            input.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    processarBipagem(input.value.trim());
+                }
+            });
+        }
+        if (btn) {
+            btn.addEventListener('click', function() {
+                processarBipagem(input.value.trim());
+            });
+        }
+
+        function processarBipagem(val) {
+            if (!val) return;
+            const targetRow = document.getElementById(`row-ait-${val}`);
+            if (targetRow) {
+                const btnConfirmar = targetRow.querySelector('form button');
+                if (btnConfirmar) {
+                    btnConfirmar.click();
+                } else {
+                    alert(`O AIT ${val} já foi conferido ou está com divergência.`);
+                }
+            } else {
+                alert(`⚠️ AIT ${val} NÃO ENCONTRADO nesta remessa!`);
+            }
+            input.value = '';
+            input.focus();
+        }
+    });
+</script>
+{% endblock %}

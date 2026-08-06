@@ -1,0 +1,907 @@
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, session
+import sqlite3
+import os
+import sys
+import time
+from functools import wraps
+from datetime import datetime, date
+from werkzeug.security import generate_password_hash, check_password_hash
+from audit import log_auditoria
+
+def get_base_path():
+    net_dir = r"G:\Triagem AITs"
+    net_db = os.path.join(net_dir, "triagem_ait.db")
+    if os.path.exists(net_dir) and os.path.exists(net_db):
+        return net_db
+
+    if getattr(sys, 'frozen', False):
+        return os.path.join(os.path.dirname(sys.executable), "triagem_ait.db")
+    return os.path.join(os.path.dirname(os.path.abspath(__file__)), "triagem_ait.db")
+
+def get_resources_path():
+    if getattr(sys, 'frozen', False):
+        return sys._MEIPASS
+    return os.path.dirname(os.path.abspath(__file__))
+
+app = Flask(
+    __name__,
+    template_folder=os.path.join(get_resources_path(), "templates"),
+    static_folder=os.path.join(get_resources_path(), "static")
+)
+app.secret_key = "triagem_ait_v11_secure_key"
+
+def get_db_connection():
+    conn = sqlite3.connect(get_base_path(), timeout=30.0)
+    conn.execute("PRAGMA journal_mode = WAL;")
+    conn.execute("PRAGMA synchronous = NORMAL;")
+    conn.execute("PRAGMA busy_timeout = 30000;")
+    conn.row_factory = sqlite3.Row
+    return conn
+
+def with_db_retry(max_retries=5, delay=0.5):
+    def decorator(f):
+        @wraps(f)
+        def wrapper(*args, **kwargs):
+            last_err = None
+            for attempt in range(max_retries):
+                try:
+                    return f(*args, **kwargs)
+                except sqlite3.OperationalError as e:
+                    if "locked" in str(e).lower() or "busy" in str(e).lower():
+                        last_err = e
+                        time.sleep(delay * (attempt + 1))
+                    else:
+                        raise e
+            raise last_err
+        return wrapper
+    return decorator
+
+# --- Auth & RBAC ---
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if "user" not in session:
+            flash("Faça login para continuar.", "warning")
+            return redirect(url_for("login"))
+        return f(*args, **kwargs)
+    return decorated_function
+
+def role_required(*roles):
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            if "user" not in session:
+                flash("Faça login para continuar.", "warning")
+                return redirect(url_for("login"))
+            user_role = session["user"].get("setor")
+            if user_role not in roles and user_role != "admin":
+                flash("Acesso não autorizado para o seu setor.", "danger")
+                return redirect(url_for("index"))
+            return f(*args, **kwargs)
+        return decorated_function
+    return decorator
+
+@app.template_filter('format_date')
+def format_date(value):
+    if not value:
+        return ""
+    try:
+        dt = datetime.strptime(str(value).split(' ')[0], "%Y-%m-%d")
+        return dt.strftime("%d/%m/%Y")
+    except Exception:
+        return value
+
+@app.context_processor
+def inject_globals():
+    return {
+        'datetime_now': datetime.now().strftime("%Y-%m-%d %H:%M"),
+        'current_user': session.get('user')
+    }
+
+STATUS_OPTIONS = ["DCT PROCESSAR", "PROCESSADO DCT", "CANCELADO", "AIT SUBSTITUIDA", "RENAINF"]
+
+# --- API Status de Rede ---
+@app.route("/api/status_rede")
+def api_status_rede():
+    net_dir = r"G:\Triagem AITs"
+    net_db = os.path.join(net_dir, "triagem_ait.db")
+    start_t = time.time()
+    
+    if os.path.exists(net_dir) and os.path.exists(net_db):
+        try:
+            conn = sqlite3.connect(net_db, timeout=2.0)
+            conn.execute("SELECT 1")
+            conn.close()
+            elapsed_ms = round((time.time() - start_t) * 1000, 1)
+            return jsonify({
+                "status": "online",
+                "path": net_db,
+                "modo": "REDE_COMPARTILHADA",
+                "latencia_ms": elapsed_ms
+            })
+        except Exception as e:
+            return jsonify({
+                "status": "offline",
+                "path": net_db,
+                "modo": "REDE_COM_ERRO",
+                "erro": str(e)
+            }), 503
+
+    return jsonify({
+        "status": "online" if os.path.exists(get_base_path()) else "offline",
+        "path": get_base_path(),
+        "modo": "BASE_LOCAL"
+    }), 200
+
+# --- Authentication Routes ---
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if request.method == "POST":
+        username = request.form.get("username", "").strip()
+        password = request.form.get("password", "").strip()
+
+        conn = get_db_connection()
+        user = conn.execute("SELECT * FROM usuarios WHERE username = ? AND ativo = 1", (username,)).fetchone()
+        conn.close()
+
+        if user and check_password_hash(user["senha_hash"], password):
+            session["user"] = {
+                "id": user["id"],
+                "username": user["username"],
+                "nome_completo": user["nome_completo"],
+                "setor": user["setor"],
+                "vinculo": user["vinculo"]
+            }
+            log_auditoria(user["username"], user["setor"], "LOGIN_SUCESSO")
+            flash(f"Bem-vindo(a), {user['nome_completo']}!", "success")
+            return redirect(url_for("index"))
+        else:
+            log_auditoria(username, "DESCONHECIDO", "LOGIN_FALHA", justificativa="Senha ou usuário incorreto")
+            flash("Usuário ou senha inválidos.", "danger")
+
+    return render_template("login.html")
+
+@app.route("/logout")
+def logout():
+    if "user" in session:
+        log_auditoria(session["user"]["username"], session["user"]["setor"], "LOGOUT")
+    session.pop("user", None)
+    flash("Sessão encerrada.", "info")
+    return redirect(url_for("login"))
+
+# --- Dashboard Principal ---
+@app.route("/")
+@login_required
+def index():
+    conn = get_db_connection()
+    stats = {}
+    try:
+        stats['total'] = conn.execute("SELECT COUNT(*) FROM ait").fetchone()[0]
+        stats['dct_processar'] = conn.execute("SELECT COUNT(*) FROM ait WHERE status = 'DCT PROCESSAR'").fetchone()[0]
+        stats['cancelado'] = conn.execute("SELECT COUNT(*) FROM ait WHERE status = 'CANCELADO'").fetchone()[0]
+        stats['substituida'] = conn.execute("SELECT COUNT(*) FROM ait WHERE status = 'AIT SUBSTITUIDA'").fetchone()[0]
+        stats['renainf'] = conn.execute("SELECT COUNT(*) FROM ait WHERE status = 'RENAINF'").fetchone()[0]
+        recent_records = conn.execute("SELECT * FROM ait ORDER BY id DESC LIMIT 5").fetchall()
+    except Exception:
+        stats = {'total': 0, 'dct_processar': 0, 'cancelado': 0, 'substituida': 0, 'renainf': 0}
+        recent_records = []
+    finally:
+        conn.close()
+
+    return render_template("index.html", stats=stats, recent_records=recent_records)
+
+# --- Agentes e GCMs ---
+@app.route("/agentes")
+@login_required
+def agentes():
+    conn = get_db_connection()
+    list_agentes = conn.execute("SELECT * FROM agentes_gcm ORDER BY nome_completo ASC").fetchall()
+    conn.close()
+    return render_template("agentes.html", agentes=list_agentes)
+
+@app.route("/agentes/criar", methods=["POST"])
+@login_required
+@role_required("dct", "admin")
+@with_db_retry()
+def agentes_criar():
+    nome = request.form.get("nome_completo", "").strip()
+    matricula = request.form.get("matricula", "").strip()
+    categoria = request.form.get("categoria", "").strip()
+    unidade = request.form.get("unidade_setor", "").strip()
+    user_name = session["user"]["username"]
+
+    if not nome or not matricula or not categoria:
+        flash("Nome, Matrícula e Categoria são obrigatórios.", "danger")
+        return redirect(url_for("agentes"))
+
+    conn = get_db_connection()
+    try:
+        conn.execute("""
+        INSERT INTO agentes_gcm (nome_completo, matricula, categoria, unidade_setor, criado_por)
+        VALUES (?, ?, ?, ?, ?)
+        """, (nome, matricula, categoria, unidade, user_name))
+        conn.commit()
+        log_auditoria(user_name, session["user"]["setor"], "CRIAR_AGENTE", "agentes_gcm", depois=f"{nome} ({matricula})")
+        flash(f"Servidor '{nome}' cadastrado com sucesso!", "success")
+    except sqlite3.IntegrityError:
+        flash(f"Erro: A matrícula '{matricula}' já existe.", "danger")
+    finally:
+        conn.close()
+
+    return redirect(url_for("agentes"))
+
+# --- Talões ---
+@app.route("/taloes")
+@login_required
+def taloes():
+    conn = get_db_connection()
+    agentes_list = conn.execute("SELECT id, nome_completo, matricula, categoria FROM agentes_gcm WHERE situacao = 'ATIVO' ORDER BY nome_completo ASC").fetchall()
+    
+    taloes_query = """
+    SELECT t.*, a.nome_completo as agente_nome, a.matricula as agente_matricula,
+           (SELECT COUNT(*) FROM ait WHERE talao_id = t.id AND data_ait IS NOT NULL AND data_ait != '') as qtd_entregue
+    FROM taloes t
+    JOIN agentes_gcm a ON t.agente_gcm_id = a.id
+    ORDER BY t.id DESC
+    """
+    taloes_rows = conn.execute(taloes_query).fetchall()
+    taloes_list = []
+    for r in taloes_rows:
+        dict_r = dict(r)
+        dict_r['qtd_faltante'] = dict_r['quantidade_calculada'] - dict_r['qtd_entregue']
+        taloes_list.append(dict_r)
+    conn.close()
+
+    return render_template("taloes.html", agentes=agentes_list, taloes=taloes_list)
+
+@app.route("/taloes/criar", methods=["POST"])
+@login_required
+@role_required("transporte", "dct", "admin")
+@with_db_retry()
+def taloes_criar():
+    agente_id = request.form.get("agente_gcm_id")
+    data_entrega = request.form.get("data_entrega")
+    num_inicial = int(request.form.get("numero_inicial"))
+    num_final = int(request.form.get("numero_final"))
+    num_recibo = request.form.get("numero_recibo", "").strip()
+    user_name = session["user"]["username"]
+
+    qtd = (num_final - num_inicial) + 1
+    if qtd <= 0:
+        flash("Erro: O número final deve ser maior ou igual ao número inicial.", "danger")
+        return redirect(url_for("taloes"))
+
+    conn = get_db_connection()
+    overlap = conn.execute("SELECT id FROM ait WHERE CAST(numero_ait AS INTEGER) BETWEEN ? AND ?", (num_inicial, num_final)).fetchone()
+    if overlap:
+        flash(f"Erro: Já existem AITs cadastrados na faixa {num_inicial} a {num_final}.", "danger")
+        conn.close()
+        return redirect(url_for("taloes"))
+
+    cursor = conn.cursor()
+    cursor.execute("""
+    INSERT INTO taloes (numero_recibo, data_entrega, agente_gcm_id, numero_inicial, numero_final, quantidade_calculada, criado_por)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+    """, (num_recibo, data_entrega, agente_id, num_inicial, num_final, qtd, user_name))
+    talao_id = cursor.lastrowid
+
+    for n in range(num_inicial, num_final + 1):
+        num_str = str(n)
+        cursor.execute("""
+        INSERT INTO ait (numero_ait, talao_id, agente_gcm_id, agente_original_id, status_conferencia, criado_por, status)
+        VALUES (?, ?, ?, ?, 'PENDENTE', ?, 'DCT PROCESSAR')
+        """, (num_str, talao_id, agente_id, agente_id, user_name))
+
+    conn.commit()
+    conn.close()
+
+    log_auditoria(user_name, session["user"]["setor"], "CRIAR_TALAO", "taloes", talao_id, depois=f"Faixa {num_inicial}-{num_final} ({qtd} AITs)")
+    flash(f"Talão #{talao_id} cadastrado com sucesso! {qtd} AITs gerados para o responsável.", "success")
+    return redirect(url_for("taloes"))
+
+@app.route("/taloes/transferir", methods=["POST"])
+@login_required
+@role_required("dct", "admin")
+@with_db_retry()
+def taloes_transferir():
+    origem_id = request.form.get("agente_origem_id")
+    destino_id = request.form.get("agente_destino_id")
+    t_inicial = int(request.form.get("transf_inicial"))
+    t_final = int(request.form.get("transf_final"))
+    motivo = request.form.get("motivo", "").strip()
+    user_name = session["user"]["username"]
+
+    if origem_id == destino_id:
+        flash("Origem e Destino da transferência devem ser diferentes.", "danger")
+        return redirect(url_for("taloes"))
+
+    conn = get_db_connection()
+    conn.execute("""
+    UPDATE ait 
+    SET agente_gcm_id = ?
+    WHERE agente_gcm_id = ? AND (data_ait IS NULL OR data_ait = '')
+    AND CAST(numero_ait AS INTEGER) BETWEEN ? AND ?
+    """, (destino_id, origem_id, t_inicial, t_final))
+    conn.commit()
+    conn.close()
+
+    log_auditoria(user_name, session["user"]["setor"], "TRANSFERIR_AITS", "ait", justificativa=motivo, depois=f"Faixa {t_inicial}-{t_final} do Agente {origem_id} -> {destino_id}")
+    flash(f"AITs pendentes na faixa {t_inicial} à {t_final} transferidos com sucesso!", "success")
+    return redirect(url_for("taloes"))
+
+# --- Cadastro AIT ---
+@app.route("/api/check_ait_duplicada/<numero_ait>")
+@login_required
+def check_ait_duplicada(numero_ait):
+    conn = get_db_connection()
+    rec = conn.execute("SELECT id FROM ait WHERE numero_ait = ? AND data_ait IS NOT NULL AND data_ait != '' LIMIT 1", (numero_ait.strip(),)).fetchone()
+    conn.close()
+    if rec:
+        return jsonify({"exists": True, "id": rec["id"]})
+    return jsonify({"exists": False})
+
+@app.route("/cadastro", methods=["GET", "POST"])
+@app.route("/cadastro/<int:ait_id>", methods=["GET", "POST"])
+@login_required
+@with_db_retry()
+def cadastro(ait_id=None):
+    conn = get_db_connection()
+    total_records = conn.execute("SELECT COUNT(*) FROM ait WHERE data_ait IS NOT NULL AND data_ait != ''").fetchone()[0]
+    user_name = session["user"]["username"]
+    user_setor = session["user"]["setor"]
+
+    if request.method == "POST":
+        numero_ait = request.form.get("numero_ait", "").strip()
+        placa = request.form.get("placa", "").strip().upper()
+        data_ait = request.form.get("data_ait", "")
+        agente_mat = request.form.get("agente", "").strip()
+        status = request.form.get("status", "DCT PROCESSAR")
+        observacao = request.form.get("observacao", "").strip()
+        data_digitacao = request.form.get("data_digitacao", "")
+
+        if not numero_ait or not data_ait or not agente_mat:
+            flash("Número AIT, Data e Código do Agente são obrigatórios!", "danger")
+        else:
+            agente_rec = conn.execute("SELECT id FROM agentes_gcm WHERE matricula = ?", (agente_mat,)).fetchone()
+            agente_gcm_id = agente_rec["id"] if agente_rec else None
+
+            existing = conn.execute("SELECT * FROM ait WHERE numero_ait = ?", (numero_ait,)).fetchone()
+
+            if existing:
+                if existing["status_conferencia"] == "CONFERIDO" and user_setor != "admin":
+                    flash("Erro: AIT conferido pelo DCT. Edição não permitida.", "danger")
+                    conn.close()
+                    return redirect(url_for("cadastro", ait_id=existing["id"]))
+
+                conn.execute("""
+                UPDATE ait
+                SET data_ait=?, agente=?, status=?, observacao=?, data_digitacao=?, placa=?, atualizado_por=?, agente_gcm_id=COALESCE(?, agente_gcm_id)
+                WHERE id=?
+                """, (data_ait, agente_mat, status, observacao, data_digitacao, placa, user_name, agente_gcm_id, existing["id"]))
+                conn.commit()
+                log_auditoria(user_name, user_setor, "EDITAR_AIT", "ait", existing["id"], depois=f"AIT {numero_ait}")
+                flash(f"AIT #{existing['id']} salvo com sucesso!", "success")
+                conn.close()
+                return redirect(url_for("cadastro", ait_id=existing["id"]))
+            else:
+                now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                cursor = conn.cursor()
+                cursor.execute("""
+                INSERT INTO ait (numero_ait, data_ait, agente, status, observacao, data_digitacao, placa, criado_por, criado_em, agente_gcm_id, status_conferencia)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDENTE')
+                """, (numero_ait, data_ait, agente_mat, status, observacao, data_digitacao, placa, user_name, now_str, agente_gcm_id))
+                new_id = cursor.lastrowid
+                conn.commit()
+                log_auditoria(user_name, user_setor, "CRIAR_AIT", "ait", new_id, depois=f"AIT {numero_ait}")
+                flash(f"Novo AIT cadastrado com sucesso! Código #{new_id}", "success")
+                conn.close()
+                return redirect(url_for("cadastro", ait_id=new_id))
+
+    record = None
+    prev_id = None
+    next_id = None
+    is_locked = False
+
+    if ait_id:
+        record = conn.execute("SELECT * FROM ait WHERE id = ?", (ait_id,)).fetchone()
+        if not record:
+            flash(f"AIT #{ait_id} não encontrado.", "warning")
+            conn.close()
+            return redirect(url_for("cadastro"))
+
+        if record["status_conferencia"] == "CONFERIDO" and user_setor != "admin":
+            is_locked = True
+
+        prev_row = conn.execute("SELECT MAX(id) FROM ait WHERE id < ? AND data_ait IS NOT NULL", (ait_id,)).fetchone()
+        prev_id = prev_row[0] if prev_row else None
+        next_row = conn.execute("SELECT MIN(id) FROM ait WHERE id > ? AND data_ait IS NOT NULL", (ait_id,)).fetchone()
+        next_id = next_row[0] if next_row else None
+    else:
+        record = {
+            "id": "Novo", "numero_ait": "", "placa": "", "data_ait": "", "agente": "",
+            "status": "DCT PROCESSAR", "observacao": "", "data_digitacao": datetime.today().strftime("%Y-%m-%d")
+        }
+
+    conn.close()
+    return render_template("cadastro.html", record=record, prev_id=prev_id, next_id=next_id, total_records=total_records, status_options=STATUS_OPTIONS, is_locked=is_locked)
+
+# --- Faltantes ---
+@app.route("/faltantes")
+@login_required
+def faltantes():
+    agente_gcm_id = request.args.get("agente_gcm_id", "")
+    categoria = request.args.get("categoria", "")
+
+    where_clauses = ["(a.data_ait IS NULL OR a.data_ait = '')"]
+    params = []
+
+    if agente_gcm_id:
+        where_clauses.append("a.agente_gcm_id = ?")
+        params.append(agente_gcm_id)
+    if categoria:
+        where_clauses.append("ag.categoria = ?")
+        params.append(categoria)
+
+    where_str = " AND ".join(where_clauses)
+
+    sql = f"""
+    SELECT a.id, a.numero_ait, a.talao_id, ag.nome_completo as agente_nome, ag.matricula as agente_matricula, ag.categoria,
+           t.numero_inicial as talao_num_inicial, t.numero_final as talao_num_final, t.data_entrega as talao_data_entrega
+    FROM ait a
+    JOIN agentes_gcm ag ON a.agente_gcm_id = ag.id
+    LEFT JOIN taloes t ON a.talao_id = t.id
+    WHERE {where_str}
+    ORDER BY CAST(a.numero_ait AS INTEGER) ASC LIMIT 1000
+    """
+
+    conn = get_db_connection()
+    faltantes_rows = conn.execute(sql, params).fetchall()
+    agentes_list = conn.execute("SELECT id, nome_completo, matricula FROM agentes_gcm ORDER BY nome_completo ASC").fetchall()
+    conn.close()
+
+    faltantes_list = []
+    today = date.today()
+    for r in faltantes_rows:
+        dict_r = dict(r)
+        dias = 0
+        if dict_r['talao_data_entrega']:
+            try:
+                dt_e = datetime.strptime(dict_r['talao_data_entrega'], "%Y-%m-%d").date()
+                dias = (today - dt_e).days
+            except Exception:
+                dias = 0
+        dict_r['dias_decorridos'] = dias
+        faltantes_list.append(dict_r)
+
+    total_faltantes = len(faltantes_list)
+    agentes_com_pendencia = len(set([f['agente_matricula'] for f in faltantes_list]))
+
+    return render_template("faltantes.html", faltantes_list=faltantes_list, agentes=agentes_list, total_faltantes=total_faltantes, agentes_com_pendencia=agentes_com_pendencia)
+
+# --- Remessas ---
+@app.route("/remessas")
+@login_required
+def remessas():
+    conn = get_db_connection()
+    remessas_list = conn.execute("SELECT * FROM remessas ORDER BY id DESC").fetchall()
+    aits_disponiveis = conn.execute("SELECT COUNT(*) FROM ait WHERE data_ait IS NOT NULL AND (remessa_id IS NULL OR remessa_id = '')").fetchone()[0]
+    conn.close()
+    return render_template("remessas.html", remessas_list=remessas_list, aits_disponiveis=aits_disponiveis)
+
+@app.route("/remessas/criar", methods=["POST"])
+@login_required
+@role_required("transporte", "dct", "admin")
+@with_db_retry()
+def remessas_criar():
+    user_name = session["user"]["username"]
+    conn = get_db_connection()
+
+    aits = conn.execute("SELECT id FROM ait WHERE data_ait IS NOT NULL AND (remessa_id IS NULL OR remessa_id = '')").fetchall()
+    if not aits:
+        flash("Nenhum AIT disponível para inclusão na remessa.", "warning")
+        conn.close()
+        return redirect(url_for("remessas"))
+
+    max_id = conn.execute("SELECT MAX(id) FROM remessas").fetchone()[0] or 0
+    remessa_num = f"REM-{datetime.today().year}/{max_id+1:03d}"
+
+    cursor = conn.cursor()
+    cursor.execute("""
+    INSERT INTO remessas (numero_remessa, criado_por, quantidade_aits, situacao)
+    VALUES (?, ?, ?, 'EM_PREPARACAO')
+    """, (remessa_num, user_name, len(aits)))
+    remessa_id = cursor.lastrowid
+
+    ait_ids = [str(r["id"]) for r in aits]
+    placeholders = ",".join(["?"] * len(ait_ids))
+    cursor.execute(f"UPDATE ait SET remessa_id = ? WHERE id IN ({placeholders})", [remessa_id] + ait_ids)
+
+    conn.commit()
+    conn.close()
+
+    log_auditoria(user_name, session["user"]["setor"], "CRIAR_REMESSA", "remessas", remessa_id, depois=f"Remessa {remessa_num} com {len(aits)} AITs")
+    flash(f"Remessa '{remessa_num}' criada com {len(aits)} AITs!", "success")
+    return redirect(url_for("remessas"))
+
+@app.route("/remessas/<int:remessa_id>/fechar", methods=["POST"])
+@login_required
+@role_required("transporte", "dct", "admin")
+@with_db_retry()
+def remessas_fechar(remessa_id):
+    user_name = session["user"]["username"]
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    conn = get_db_connection()
+    conn.execute("""
+    UPDATE remessas 
+    SET situacao = 'FECHADA', data_fechamento = ?, data_envio_fisico = ?
+    WHERE id = ?
+    """, (now_str, datetime.today().strftime("%Y-%m-%d"), remessa_id))
+    conn.commit()
+    conn.close()
+
+    log_auditoria(user_name, session["user"]["setor"], "FECHAR_REMESSA", "remessas", remessa_id)
+    flash(f"Remessa #{remessa_id} fechada e marcada como ENVIADA!", "success")
+    return redirect(url_for("remessas"))
+
+# --- Portal Empresa de Processamento ---
+@app.route("/empresa/conferencia")
+@login_required
+@role_required("empresa", "admin")
+def empresa_conferencia():
+    remessa_id = request.args.get("remessa_id")
+    conn = get_db_connection()
+    remessas_disponiveis = conn.execute("SELECT * FROM remessas WHERE situacao IN ('FECHADA', 'EM_CONFERENCIA', 'COM_DIVERGENCIA') ORDER BY id DESC").fetchall()
+
+    remessa_selecionada = None
+    aits_remessa = []
+    aits_conferidos_count = 0
+
+    if remessa_id:
+        remessa_selecionada = conn.execute("SELECT * FROM remessas WHERE id = ?", (remessa_id,)).fetchone()
+        if remessa_selecionada:
+            aits_query = """
+            SELECT a.*, ag.nome_completo as agente_nome, ag.matricula as agente_matricula
+            FROM ait a
+            LEFT JOIN agentes_gcm ag ON a.agente_gcm_id = ag.id
+            WHERE a.remessa_id = ?
+            ORDER BY a.id ASC
+            """
+            aits_remessa = conn.execute(aits_query, (remessa_id,)).fetchall()
+            aits_conferidos_count = sum(1 for item in aits_remessa if item["status_conferencia"] == "CONFERIDO")
+
+    conn.close()
+    return render_template("empresa_conferencia.html", remessas_disponiveis=remessas_disponiveis, remessa_selecionada=remessa_selecionada, aits_remessa=aits_remessa, aits_conferidos_count=aits_conferidos_count)
+
+@app.route("/empresa/conferir_item/<int:ait_id>", methods=["POST"])
+@login_required
+@role_required("empresa", "admin")
+@with_db_retry()
+def empresa_conferir_item(ait_id):
+    remessa_id = request.form.get("remessa_id")
+    user_name = session["user"]["username"]
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    conn = get_db_connection()
+    conn.execute("""
+    UPDATE ait 
+    SET status_conferencia = 'CONFERIDO', conferido_por = ?, conferido_em = ?, status = 'PROCESSADO DCT'
+    WHERE id = ?
+    """, (user_name, now_str, ait_id))
+
+    conn.execute("UPDATE remessas SET situacao = 'EM_CONFERENCIA' WHERE id = ?", (remessa_id,))
+    conn.commit()
+    conn.close()
+
+    log_auditoria(user_name, "empresa", "CONFERIR_ITEM_EMPRESA", "ait", ait_id)
+    flash(f"AIT #{ait_id} confirmado com sucesso!", "success")
+    return redirect(url_for("empresa_conferencia", remessa_id=remessa_id))
+
+@app.route("/empresa/registrar_divergencia", methods=["POST"])
+@login_required
+@role_required("empresa", "admin")
+@with_db_retry()
+def empresa_registrar_divergencia():
+    remessa_id = request.form.get("remessa_id")
+    ait_id = request.form.get("ait_id")
+    situacao_informada = request.form.get("situacao_informada")
+    obs = request.form.get("observacao_empresa", "").strip()
+    user_name = session["user"]["username"]
+
+    conn = get_db_connection()
+    conn.execute("""
+    INSERT INTO remessa_divergencias (remessa_id, ait_id, situacao_informada, observacao_empresa, registrado_por_empresa)
+    VALUES (?, ?, ?, ?, ?)
+    """, (remessa_id, ait_id, situacao_informada, obs, user_name))
+
+    conn.execute("UPDATE ait SET status_conferencia = 'DIVERGENTE' WHERE id = ?", (ait_id,))
+    conn.execute("UPDATE remessas SET situacao = 'COM_DIVERGENCIA' WHERE id = ?", (remessa_id,))
+
+    conn.commit()
+    conn.close()
+
+    log_auditoria(user_name, "empresa", "REGISTRAR_DIVERGENCIA", "remessa_divergencias", ait_id, depois=situacao_informada, justificativa=obs)
+    flash("Divergência registrada com sucesso!", "warning")
+    return redirect(url_for("empresa_conferencia", remessa_id=remessa_id))
+
+# --- Divergências ---
+@app.route("/divergencias")
+@login_required
+@role_required("dct", "admin")
+def divergencias():
+    conn = get_db_connection()
+    sql = """
+    SELECT d.*, r.numero_remessa, a.numero_ait
+    FROM remessa_divergencias d
+    JOIN remessas r ON d.remessa_id = r.id
+    JOIN ait a ON d.ait_id = a.id
+    ORDER BY d.id DESC
+    """
+    divs = conn.execute(sql).fetchall()
+    conn.close()
+    return render_template("divergencias.html", divergencias_list=divs)
+
+@app.route("/divergencias/resolver/<int:div_id>", methods=["POST"])
+@login_required
+@role_required("dct", "admin")
+@with_db_retry()
+def divergencias_resolver(div_id):
+    providencia = request.form.get("providencia_setor", "").strip()
+    user_name = session["user"]["username"]
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    conn = get_db_connection()
+    conn.execute("""
+    UPDATE remessa_divergencias 
+    SET situacao_analise = 'RESOLVIDA', providencia_setor = ?, resolvido_por_setor = ?, data_hora_resolucao = ?
+    WHERE id = ?
+    """, (providencia, user_name, now_str, div_id))
+    conn.commit()
+    conn.close()
+
+    log_auditoria(user_name, session["user"]["setor"], "RESOLVER_DIVERGENCIA", "remessa_divergencias", div_id, justificativa=providencia)
+    flash("Divergência marcada como RESOLVIDA!", "success")
+    return redirect(url_for("divergencias"))
+
+# --- Módulo DCT Conferência ---
+@app.route("/dct/conferencia")
+@login_required
+@role_required("dct", "admin")
+def dct_conferencia():
+    data_inicial = request.args.get("data_inicial", "")
+    data_final = request.args.get("data_final", "")
+    agente = request.args.get("agente", "").strip()
+    status_conferencia = request.args.get("status_conferencia", "PENDENTE")
+
+    where_clauses = ["1=1"]
+    params = []
+
+    if data_inicial and data_final:
+        where_clauses.append("data_ait BETWEEN ? AND ?")
+        params.extend([data_inicial, data_final])
+    if agente:
+        where_clauses.append("agente = ?")
+        params.append(agente)
+    if status_conferencia != "TODOS":
+        where_clauses.append("status_conferencia = ?")
+        params.append(status_conferencia)
+
+    where_str = " AND ".join(where_clauses)
+    sql = f"SELECT * FROM ait WHERE {where_str} ORDER BY id DESC LIMIT 500"
+
+    conn = get_db_connection()
+    records = conn.execute(sql, params).fetchall()
+    conn.close()
+
+    return render_template("dct_conferencia.html", records=records)
+
+@app.route("/dct/aprovar_lote", methods=["POST"])
+@login_required
+@role_required("dct", "admin")
+@with_db_retry()
+def dct_aprovar_lote():
+    ait_ids = request.form.getlist("ait_ids")
+    novo_status = request.form.get("novo_status", "PROCESSADO DCT")
+    acao = request.form.get("acao", "aprovar")
+    user_name = session["user"]["username"]
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    if not ait_ids:
+        flash("Nenhum AIT foi selecionado para ação em lote.", "warning")
+        return redirect(url_for("dct_conferencia"))
+
+    conn = get_db_connection()
+
+    if acao == "imprimir_termo":
+        placeholders = ",".join(["?"] * len(ait_ids))
+        sql = f"SELECT * FROM ait WHERE id IN ({placeholders})"
+        records = conn.execute(sql, ait_ids).fetchall()
+        conn.close()
+        return render_template("termo_conferencia_print.html", records=records, novo_status=novo_status)
+
+    placeholders = ",".join(["?"] * len(ait_ids))
+    sql = f"""
+        UPDATE ait 
+        SET status = ?, status_conferencia = 'CONFERIDO', conferido_por = ?, conferido_em = ?
+        WHERE id IN ({placeholders})
+    """
+    conn.execute(sql, [novo_status, user_name, now_str] + ait_ids)
+    conn.commit()
+    conn.close()
+
+    log_auditoria(user_name, session["user"]["setor"], "APROVAR_LOTE_DCT", "ait", depois=f"{len(ait_ids)} AITs -> {novo_status}")
+    flash(f"Lote de {len(ait_ids)} AITs conferido e atualizado para '{novo_status}' com sucesso!", "success")
+    return redirect(url_for("dct_conferencia"))
+
+# --- Auditoria ---
+@app.route("/auditoria")
+@login_required
+@role_required("dct", "admin")
+def auditoria():
+    conn = get_db_connection()
+    logs = conn.execute("SELECT * FROM auditoria_logs ORDER BY id DESC LIMIT 200").fetchall()
+    conn.close()
+    return render_template("auditoria.html", logs=logs)
+
+# --- Usuários (Admin) ---
+@app.route("/usuarios")
+@login_required
+@role_required("admin")
+def usuarios():
+    conn = get_db_connection()
+    usuarios_list = conn.execute("SELECT * FROM usuarios ORDER BY id ASC").fetchall()
+    conn.close()
+    return render_template("usuarios.html", usuarios=usuarios_list)
+
+@app.route("/usuarios/criar", methods=["POST"])
+@login_required
+@role_required("admin")
+@with_db_retry()
+def usuarios_criar():
+    username = request.form.get("username", "").strip()
+    nome_completo = request.form.get("nome_completo", "").strip()
+    senha = request.form.get("senha", "").strip()
+    setor = request.form.get("setor", "").strip()
+    vinculo = request.form.get("vinculo", "setor_publico").strip()
+
+    if not username or not nome_completo or not senha or not setor:
+        flash("Todos os campos são obrigatórios.", "danger")
+        return redirect(url_for("usuarios"))
+
+    senha_hash = generate_password_hash(senha)
+    conn = get_db_connection()
+    try:
+        conn.execute("""
+        INSERT INTO usuarios (username, nome_completo, senha_hash, setor, vinculo)
+        VALUES (?, ?, ?, ?, ?)
+        """, (username, nome_completo, senha_hash, setor, vinculo))
+        conn.commit()
+        log_auditoria(session["user"]["username"], "admin", "CRIAR_USUARIO", "usuarios", depois=f"{username} ({setor})")
+        flash(f"Usuário '{username}' cadastrado com sucesso!", "success")
+    except sqlite3.IntegrityError:
+        flash(f"Erro: O usuário '{username}' já existe.", "danger")
+    finally:
+        conn.close()
+
+    return redirect(url_for("usuarios"))
+
+# --- Consultas & Relatórios ---
+def get_base_filter_and_params(query_type, request_args):
+    if query_type == "data":
+        data_inicial = request_args.get("data_inicial", "")
+        data_final = request_args.get("data_final", "")
+        if data_inicial and data_final:
+            return "data_ait BETWEEN ? AND ?", [data_inicial, data_final]
+    elif query_type == "digitacao":
+        data_dig = request_args.get("data_digitacao", "")
+        if data_dig:
+            return "data_digitacao = ?", [data_dig]
+    elif query_type == "matricula":
+        agente = request_args.get("matricula", "")
+        if agente:
+            return "agente = ?", [agente]
+    elif query_type == "geral":
+        return "1=1", []
+    return None, []
+
+def execute_filtered_queries(conn, query_type, request_args, opcao_filtro):
+    results = {}
+    total_geral = 0
+    where_clause, params = get_base_filter_and_params(query_type, request_args)
+    if not where_clause:
+        return results, total_geral
+
+    total_geral = conn.execute(f"SELECT COUNT(*) FROM ait WHERE {where_clause}", params).fetchone()[0]
+
+    if "qtd_mes" in opcao_filtro:
+        rows = conn.execute(
+            f"SELECT strftime('%Y-%m', data_ait) as mes_ano, COUNT(*) as total FROM ait WHERE {where_clause} AND data_ait IS NOT NULL AND data_ait != '' GROUP BY mes_ano ORDER BY mes_ano", 
+            params
+        ).fetchall()
+        results["qtd_mes"] = [dict(row) for row in rows]
+
+    if "qtd_agentes" in opcao_filtro or "dist_agentes" in opcao_filtro:
+        rows = conn.execute(
+            f"SELECT agente, COUNT(*) as total FROM ait WHERE {where_clause} GROUP BY agente ORDER BY total DESC", 
+            params
+        ).fetchall()
+        results["agentes"] = [dict(row) for row in rows]
+
+    if "tipo_mes" in opcao_filtro:
+        rows = conn.execute(
+            f"SELECT strftime('%Y-%m', data_ait) as mes_ano, status, COUNT(*) as total FROM ait WHERE {where_clause} AND data_ait IS NOT NULL AND data_ait != '' GROUP BY mes_ano, status ORDER BY mes_ano, total DESC", 
+            params
+        ).fetchall()
+        results["tipo_mes"] = [dict(row) for row in rows]
+
+    if "lista" in opcao_filtro:
+        limit_clause = " LIMIT 1000" if query_type == "geral" else ""
+        rows = conn.execute(f"SELECT * FROM ait WHERE {where_clause} ORDER BY id DESC{limit_clause}", params).fetchall()
+        results["lista"] = [dict(row) for row in rows]
+
+    return results, total_geral
+
+@app.route("/consultas")
+@login_required
+def consultas():
+    query_type = request.args.get("tipo", "")
+    opcao_filtro = request.args.getlist("opcao_filtro") or ["lista"]
+    results = {}
+    total_geral = 0
+    if query_type:
+        conn = get_db_connection()
+        try:
+            results, total_geral = execute_filtered_queries(conn, query_type, request.args, opcao_filtro)
+        except Exception as e:
+            flash(f"Erro ao executar consulta: {e}", "danger")
+        finally:
+            conn.close()
+    return render_template("consultas.html", results=results, query_type=query_type, opcao_filtro=opcao_filtro, total_geral=total_geral)
+
+@app.route("/relatorios")
+@login_required
+def relatorios():
+    return render_template("relatorios.html")
+
+@app.route("/relatorios/geral")
+@login_required
+def relatorio_general():
+    opcao_filtro = request.args.getlist("opcao_filtro") or ["lista"]
+    conn = get_db_connection()
+    results, total_geral = execute_filtered_queries(conn, "geral", request.args, opcao_filtro)
+    conn.close()
+    return render_template("relatorio_print.html", title="Relatório Geral de Autos de Infração", results=results, subtitle="Exibindo todos os registros consolidados", opcao_filtro=opcao_filtro, total_geral=total_geral)
+
+@app.route("/relatorios/data")
+@login_required
+def relatorio_data():
+    data_inicial = request.args.get("data_inicial", "")
+    data_final = request.args.get("data_final", "")
+    opcao_filtro = request.args.getlist("opcao_filtro") or ["lista"]
+    if not data_inicial or not data_final:
+        flash("Informe o intervalo de datas.", "danger")
+        return redirect(url_for("relatorios"))
+    conn = get_db_connection()
+    results, total_geral = execute_filtered_queries(conn, "data", request.args, opcao_filtro)
+    conn.close()
+    dt_i = datetime.strptime(data_inicial, "%Y-%m-%d").strftime("%d/%m/%Y")
+    dt_f = datetime.strptime(data_final, "%Y-%m-%d").strftime("%d/%m/%Y")
+    return render_template("relatorio_print.html", title="Relatório por Período de Infração", results=results, subtitle=f"Período: {dt_i} até {dt_f}", opcao_filtro=opcao_filtro, total_geral=total_geral)
+
+@app.route("/relatorios/digitacao")
+@login_required
+def relatorio_digitacao():
+    data_dig = request.args.get("data_digitacao", "")
+    opcao_filtro = request.args.getlist("opcao_filtro") or ["lista"]
+    if not data_dig:
+        flash("Informe a data de digitação.", "danger")
+        return redirect(url_for("relatorios"))
+    conn = get_db_connection()
+    results, total_geral = execute_filtered_queries(conn, "digitacao", request.args, opcao_filtro)
+    conn.close()
+    dt_d = datetime.strptime(data_dig, "%Y-%m-%d").strftime("%d/%m/%Y")
+    return render_template("relatorio_print.html", title="Relatório por Data da Digitação", results=results, subtitle=f"Data da Digitação: {dt_d}", opcao_filtro=opcao_filtro, total_geral=total_geral)
+
+if __name__ == "__main__":
+    print("Iniciando servidor local Triagem AIT v1.1 na porta 5000...")
+    app.run(host="0.0.0.0", port=5000, debug=True)

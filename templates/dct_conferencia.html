@@ -1,0 +1,138 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="panel">
+    <div class="panel-header">
+        <div class="panel-title">
+            <h2><i class="fa-solid fa-clipboard-check" style="color: #3b82f6; margin-right: 0.5rem;"></i> Conferência de Relatórios — Setor DCT</h2>
+            <p>Auditoria, Validação em Lote e Emissão de Termos de Conferência</p>
+        </div>
+        <div class="panel-actions">
+            <a href="{{ url_for('index') }}" class="btn btn-secondary">
+                <i class="fa-solid fa-house"></i> Voltar ao Menu
+            </a>
+        </div>
+    </div>
+
+    <!-- Filter Form -->
+    <form action="{{ url_for('dct_conferencia') }}" method="GET" class="filter-box" style="background: rgba(255,255,255,0.02); padding: 1.5rem; border-radius: 0.75rem; border: 1px solid rgba(255,255,255,0.08); margin-bottom: 2rem;">
+        <div class="grid-form" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+            <div class="form-group">
+                <label for="data_inicial">Data Auto (Inicial)</label>
+                <input type="date" id="data_inicial" name="data_inicial" value="{{ request.args.get('data_inicial', '') }}">
+            </div>
+            <div class="form-group">
+                <label for="data_final">Data Auto (Final)</label>
+                <input type="date" id="data_final" name="data_final" value="{{ request.args.get('data_final', '') }}">
+            </div>
+            <div class="form-group">
+                <label for="agente">Matrícula Agente</label>
+                <input type="text" id="agente" name="agente" placeholder="Ex: 25845" value="{{ request.args.get('agente', '') }}">
+            </div>
+            <div class="form-group">
+                <label for="status_conferencia">Status Conferência</label>
+                <select id="status_conferencia" name="status_conferencia">
+                    <option value="PENDENTE" {% if request.args.get('status_conferencia', 'PENDENTE') == 'PENDENTE' %}selected{% endif %}>PENDENTES (Para Conferir)</option>
+                    <option value="CONFERIDO" {% if request.args.get('status_conferencia') == 'CONFERIDO' %}selected{% endif %}>CONFERIDOS (Já Auditados)</option>
+                    <option value="TODOS" {% if request.args.get('status_conferencia') == 'TODOS' %}selected{% endif %}>TODOS OS REGISTROS</option>
+                </select>
+            </div>
+        </div>
+        <div style="margin-top: 1rem; display: flex; justify-content: flex-end; gap: 0.75rem;">
+            <a href="{{ url_for('dct_conferencia') }}" class="btn btn-secondary"><i class="fa-solid fa-rotate-left"></i> Limpar Filtros</a>
+            <button type="submit" class="btn btn-primary" style="background: #3b82f6;"><i class="fa-solid fa-filter"></i> Filtrar Lote</button>
+        </div>
+    </form>
+
+    <!-- Batch Actions Bar -->
+    {% if records %}
+    <form action="{{ url_for('dct_aprovar_lote') }}" method="POST" id="form-lote">
+        <input type="hidden" name="query_params" value="{{ request.query_string.decode('utf-8') }}">
+        <div style="background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); padding: 1.25rem; border-radius: 0.75rem; margin-bottom: 1.5rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
+            <div>
+                <strong style="color: #60a5fa; font-size: 1.1rem;"><i class="fa-solid fa-list-check"></i> Registros Encontrados: {{ records|length }}</strong>
+                <p style="margin: 0; font-size: 0.85rem; color: #94a3b8;">Selecione os AITs e escolha a ação em lote desejada</p>
+            </div>
+            <div style="display: flex; gap: 0.75rem; align-items: center;">
+                <label for="novo_status" style="font-weight: 500; font-size: 0.9rem;">Novo Status:</label>
+                <select name="novo_status" id="novo_status" style="padding: 0.5rem 1rem; border-radius: 0.4rem; background: #1e293b; color: white; border: 1px solid rgba(255,255,255,0.2);">
+                    <option value="PROCESSADO DCT">PROCESSADO DCT (Aprovar)</option>
+                    <option value="CANCELADO">CANCELADO</option>
+                    <option value="AIT SUBSTITUIDA">AIT SUBSTITUIDA</option>
+                    <option value="RENAINF">RENAINF</option>
+                </select>
+                <button type="submit" name="acao" value="aprovar" class="btn btn-primary" style="background: #10b981; border: none;" onclick="return confirm('Deseja realmente aplicar o status aos AITs selecionados?');">
+                    <i class="fa-solid fa-check-double"></i> Aplicar em Lote
+                </button>
+                <button type="submit" name="acao" value="imprimir_termo" class="btn btn-secondary" style="background: #8b5cf6; border: none; color: white;" formtarget="_blank">
+                    <i class="fa-solid fa-print"></i> Gerar Termo de Conferência
+                </button>
+            </div>
+        </div>
+
+        <div style="overflow-x: auto;">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th style="width: 40px; text-align: center;">
+                            <input type="checkbox" id="select-all" onclick="toggleSelectAll(this)" style="transform: scale(1.2); cursor: pointer;">
+                        </th>
+                        <th>Código</th>
+                        <th>Número AIT</th>
+                        <th>Placa</th>
+                        <th>Data Auto</th>
+                        <th>Agente</th>
+                        <th>Status Atual</th>
+                        <th>Conf. DCT</th>
+                        <th>Digitado Por</th>
+                        <th>Conferido Por</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in records %}
+                    <tr>
+                        <td style="text-align: center;">
+                            <input type="checkbox" name="ait_ids" value="{{ item.id }}" class="ait-checkbox" style="transform: scale(1.2); cursor: pointer;">
+                        </td>
+                        <td><strong>#{{ item.id }}</strong></td>
+                        <td><span style="font-weight: 600; color: #f97316;">{{ item.numero_ait }}</span></td>
+                        <td>{{ item.placa if item.placa else '-' }}</td>
+                        <td>{{ item.data_ait|format_date }}</td>
+                        <td><span class="badge" style="background: rgba(255,255,255,0.05);">{{ item.agente }}</span></td>
+                        <td>
+                            <span class="badge badge-{{ 'success' if item.status == 'PROCESSADO DCT' else ('warning' if item.status == 'DCT PROCESSAR' else 'danger') }}">
+                                {{ item.status }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if item.status_conferencia == 'CONFERIDO' %}
+                                <span class="badge" style="background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.4);"><i class="fa-solid fa-lock"></i> CONFERIDO</span>
+                            {% else %}
+                                <span class="badge" style="background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4);"><i class="fa-solid fa-clock"></i> PENDENTE</span>
+                            {% endif %}
+                        </td>
+                        <td><small style="color: #94a3b8;">{{ item.criado_por if item.criado_por else '-' }}</small></td>
+                        <td><small style="color: #94a3b8;">{{ item.conferido_por if item.conferido_por else '-' }}</small></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </form>
+    {% else %}
+    <div style="text-align: center; padding: 4rem 2rem; color: #94a3b8;">
+        <i class="fa-solid fa-folder-open" style="font-size: 3rem; margin-bottom: 1rem; opacity: 0.5;"></i>
+        <p style="font-size: 1.1rem;">Nenhum registro encontrado para os filtros selecionados.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function toggleSelectAll(master) {
+        const checkboxes = document.querySelectorAll('.ait-checkbox');
+        checkboxes.forEach(cb => cb.checked = master.checked);
+    }
+</script>
+{% endblock %}

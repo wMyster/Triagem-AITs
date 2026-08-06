@@ -1,0 +1,87 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="panel">
+    <div class="panel-header">
+        <div class="panel-title">
+            <h2><i class="fa-solid fa-user-shield" style="color: #3b82f6; margin-right: 0.5rem;"></i> Cadastro de Agentes e GCMs</h2>
+            <p>Gerenciamento de Agentes de Trânsito e Integrantes da Guarda Civil Municipal</p>
+        </div>
+        <div class="panel-actions">
+            <a href="{{ url_for('index') }}" class="btn btn-secondary"><i class="fa-solid fa-house"></i> Voltar</a>
+        </div>
+    </div>
+
+    <!-- Form for new Agente/GCM -->
+    {% if session['user']['setor'] in ['dct', 'admin'] %}
+    <div style="background: rgba(255,255,255,0.02); padding: 1.5rem; border-radius: 0.75rem; border: 1px solid rgba(255,255,255,0.08); margin-bottom: 2rem;">
+        <h3 style="margin-top: 0; color: #60a5fa; font-size: 1.1rem; margin-bottom: 1rem;"><i class="fa-solid fa-user-plus"></i> Novo Servidor</h3>
+        <form action="{{ url_for('agentes_criar') }}" method="POST">
+            <div class="grid-form" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+                <div class="form-group">
+                    <label for="nome_completo">Nome Completo *</label>
+                    <input type="text" id="nome_completo" name="nome_completo" required placeholder="Ex: Carlos Alberto Silva">
+                </div>
+                <div class="form-group">
+                    <label for="matricula">Matrícula Functional *</label>
+                    <input type="text" id="matricula" name="matricula" required placeholder="Ex: 25845" pattern="\d+">
+                </div>
+                <div class="form-group">
+                    <label for="categoria">Categoria *</label>
+                    <select id="categoria" name="categoria" required>
+                        <option value="AGENTE">Agente de Trânsito</option>
+                        <option value="GCM">Guarda Civil Municipal (GCM)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="unidade_setor">Unidade / Setor</label>
+                    <input type="text" id="unidade_setor" name="unidade_setor" placeholder="Ex: Fiscalização de Trânsito">
+                </div>
+            </div>
+            <div style="margin-top: 1rem; text-align: right;">
+                <button type="submit" class="btn btn-primary" style="background: #3b82f6;"><i class="fa-solid fa-floppy-disk"></i> Cadastrar Servidor</button>
+            </div>
+        </form>
+    </div>
+    {% endif %}
+
+    <!-- List of Agentes/GCMs -->
+    <h3 style="color: #ffffff; font-size: 1.1rem; margin-bottom: 1rem;"><i class="fa-solid fa-list"></i> Servidores Cadastrados</h3>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Nome Completo</th>
+                <th>Matrícula</th>
+                <th>Categoria</th>
+                <th>Unidade/Setor</th>
+                <th>Situação</th>
+                <th>Criado Em</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in agentes %}
+            <tr>
+                <td>#{{ item.id }}</td>
+                <td><strong>{{ item.nome_completo }}</strong></td>
+                <td><span class="badge" style="background: rgba(255,255,255,0.08);">{{ item.matricula }}</span></td>
+                <td>
+                    <span class="badge badge-{{ 'primary' if item.categoria == 'AGENTE' else 'warning' }}">
+                        {{ item.categoria }}
+                    </span>
+                </td>
+                <td>{{ item.unidade_setor if item.unidade_setor else '-' }}</td>
+                <td>
+                    {% if item.situacao == 'ATIVO' %}
+                        <span style="color: #34d399;"><i class="fa-solid fa-circle-check"></i> Ativo</span>
+                    {% else %}
+                        <span style="color: #f87171;"><i class="fa-solid fa-circle-xmark"></i> {{ item.situacao }}</span>
+                    {% endif %}
+                </td>
+                <td><small style="color: #94a3b8;">{{ item.criado_em }}</small></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

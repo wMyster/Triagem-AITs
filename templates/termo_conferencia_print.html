@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Termo de Conferência de AITs — DCT</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            font-size: 12px;
+            color: #000;
+            margin: 20px;
+        }
+        .header {
+            text-align: center;
+            border-bottom: 2px solid #000;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        .header h1 {
+            font-size: 18px;
+            margin: 0;
+            text-transform: uppercase;
+        }
+        .header h2 {
+            font-size: 14px;
+            margin: 5px 0 0 0;
+            font-weight: normal;
+        }
+        .meta-info {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 15px;
+            background: #f1f1f1;
+            padding: 10px;
+            border: 1px solid #ccc;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        table, th, td {
+            border: 1px solid #333;
+        }
+        th, td {
+            padding: 6px 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #e5e5e5;
+            font-weight: bold;
+        }
+        .signatures {
+            margin-top: 50px;
+            display: flex;
+            justify-content: space-around;
+        }
+        .signature-box {
+            text-align: center;
+            width: 40%;
+            border-top: 1px solid #000;
+            padding-top: 5px;
+        }
+        @media print {
+            .no-print {
+                display: none;
+            }
+            body {
+                margin: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="no-print" style="margin-bottom: 20px; text-align: right;">
+        <button onclick="window.print()" style="padding: 10px 20px; background: #2563eb; color: white; border: none; border-radius: 4px; font-weight: bold; cursor: pointer;">
+            Imprimir Termo / Salvar PDF
+        </button>
+    </div>
+
+    <div class="header">
+        <h1>TERMO OFICIAL DE CONFERÊNCIA E AUDITORIA DE AITS</h1>
+        <h2>DIVISÃO DE CONTROLE DE TRÂNSITO — SETOR DCT</h2>
+    </div>
+
+    <div class="meta-info">
+        <div>
+            <strong>Data da Emissão:</strong> {{ datetime_now }}<br>
+            <strong>Conferente Responsável:</strong> {{ session['user']['nome_completo'] }} ({{ session['user']['username'].upper() }})
+        </div>
+        <div>
+            <strong>Total de AITs Conferidos:</strong> {{ records|length }}<br>
+            <strong>Status Aplicado:</strong> {{ novo_status }}
+        </div>
+    </div>
+
+    <h3>Relação dos Autos de Infração Conferidos</h3>
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 50px;">Item</th>
+                <th>Código BD</th>
+                <th>Número AIT</th>
+                <th>Placa</th>
+                <th>Data do Auto</th>
+                <th>Matrícula Agente</th>
+                <th>Digitado Por</th>
+                <th>Status Final</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in records %}
+            <tr>
+                <td>{{ loop.index }}</td>
+                <td>#{{ item.id }}</td>
+                <td><strong>{{ item.numero_ait }}</strong></td>
+                <td>{{ item.placa if item.placa else '-' }}</td>
+                <td>{{ item.data_ait|format_date }}</td>
+                <td>{{ item.agente }}</td>
+                <td>{{ item.criado_por if item.criado_por else 'N/A' }}</td>
+                <td><strong>{{ item.status }}</strong></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="signatures">
+        <div class="signature-box">
+            <strong>{{ session['user']['nome_completo'] }}</strong><br>
+            Conferente Responsável — DCT
+        </div>
+        <div class="signature-box">
+            <strong>Supervisão / Chefia de Trânsito</strong><br>
+            Visto / Homologação
+        </div>
+    </div>
+
+</body>
+</html>

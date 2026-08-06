@@ -1,0 +1,70 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="panel">
+    <div class="panel-header">
+        <div class="panel-title">
+            <h2><i class="fa-solid fa-triangle-exclamation" style="color: #ef4444; margin-right: 0.5rem;"></i> Gestão de Divergências de Remessas</h2>
+            <p>Tratamento e Resolução de Inconsistências Apontadas pela Empresa</p>
+        </div>
+        <div class="panel-actions">
+            <a href="{{ url_for('index') }}" class="btn btn-secondary"><i class="fa-solid fa-house"></i> Voltar</a>
+        </div>
+    </div>
+
+    <!-- Divergencias List -->
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Remessa</th>
+                <th>Número AIT</th>
+                <th>Divergência Apontada</th>
+                <th>Observação da Empresa</th>
+                <th>Registrado Por</th>
+                <th>Data/Hora</th>
+                <th>Situação</th>
+                <th>Ações de Resolução</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in divergencias_list %}
+            <tr>
+                <td>#{{ item.id }}</td>
+                <td><strong>{{ item.numero_remessa }}</strong></td>
+                <td><strong style="color: #f97316;">{{ item.numero_ait }}</strong></td>
+                <td><span class="badge badge-danger">{{ item.situacao_informada }}</span></td>
+                <td><small>{{ item.observacao_empresa }}</small></td>
+                <td>{{ item.registrado_por_empresa }}</td>
+                <td><small style="color: #94a3b8;">{{ item.data_hora_registro }}</small></td>
+                <td>
+                    {% if item.situacao_analise == 'ABERTA' %}
+                        <span class="badge badge-warning"><i class="fa-solid fa-clock"></i> ABERTA</span>
+                    {% else %}
+                        <span class="badge badge-success"><i class="fa-solid fa-check"></i> RESOLVIDA</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if item.situacao_analise == 'ABERTA' and session['user']['setor'] in ['dct', 'admin'] %}
+                    <form action="{{ url_for('divergencias_resolver', div_id=item.id) }}" method="POST" style="display: flex; gap: 0.4rem;">
+                        <input type="text" name="providencia_setor" required placeholder="Providência adotada..." style="padding: 0.3rem; font-size: 0.8rem; flex: 1;">
+                        <button type="submit" class="btn btn-primary" style="padding: 0.3rem 0.6rem; font-size: 0.75rem; background: #10b981; border: none; color: white;">
+                            <i class="fa-solid fa-check"></i> Resolver
+                        </button>
+                    </form>
+                    {% else %}
+                        <small style="color: #94a3b8;">{{ item.providencia_setor if item.providencia_setor else 'N/A' }}</small>
+                    {% endif %}
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="9" style="text-align: center; color: #94a3b8; padding: 2rem;">
+                    Nenhuma divergência aberta no momento.
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

@@ -1,0 +1,79 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="panel">
+    <div class="panel-header">
+        <div class="panel-title">
+            <h2><i class="fa-solid fa-truck-ramp-box" style="color: #10b981; margin-right: 0.5rem;"></i> Remessas Eletrônicas para Processamento</h2>
+            <p>Agrupamento, Fechamento e Envio Físico de AITs para a Empresa Contratada</p>
+        </div>
+        <div class="panel-actions">
+            <a href="{{ url_for('index') }}" class="btn btn-secondary"><i class="fa-solid fa-house"></i> Voltar</a>
+        </div>
+    </div>
+
+    <!-- Create Remessa Box -->
+    {% if session['user']['setor'] in ['transporte', 'dct', 'admin'] %}
+    <div style="background: rgba(16, 185, 129, 0.05); padding: 1.5rem; border-radius: 0.75rem; border: 1px solid rgba(16, 185, 129, 0.2); margin-bottom: 2rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
+        <div>
+            <h3 style="margin: 0 0 0.25rem 0; color: #34d399;"><i class="fa-solid fa-folder-plus"></i> Nova Remessa de AITs</h3>
+            <p style="margin: 0; color: #94a3b8; font-size: 0.9rem;">Disponíveis para remessa: <strong style="color: #ffffff;">{{ aits_disponiveis }} AITs recebidos</strong> no setor.</p>
+        </div>
+        <form action="{{ url_for('remessas_criar') }}" method="POST">
+            <button type="submit" class="btn btn-primary" style="background: #10b981; border: none; padding: 0.75rem 1.5rem;" {% if aits_disponiveis == 0 %}disabled style="opacity: 0.5; cursor: not-allowed;"{% endif %}>
+                <i class="fa-solid fa-box-archive"></i> Criar Nova Remessa com AITs Disponíveis
+            </button>
+        </form>
+    </div>
+    {% endif %}
+
+    <!-- List of Remessas -->
+    <h3 style="color: #ffffff; font-size: 1.1rem; margin-bottom: 1rem;"><i class="fa-solid fa-boxes-stacked"></i> Histórico de Remessas</h3>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Nº Remessa</th>
+                <th>Data Criação</th>
+                <th>Criado Por</th>
+                <th>Qtd AITs</th>
+                <th>Situação</th>
+                <th>Data Envio Físico</th>
+                <th>Ações</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in remessas_list %}
+            <tr>
+                <td><strong style="color: #34d399; font-size: 1.05rem;">{{ item.numero_remessa }}</strong></td>
+                <td>{{ item.data_criacao }}</td>
+                <td>{{ item.criado_por }}</td>
+                <td><span class="badge" style="background: rgba(255,255,255,0.08);">{{ item.quantidade_aits }} AITs</span></td>
+                <td>
+                    <span class="badge badge-{{ 'success' if item.situacao == 'RECEBIDA_INTEGRALMENTE' else ('warning' if item.situacao == 'FECHADA' or item.situacao == 'EM_CONFERENCIA' else ('danger' if item.situacao == 'COM_DIVERGENCIA' else 'info')) }}">
+                        {{ item.situacao }}
+                    </span>
+                </td>
+                <td>{{ item.data_envio_fisico if item.data_envio_fisico else '-' }}</td>
+                <td>
+                    {% if item.situacao == 'EM_PREPARACAO' and session['user']['setor'] in ['transporte', 'dct', 'admin'] %}
+                        <form action="{{ url_for('remessas_fechar', remessa_id=item.id) }}" method="POST" style="display: inline;">
+                            <button type="submit" class="btn btn-secondary" style="padding: 0.3rem 0.75rem; font-size: 0.8rem; background: #3b82f6; border: none; color: white;" onclick="return confirm('Deseja realmente fechar e enviar a remessa {{ item.numero_remessa }}?');">
+                                <i class="fa-solid fa-lock"></i> Fechar e Enviar
+                            </button>
+                        </form>
+                    {% else %}
+                        <small style="color: #94a3b8;"><i class="fa-solid fa-check"></i> Processada</small>
+                    {% endif %}
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="7" style="text-align: center; color: #94a3b8; padding: 2rem;">
+                    Nenhuma remessa criada até o momento.
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

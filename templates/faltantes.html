@@ -1,0 +1,105 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="panel">
+    <div class="panel-header">
+        <div class="panel-title">
+            <h2><i class="fa-solid fa-clock-rotate-left" style="color: #ef4444; margin-right: 0.5rem;"></i> Consulta de AITs Faltantes e Pendências</h2>
+            <p>Controle Sequencial de Folhas Omitidas por Agente e GCM</p>
+        </div>
+        <div class="panel-actions">
+            <a href="{{ url_for('index') }}" class="btn btn-secondary"><i class="fa-solid fa-house"></i> Voltar</a>
+        </div>
+    </div>
+
+    <!-- Stats Cards Summary -->
+    <div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); margin-bottom: 2rem;">
+        <div class="stat-card" style="border-left: 4px solid #ef4444;">
+            <div class="stat-icon" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+            </div>
+            <div class="stat-info">
+                <h3>{{ total_faltantes }}</h3>
+                <p>Total de AITs Faltantes</p>
+            </div>
+        </div>
+        <div class="stat-card" style="border-left: 4px solid #f59e0b;">
+            <div class="stat-icon" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">
+                <i class="fa-solid fa-user-xmark"></i>
+            </div>
+            <div class="stat-info">
+                <h3>{{ agentes_com_pendencia }}</h3>
+                <p>Servidores com Pendências</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filter Form -->
+    <form action="{{ url_for('faltantes') }}" method="GET" class="filter-box" style="background: rgba(255,255,255,0.02); padding: 1.25rem; border-radius: 0.75rem; border: 1px solid rgba(255,255,255,0.08); margin-bottom: 1.5rem;">
+        <div class="grid-form" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+            <div class="form-group">
+                <label for="agente_gcm_id">Filtrar Servidor</label>
+                <select id="agente_gcm_id" name="agente_gcm_id">
+                    <option value="">Todos os Agentes / GCMs</option>
+                    {% for s in agentes %}
+                        <option value="{{ s.id }}" {% if request.args.get('agente_gcm_id') == s.id|string %}selected{% endif %}>{{ s.nome_completo }} (Mat: {{ s.matricula }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="categoria">Categoria</label>
+                <select id="categoria" name="categoria">
+                    <option value="">Todas as Categorias</option>
+                    <option value="AGENTE" {% if request.args.get('categoria') == 'AGENTE' %}selected{% endif %}>Agentes de Trânsito</option>
+                    <option value="GCM" {% if request.args.get('categoria') == 'GCM' %}selected{% endif %}>Guarda Civil Municipal</option>
+                </select>
+            </div>
+        </div>
+        <div style="margin-top: 1rem; display: flex; justify-content: flex-end; gap: 0.75rem;">
+            <a href="{{ url_for('faltantes') }}" class="btn btn-secondary"><i class="fa-solid fa-rotate-left"></i> Limpar</a>
+            <button type="submit" class="btn btn-primary" style="background: #ef4444;"><i class="fa-solid fa-filter"></i> Filtrar Pendências</button>
+        </div>
+    </form>
+
+    <!-- Faltantes Table -->
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Número AIT</th>
+                <th>Servidor Responsável</th>
+                <th>Matrícula</th>
+                <th>Categoria</th>
+                <th>Talão Origem</th>
+                <th>Data Entrega Talão</th>
+                <th>Dias Decorridos</th>
+                <th>Situação</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in faltantes_list %}
+            <tr>
+                <td><strong style="color: #ef4444; font-size: 1.05rem;">{{ item.numero_ait }}</strong></td>
+                <td><strong>{{ item.agente_nome }}</strong></td>
+                <td><span class="badge" style="background: rgba(255,255,255,0.08);">{{ item.agente_matricula }}</span></td>
+                <td>
+                    <span class="badge badge-{{ 'primary' if item.categoria == 'AGENTE' else 'warning' }}">{{ item.categoria }}</span>
+                </td>
+                <td>Talão #{{ item.talao_id }} ({{ item.talao_num_inicial }} - {{ item.talao_num_final }})</td>
+                <td>{{ item.talao_data_entrega }}</td>
+                <td><span style="color: #f87171; font-weight: bold;">{{ item.dias_decorridos }} dias</span></td>
+                <td>
+                    <span class="badge badge-danger"><i class="fa-solid fa-clock"></i> PENDENTE / NÃO ENTREGUE</span>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="8" style="text-align: center; color: #94a3b8; padding: 2rem;">
+                    <i class="fa-solid fa-circle-check" style="font-size: 2rem; color: #34d399; margin-bottom: 0.5rem;"></i>
+                    <p>Nenhuma pendência de AIT encontrada para os filtros selecionados!</p>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

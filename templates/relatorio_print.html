@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }} - Triagem AIT</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* Specific page print enhancements */
+        body {
+            background: #f8fafc;
+            color: #1e293b;
+            padding: 2rem;
+            min-height: auto;
+        }
+        
+        .print-layout {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            padding: 3rem;
+            border-radius: var(--border-radius-lg);
+            border: 1px solid var(--card-border);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+        
+        .print-control-bar {
+            max-width: 1000px;
+            margin: 0 auto 1.5rem auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .report-header-block {
+            text-align: center;
+            border-bottom: 2px solid #0f172a;
+            padding-bottom: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .report-header-block h1 {
+            font-size: 1.8rem;
+            color: #0f172a;
+            margin-bottom: 0.25rem;
+        }
+        
+        .report-header-block p {
+            color: #475569;
+            font-size: 0.95rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            font-weight: 500;
+        }
+        
+        .report-header-block .subtitle {
+            margin-top: 0.5rem;
+            font-size: 1.1rem;
+            color: var(--accent-orange);
+            text-transform: none;
+            font-weight: 600;
+            letter-spacing: 0;
+        }
+        
+        .report-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+        
+        .report-table th {
+            background: #f1f5f9 !important;
+            color: #0f172a !important;
+            border: 1px solid #cbd5e1 !important;
+            padding: 0.75rem !important;
+            font-size: 0.8rem !important;
+            text-transform: uppercase;
+        }
+        
+        .report-table td {
+            border: 1px solid #e2e8f0 !important;
+            padding: 0.75rem !important;
+            font-size: 0.85rem !important;
+            color: #334155 !important;
+        }
+        
+        .report-table tr:nth-child(even) td {
+            background: #f8fafc !important;
+        }
+        
+        .print-date {
+            margin-top: 2rem;
+            text-align: right;
+            font-size: 0.8rem;
+            color: #64748b;
+        }
+        
+        @media print {
+            body {
+                background: white !important;
+                color: black !important;
+                padding: 0 !important;
+            }
+            
+            .print-layout {
+                border: none !important;
+                box-shadow: none !important;
+                padding: 0 !important;
+            }
+            
+            .print-control-bar, .no-print {
+                display: none !important;
+            }
+            
+            .report-table th {
+                background: #f1f5f9 !important;
+                border: 1px solid #000 !important;
+            }
+            
+            .report-table td {
+                border: 1px solid #000 !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Print Controller Bar (Hidden on print) -->
+    <div class="print-control-bar no-print">
+        <a href="javascript:window.close();" class="btn btn-secondary">
+            <i class="fa-solid fa-arrow-left"></i> Fechar Janela
+        </a>
+        <button onclick="window.print();" class="btn btn-primary">
+            <i class="fa-solid fa-print"></i> Imprimir Relatório
+        </button>
+    </div>
+
+    <!-- Printable Layout Wrapper -->
+    <div class="print-layout">
+        <!-- Official Report Header -->
+        <div class="report-header-block">
+            <h1>SETOR DE TRIAGEM E ESTATÍSTICA</h1>
+            <p>Controle de Autos de Infração de Trânsito (AIT)</p>
+            <div class="subtitle">{{ title }}</div>
+            {% if subtitle %}
+                <div style="font-size: 0.9rem; color: #475569; margin-top: 0.25rem;">{{ subtitle }}</div>
+            {% endif %}
+        </div>
+
+        <!-- Report Info -->
+        <div style="margin-bottom: 1.5rem; display: flex; justify-content: space-between; font-size: 0.85rem; color: #475569;">
+            {% set opt_filtro = opcao_filtro if opcao_filtro else ['lista'] %}
+            <div>
+                Seções incluídas: 
+                <strong>
+                    {% set sections = [] %}
+                    {% if 'lista' in opt_filtro or (results is mapping and 'lista' in results) %}{% set _ = sections.append('Lista de Ocorrências') %}{% endif %}
+                    {% if results is mapping and 'qtd_mes' in results %}{% set _ = sections.append('Quantidade do Mês') %}{% endif %}
+                    {% if results is mapping and 'agentes' in results %}{% set _ = sections.append('Distribuição de Agentes') %}{% endif %}
+                    {% if results is mapping and 'tipo_mes' in results %}{% set _ = sections.append('Tipo de Ocorrência por Mês') %}{% endif %}
+                    {% if results is mapping and 'agente_mes' in results %}{% set _ = sections.append('Agentes por Mês') %}{% endif %}
+                    {{ sections | join(', ') }}
+                </strong>
+            </div>
+            <div>Data de emissão: <strong>{{ datetime_now }}</strong></div>
+        </div>
+
+        <!-- Report Data Table -->
+        <div style="display: flex; flex-direction: column; gap: 2.5rem;">
+            
+            <!-- 1. SOMA TOTAL DE OCORRÊNCIAS NO PERÍODO -->
+            {% if 'qtd_agentes' in opt_filtro and results is mapping and 'agentes' in results %}
+            <div style="background: #f8fafc; border: 1px solid #cbd5e1; padding: 1rem; border-radius: var(--border-radius-sm); display: flex; justify-content: space-between; align-items: center; font-size: 0.95rem; font-weight: bold; color: #0f172a;">
+                <span>SOMA TOTAL DE OCORRÊNCIAS NO PERÍODO:</span>
+                <span style="font-size: 1.15rem; color: #1e3a8a;">{{ total_geral }}</span>
+            </div>
+            {% endif %}
+
+            <!-- 2. Tabela: Quantidade do Mês -->
+            {% if results is mapping and 'qtd_mes' in results %}
+            <div>
+                <h3 style="font-size: 1.1rem; color: #0f172a; margin-bottom: 0.75rem; border-bottom: 2px solid #0f172a; padding-bottom: 0.25rem; text-transform: uppercase; font-weight: 700;">
+                    Somente a quantidade do mês
+                </h3>
+                <table class="report-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 50%; text-align: center;">Mês/Ano</th>
+                            <th style="width: 50%; text-align: center;">Quantidade de Ocorrências</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in results['qtd_mes'] %}
+                        <tr>
+                            <td style="text-align: center;"><strong>{{ row.mes_ano | format_month_year }}</strong></td>
+                            <td style="text-align: center;">{{ row.total }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot>
+                        <tr style="background: #e2e8f0; font-weight: bold;">
+                            <td style="text-align: center; border: 1px solid #cbd5e1 !important; padding: 0.75rem !important;">Total Geral</td>
+                            <td style="text-align: center; border: 1px solid #cbd5e1 !important; padding: 0.75rem !important;">{{ total_geral }}</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+            {% endif %}
+
+            <!-- 3. Tabela: Distribuição dos Agentes -->
+            {% if results is mapping and 'agentes' in results %}
+            <div>
+                <h3 style="font-size: 1.1rem; color: #0f172a; margin-bottom: 0.75rem; border-bottom: 2px solid #0f172a; padding-bottom: 0.25rem; text-transform: uppercase; font-weight: 700;">
+                    Distribuição dos Agentes
+                </h3>
+                <table class="report-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 33%; text-align: center;">Agente</th>
+                            <th style="width: 33%; text-align: center;">Quantidade</th>
+                            {% if 'qtd_agentes' in opt_filtro %}
+                            <th style="width: 34%; text-align: center;">Percentual de Participação</th>
+                            {% endif %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in results['agentes'] %}
+                        <tr>
+                            <td style="text-align: center;"><strong>{{ row.agente }}</strong></td>
+                            <td style="text-align: center;">{{ row.total }}</td>
+                            {% if 'qtd_agentes' in opt_filtro %}
+                            <td style="text-align: center; color: #475569;">
+                                {{ "%.2f"|format((row.total / total_geral) * 100) if total_geral > 0 else "0.00" }}%
+                            </td>
+                            {% endif %}
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% endif %}
+
+            <!-- 4. Tabela: Tipo de Ocorrência por Mês -->
+            {% if results is mapping and 'tipo_mes' in results %}
+            <div>
+                <h3 style="font-size: 1.1rem; color: #0f172a; margin-bottom: 0.75rem; border-bottom: 2px solid #0f172a; padding-bottom: 0.25rem; text-transform: uppercase; font-weight: 700;">
+                    Tipo de Ocorrência por Mês
+                </h3>
+                <table class="report-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 30%; text-align: center;">Mês/Ano</th>
+                            <th style="width: 45%; text-align: center;">Status / Tipo do Auto</th>
+                            <th style="width: 25%; text-align: center;">Quantidade</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in results['tipo_mes'] %}
+                        <tr>
+                            <td style="text-align: center;"><strong>{{ row.mes_ano | format_month_year }}</strong></td>
+                            <td style="text-align: center; font-weight: 500;">
+                                {% if row.status == 'DCT PROCESSAR' %}
+                                    A Processar
+                                {% elif row.status == 'CANCELADO' %}
+                                    Cancelado
+                                {% elif row.status == 'AIT SUBSTITUIDA' %}
+                                    Substituído
+                                {% elif row.status == 'RENAINF' %}
+                                    Renainf
+                                {% else %}
+                                    {{ row.status }}
+                                {% endif %}
+                            </td>
+                            <td style="text-align: center;">{{ row.total }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% endif %}
+
+            <!-- 5. Tabela: Agentes por Mês -->
+            {% if results is mapping and 'agente_mes' in results %}
+            <div>
+                <h3 style="font-size: 1.1rem; color: #0f172a; margin-bottom: 0.75rem; border-bottom: 2px solid #0f172a; padding-bottom: 0.25rem; text-transform: uppercase; font-weight: 700;">
+                    Agentes por Mês
+                </h3>
+                <table class="report-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 30%; text-align: center;">Mês/Ano</th>
+                            <th style="width: 45%; text-align: center;">Agente (Matrícula)</th>
+                            <th style="width: 25%; text-align: center;">Quantidade</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in results['agente_mes'] %}
+                        <tr>
+                            <td style="text-align: center;"><strong>{{ row.mes_ano | format_month_year }}</strong></td>
+                            <td style="text-align: center;">{{ row.agente }}</td>
+                            <td style="text-align: center;">{{ row.total }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% endif %}
+
+            <!-- 6. Tabela: Lista de Ocorrências Relacionadas -->
+            {% if results is mapping and 'lista' in results %}
+            <div>
+                <h3 style="font-size: 1.1rem; color: #0f172a; margin-bottom: 0.75rem; border-bottom: 2px solid #0f172a; padding-bottom: 0.25rem; text-transform: uppercase; font-weight: 700;">
+                    Lista de Ocorrências Relacionadas
+                </h3>
+                <table class="report-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 8%;">Código</th>
+                            <th style="width: 12%;">Nº AIT</th>
+                            <th style="width: 12%;">Placa</th>
+                            <th style="width: 15%;">Data Infração</th>
+                            <th style="width: 12%;">Agente</th>
+                            <th style="width: 18%;">Status</th>
+                            <th style="width: 23%;">Observações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in results['lista'] %}
+                        <tr>
+                            <td style="text-align: center;"><strong>{{ row.id }}</strong></td>
+                            <td style="text-align: center;">{{ row.numero_ait }}</td>
+                            <td style="text-align: center; font-family: monospace; font-weight: 600;">{{ row.placa if row.placa else '---' }}</td>
+                            <td style="text-align: center;">{{ row.data_ait | format_date }}</td>
+                            <td style="text-align: center;">{{ row.agente }}</td>
+                            <td style="font-weight: 500;">{{ row.status }}</td>
+                            <td style="font-size: 0.8rem;">{{ row.observacao if row.observacao else '' }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% elif results is mapping and results | length == 0 %}
+            <div style="text-align: center; padding: 2rem; border: 1px dashed #cbd5e1; color: #64748b;">
+                Nenhum registro encontrado.
+            </div>
+            {% elif results is not mapping %}
+            <!-- Fallback support for direct lists in legacy paths -->
+            <table class="report-table">
+                <thead>
+                    <tr>
+                        <th style="width: 8%;">Código</th>
+                        <th style="width: 12%;">Nº AIT</th>
+                        <th style="width: 12%;">Placa</th>
+                        <th style="width: 15%;">Data Infração</th>
+                        <th style="width: 12%;">Agente</th>
+                        <th style="width: 18%;">Status</th>
+                        <th style="width: 23%;">Observações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in results %}
+                    <tr>
+                        <td style="text-align: center;"><strong>{{ row.id }}</strong></td>
+                        <td style="text-align: center;">{{ row.numero_ait }}</td>
+                        <td style="text-align: center; font-family: monospace; font-weight: 600;">{{ row.placa if row.placa else '---' }}</td>
+                        <td style="text-align: center;">{{ row.data_ait | format_date }}</td>
+                        <td style="text-align: center;">{{ row.agente }}</td>
+                        <td style="font-weight: 500;">{{ row.status }}</td>
+                        <td style="font-size: 0.8rem;">{{ row.observacao if row.observacao else '' }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7" style="text-align: center; padding: 2rem;">Nenhum registro encontrado.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% endif %}
+        </div>
+
+        <!-- Signature Lines / Date -->
+        <div class="print-date">
+            Emitido em: <span id="generation-timestamp"></span>
+        </div>
+    </div>
+
+    <!-- Script to write current date/time on bottom -->
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            const now = new Date();
+            const dateStr = now.toLocaleDateString('pt-BR') + ' às ' + now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+            document.getElementById("generation-timestamp").textContent = dateStr;
+        });
+    </script>
+</body>
+</html>

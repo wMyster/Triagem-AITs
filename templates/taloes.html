@@ -1,0 +1,130 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="panel">
+    <div class="panel-header">
+        <div class="panel-title">
+            <h2><i class="fa-solid fa-book" style="color: var(--accent-orange); margin-right: 0.5rem;"></i> Distribuição e Transferência de Talões</h2>
+            <p>Entrega de Talões de 50 Folhas e Redistribuição de Saldos Remanescentes</p>
+        </div>
+        <div class="panel-actions">
+            <a href="{{ url_for('index') }}" class="btn btn-secondary"><i class="fa-solid fa-house"></i> Voltar</a>
+        </div>
+    </div>
+
+    <!-- Grid for Forms: 1. Novo Talão | 2. Transferir AITs -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
+        
+        <!-- Form 1: Entregar Talão -->
+        <div style="background: rgba(255,255,255,0.02); padding: 1.5rem; border-radius: 0.75rem; border: 1px solid rgba(255,255,255,0.08);">
+            <h3 style="margin-top: 0; color: #f97316; font-size: 1.1rem; margin-bottom: 1rem;"><i class="fa-solid fa-folder-plus"></i> Entregar Novo Talão (50 AITs)</h3>
+            <form action="{{ url_for('taloes_criar') }}" method="POST">
+                <div class="form-group" style="margin-bottom: 1rem;">
+                    <label for="agente_gcm_id">Servidor Responsável *</label>
+                    <select id="agente_gcm_id" name="agente_gcm_id" required>
+                        <option value="">Selecione o Agente/GCM...</option>
+                        {% for s in agentes %}
+                            <option value="{{ s.id }}">{{ s.nome_completo }} ({{ s.categoria }} - Mat: {{ s.matricula }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group" style="margin-bottom: 1rem;">
+                    <label for="data_entrega">Data de Entrega *</label>
+                    <input type="date" id="data_entrega" name="data_entrega" value="{{ datetime_now.split(' ')[0] }}" required>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 1rem;">
+                    <div class="form-group">
+                        <label for="numero_inicial">Nº AIT Inicial *</label>
+                        <input type="number" id="numero_inicial" name="numero_inicial" placeholder="Ex: 433501" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="numero_final">Nº AIT Final *</label>
+                        <input type="number" id="numero_final" name="numero_final" placeholder="Ex: 433550" required>
+                    </div>
+                </div>
+                <div class="form-group" style="margin-bottom: 1rem;">
+                    <label for="numero_recibo">Número do Recibo / Protocolo</label>
+                    <input type="text" id="numero_recibo" name="numero_recibo" placeholder="Ex: REC-2026/089">
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%; background: #f97316;"><i class="fa-solid fa-paper-plane"></i> Registrar Talão e Gerar 50 AITs</button>
+            </form>
+        </div>
+
+        <!-- Form 2: Transferir AITs Remanescentes -->
+        <div style="background: rgba(255,255,255,0.02); padding: 1.5rem; border-radius: 0.75rem; border: 1px solid rgba(255,255,255,0.08);">
+            <h3 style="margin-top: 0; color: #8b5cf6; font-size: 1.1rem; margin-bottom: 1rem;"><i class="fa-solid fa-right-left"></i> Transferir Saldos de AIT</h3>
+            <form action="{{ url_for('taloes_transferir') }}" method="POST">
+                <div class="form-group" style="margin-bottom: 1rem;">
+                    <label for="agente_origem_id">Servidor de Origem *</label>
+                    <select id="agente_origem_id" name="agente_origem_id" required>
+                        <option value="">Selecione quem está devolvendo...</option>
+                        {% for s in agentes %}
+                            <option value="{{ s.id }}">{{ s.nome_completo }} (Mat: {{ s.matricula }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group" style="margin-bottom: 1rem;">
+                    <label for="agente_destino_id">Servidor de Destino *</label>
+                    <select id="agente_destino_id" name="agente_destino_id" required>
+                        <option value="">Selecione quem receberá os AITs...</option>
+                        {% for s in agentes %}
+                            <option value="{{ s.id }}">{{ s.nome_completo }} (Mat: {{ s.matricula }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 1rem;">
+                    <div class="form-group">
+                        <label for="transf_inicial">1º AIT Transferido *</label>
+                        <input type="number" id="transf_inicial" name="transf_inicial" required placeholder="Ex: 433521">
+                    </div>
+                    <div class="form-group">
+                        <label for="transf_final">Último AIT *</label>
+                        <input type="number" id="transf_final" name="transf_final" required placeholder="Ex: 433550">
+                    </div>
+                </div>
+                <div class="form-group" style="margin-bottom: 1rem;">
+                    <label for="motivo">Motivo da Transferência *</label>
+                    <input type="text" id="motivo" name="motivo" required placeholder="Ex: Afastamento / Redirecionamento de frota">
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%; background: #8b5cf6;"><i class="fa-solid fa-rotate"></i> Efetoar Transferência</button>
+            </form>
+        </div>
+
+    </div>
+
+    <!-- List of Delivered Talões -->
+    <h3 style="color: #ffffff; font-size: 1.1rem; margin-bottom: 1rem;"><i class="fa-solid fa-layer-group"></i> Talões Registrados</h3>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Recibo</th>
+                <th>Data Entrega</th>
+                <th>Responsável Atual</th>
+                <th>Intervalo Numérico</th>
+                <th>Qtd Total</th>
+                <th>Situação</th>
+                <th>Entregues ao Setor</th>
+                <th>Faltantes</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in taloes %}
+            <tr>
+                <td>#{{ item.id }}</td>
+                <td><strong>{{ item.numero_recibo if item.numero_recibo else 'N/A' }}</strong></td>
+                <td>{{ item.data_entrega }}</td>
+                <td><strong>{{ item.agente_nome }}</strong> (Mat: {{ item.agente_matricula }})</td>
+                <td><span style="font-weight: 600; color: #f97316;">{{ item.numero_inicial }} à {{ item.numero_final }}</span></td>
+                <td>{{ item.quantidade_calculada }}</td>
+                <td>
+                    <span class="badge badge-info">{{ item.situacao }}</span>
+                </td>
+                <td><strong style="color: #34d399;">{{ item.qtd_entregue }}</strong></td>
+                <td><strong style="color: #f87171;">{{ item.qtd_faltante }}</strong></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

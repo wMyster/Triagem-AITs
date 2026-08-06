@@ -1,0 +1,177 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="panel">
+    <div class="panel-header">
+        <div class="panel-title">
+            <h2><i class="fa-solid fa-file-invoice-dollar" style="color: var(--accent-blue); margin-right: 0.5rem;"></i> Central de Relatórios</h2>
+            <p>Selecione os critérios para emissão de relatórios oficiais</p>
+        </div>
+        <a href="{{ url_for('index') }}" class="btn btn-secondary">
+            <i class="fa-solid fa-house"></i> Voltar ao Menu
+        </a>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 2rem;">
+        
+        <!-- Relatório por Período -->
+        <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--card-border); border-radius: var(--border-radius-md); padding: 1.75rem; display: flex; flex-direction: column; justify-content: space-between;">
+            <div>
+                <h3 style="font-size: 1.15rem; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem; color: var(--accent-blue);">
+                    <i class="fa-solid fa-calendar-range"></i> Por Período de Ocorrência
+                </h3>
+                <p style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.4; margin-bottom: 1.5rem;">
+                    Gera uma listagem de AITs cuja data de ocorrência da infração está compreendida no intervalo de datas selecionado.
+                </p>
+            </div>
+            <form action="{{ url_for('relatorio_data') }}" method="GET" target="_blank" style="display: flex; flex-direction: column; gap: 1rem;">
+                <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                    <div class="form-group">
+                        <label for="data_inicial" style="font-size: 0.75rem;">De:</label>
+                        <input type="date" id="data_inicial" name="data_inicial" required style="padding: 0.6rem 0.85rem; font-size: 0.9rem; width: 100%;">
+                    </div>
+                    <div class="form-group">
+                        <label for="data_final" style="font-size: 0.75rem;">Até:</label>
+                        <input type="date" id="data_final" name="data_final" required style="padding: 0.6rem 0.85rem; font-size: 0.9rem; width: 100%;">
+                    </div>
+                    
+                    <div style="display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.5rem; background: rgba(255,255,255,0.01); border: 1px solid var(--card-border); padding: 1rem; border-radius: var(--border-radius-md);">
+                        <label style="font-size: 0.7rem; letter-spacing: 0.05em; color: var(--text-secondary);">Tipos de Relatório (Selecione um ou mais):</label>
+                        <div style="display: flex; flex-direction: column; gap: 0.6rem; margin-top: 0.25rem;">
+                            <label style="display: flex; align-items: center; gap: 0.5rem; text-transform: none; font-weight: normal; cursor: pointer; font-size: 0.85rem; color: var(--text-primary);" onmouseover="this.style.color='var(--accent-blue)';" onmouseout="this.style.color='var(--text-primary)';">
+                                <input type="checkbox" name="opcao_filtro" value="lista" checked style="width: 16px; height: 16px; accent-color: var(--accent-blue); cursor: pointer;">
+                                Somente Lista de Ocorrências Relacionadas
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 0.5rem; text-transform: none; font-weight: normal; cursor: pointer; font-size: 0.85rem; color: var(--text-primary);" onmouseover="this.style.color='var(--accent-blue)';" onmouseout="this.style.color='var(--text-primary)';">
+                                <input type="checkbox" name="opcao_filtro" value="qtd_mes" style="width: 16px; height: 16px; accent-color: var(--accent-blue); cursor: pointer;">
+                                Somente a quantidade do mês
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 0.5rem; text-transform: none; font-weight: normal; cursor: pointer; font-size: 0.85rem; color: var(--text-primary);" onmouseover="this.style.color='var(--accent-blue)';" onmouseout="this.style.color='var(--text-primary)';">
+                                <input type="checkbox" name="opcao_filtro" value="qtd_agentes" style="width: 16px; height: 16px; accent-color: var(--accent-blue); cursor: pointer;">
+                                Quantidade com Distribuição dos Agentes
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 0.5rem; text-transform: none; font-weight: normal; cursor: pointer; font-size: 0.85rem; color: var(--text-primary);" onmouseover="this.style.color='var(--accent-blue)';" onmouseout="this.style.color='var(--text-primary)';">
+                                <input type="checkbox" name="opcao_filtro" value="dist_agentes" style="width: 16px; height: 16px; accent-color: var(--accent-blue); cursor: pointer;">
+                                Somente Distribuição dos agentes
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 0.5rem; text-transform: none; font-weight: normal; cursor: pointer; font-size: 0.85rem; color: var(--text-primary);" onmouseover="this.style.color='var(--accent-blue)';" onmouseout="this.style.color='var(--text-primary)';">
+                                <input type="checkbox" name="opcao_filtro" value="tipo_mes" style="width: 16px; height: 16px; accent-color: var(--accent-blue); cursor: pointer;">
+                                Tipo de ocorrência por mês
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 0.5rem; text-transform: none; font-weight: normal; cursor: pointer; font-size: 0.85rem; color: var(--text-primary);" onmouseover="this.style.color='var(--accent-blue)';" onmouseout="this.style.color='var(--text-primary)';">
+                                <input type="checkbox" name="opcao_filtro" value="agente_mes" style="width: 16px; height: 16px; accent-color: var(--accent-blue); cursor: pointer;">
+                                Agentes por mês
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary" style="background: var(--accent-blue); box-shadow: 0 4px 15px rgba(37, 99, 235, 0.25); margin-top: 0.4rem;">
+                    <i class="fa-solid fa-file-signature"></i> Visualizar Relatório
+                </button>
+            </form>
+        </div>
+
+        <!-- Relatório por Data de Digitação -->
+        <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--card-border); border-radius: var(--border-radius-md); padding: 1.75rem; display: flex; flex-direction: column; justify-content: space-between;">
+            <div>
+                <h3 style="font-size: 1.15rem; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem; color: var(--accent-blue);">
+                    <i class="fa-solid fa-keyboard"></i> Por Lote de Digitação
+                </h3>
+                <p style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.4; margin-bottom: 1.5rem;">
+                    Lista todos os registros digitados no sistema em um dia específico, ideal para controle diário de produtividade.
+                </p>
+            </div>
+            <form action="{{ url_for('relatorio_digitacao') }}" method="GET" target="_blank" style="display: flex; flex-direction: column; gap: 1rem;">
+                <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                    <div class="form-group">
+                        <label for="data_digitacao" style="font-size: 0.75rem;">Selecione a Data:</label>
+                        <input type="date" id="data_digitacao" name="data_digitacao" required style="padding: 0.6rem 0.85rem; font-size: 0.9rem; width: 100%;">
+                    </div>
+                    
+                    <div style="display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.5rem; background: rgba(255,255,255,0.01); border: 1px solid var(--card-border); padding: 1rem; border-radius: var(--border-radius-md);">
+                        <label style="font-size: 0.7rem; letter-spacing: 0.05em; color: var(--text-secondary);">Tipos de Relatório (Selecione um ou mais):</label>
+                        <div style="display: flex; flex-direction: column; gap: 0.6rem; margin-top: 0.25rem;">
+                            <label style="display: flex; align-items: center; gap: 0.5rem; text-transform: none; font-weight: normal; cursor: pointer; font-size: 0.85rem; color: var(--text-primary);" onmouseover="this.style.color='var(--accent-blue)';" onmouseout="this.style.color='var(--text-primary)';">
+                                <input type="checkbox" name="opcao_filtro" value="lista" checked style="width: 16px; height: 16px; accent-color: var(--accent-blue); cursor: pointer;">
+                                Somente Lista de Ocorrências Relacionadas
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 0.5rem; text-transform: none; font-weight: normal; cursor: pointer; font-size: 0.85rem; color: var(--text-primary);" onmouseover="this.style.color='var(--accent-blue)';" onmouseout="this.style.color='var(--text-primary)';">
+                                <input type="checkbox" name="opcao_filtro" value="qtd_mes" style="width: 16px; height: 16px; accent-color: var(--accent-blue); cursor: pointer;">
+                                Somente a quantidade do mês
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 0.5rem; text-transform: none; font-weight: normal; cursor: pointer; font-size: 0.85rem; color: var(--text-primary);" onmouseover="this.style.color='var(--accent-blue)';" onmouseout="this.style.color='var(--text-primary)';">
+                                <input type="checkbox" name="opcao_filtro" value="qtd_agentes" style="width: 16px; height: 16px; accent-color: var(--accent-blue); cursor: pointer;">
+                                Quantidade com Distribuição dos Agentes
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 0.5rem; text-transform: none; font-weight: normal; cursor: pointer; font-size: 0.85rem; color: var(--text-primary);" onmouseover="this.style.color='var(--accent-blue)';" onmouseout="this.style.color='var(--text-primary)';">
+                                <input type="checkbox" name="opcao_filtro" value="dist_agentes" style="width: 16px; height: 16px; accent-color: var(--accent-blue); cursor: pointer;">
+                                Somente Distribuição dos agentes
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 0.5rem; text-transform: none; font-weight: normal; cursor: pointer; font-size: 0.85rem; color: var(--text-primary);" onmouseover="this.style.color='var(--accent-blue)';" onmouseout="this.style.color='var(--text-primary)';">
+                                <input type="checkbox" name="opcao_filtro" value="tipo_mes" style="width: 16px; height: 16px; accent-color: var(--accent-blue); cursor: pointer;">
+                                Tipo de ocorrência por mês
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 0.5rem; text-transform: none; font-weight: normal; cursor: pointer; font-size: 0.85rem; color: var(--text-primary);" onmouseover="this.style.color='var(--accent-blue)';" onmouseout="this.style.color='var(--text-primary)';">
+                                <input type="checkbox" name="opcao_filtro" value="agente_mes" style="width: 16px; height: 16px; accent-color: var(--accent-blue); cursor: pointer;">
+                                Agentes por mês
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary" style="background: var(--accent-blue); box-shadow: 0 4px 15px rgba(37, 99, 235, 0.25); margin-top: 0.4rem;">
+                    <i class="fa-solid fa-file-signature"></i> Visualizar Relatório
+                </button>
+            </form>
+        </div>
+
+        <!-- Relatório Geral -->
+        <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--card-border); border-radius: var(--border-radius-md); padding: 1.75rem; display: flex; flex-direction: column; justify-content: space-between;">
+            <div>
+                <h3 style="font-size: 1.15rem; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem; color: var(--accent-blue);">
+                    <i class="fa-solid fa-globe"></i> Relatório Geral
+                </h3>
+                <p style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.4; margin-bottom: 1.5rem;">
+                    Exibe a totalidade dos registros da base de dados (limitado aos últimos 1.000 para controle de desempenho do navegador).
+                </p>
+            </div>
+            <form action="{{ url_for('relatorio_general') }}" method="GET" target="_blank" style="display: flex; flex-direction: column; gap: 1rem;">
+                <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                    <div style="display: flex; flex-direction: column; gap: 0.5rem; background: rgba(255,255,255,0.01); border: 1px solid var(--card-border); padding: 1rem; border-radius: var(--border-radius-md);">
+                        <label style="font-size: 0.7rem; letter-spacing: 0.05em; color: var(--text-secondary);">Tipos de Relatório (Selecione um ou mais):</label>
+                        <div style="display: flex; flex-direction: column; gap: 0.6rem; margin-top: 0.25rem;">
+                            <label style="display: flex; align-items: center; gap: 0.5rem; text-transform: none; font-weight: normal; cursor: pointer; font-size: 0.85rem; color: var(--text-primary);" onmouseover="this.style.color='var(--accent-blue)';" onmouseout="this.style.color='var(--text-primary)';">
+                                <input type="checkbox" name="opcao_filtro" value="lista" checked style="width: 16px; height: 16px; accent-color: var(--accent-blue); cursor: pointer;">
+                                Somente Lista de Ocorrências Relacionadas
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 0.5rem; text-transform: none; font-weight: normal; cursor: pointer; font-size: 0.85rem; color: var(--text-primary);" onmouseover="this.style.color='var(--accent-blue)';" onmouseout="this.style.color='var(--text-primary)';">
+                                <input type="checkbox" name="opcao_filtro" value="qtd_mes" style="width: 16px; height: 16px; accent-color: var(--accent-blue); cursor: pointer;">
+                                Somente a quantidade do mês
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 0.5rem; text-transform: none; font-weight: normal; cursor: pointer; font-size: 0.85rem; color: var(--text-primary);" onmouseover="this.style.color='var(--accent-blue)';" onmouseout="this.style.color='var(--text-primary)';">
+                                <input type="checkbox" name="opcao_filtro" value="qtd_agentes" style="width: 16px; height: 16px; accent-color: var(--accent-blue); cursor: pointer;">
+                                Quantidade com Distribuição dos Agentes
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 0.5rem; text-transform: none; font-weight: normal; cursor: pointer; font-size: 0.85rem; color: var(--text-primary);" onmouseover="this.style.color='var(--accent-blue)';" onmouseout="this.style.color='var(--text-primary)';">
+                                <input type="checkbox" name="opcao_filtro" value="dist_agentes" style="width: 16px; height: 16px; accent-color: var(--accent-blue); cursor: pointer;">
+                                Somente Distribuição dos agentes
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 0.5rem; text-transform: none; font-weight: normal; cursor: pointer; font-size: 0.85rem; color: var(--text-primary);" onmouseover="this.style.color='var(--accent-blue)';" onmouseout="this.style.color='var(--text-primary)';">
+                                <input type="checkbox" name="opcao_filtro" value="tipo_mes" style="width: 16px; height: 16px; accent-color: var(--accent-blue); cursor: pointer;">
+                                Tipo de ocorrência por mês
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 0.5rem; text-transform: none; font-weight: normal; cursor: pointer; font-size: 0.85rem; color: var(--text-primary);" onmouseover="this.style.color='var(--accent-blue)';" onmouseout="this.style.color='var(--text-primary)';">
+                                <input type="checkbox" name="opcao_filtro" value="agente_mes" style="width: 16px; height: 16px; accent-color: var(--accent-blue); cursor: pointer;">
+                                Agentes por mês
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary" style="background: var(--accent-blue); box-shadow: 0 4px 15px rgba(37, 99, 235, 0.25); width: 100%; margin-top: 0.4rem;">
+                    <i class="fa-solid fa-print"></i> Abrir Relatório Geral
+                </button>
+            </form>
+        </div>
+
+    </div>
+</div>
+{% endblock %}

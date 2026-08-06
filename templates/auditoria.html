@@ -1,0 +1,60 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="panel">
+    <div class="panel-header">
+        <div class="panel-title">
+            <h2><i class="fa-solid fa-file-shield" style="color: #a78bfa; margin-right: 0.5rem;"></i> Trilha de Auditoria e Logs Transacionais</h2>
+            <p>Histórico Imutável de Operações, Alterações e Acessos ao Sistema</p>
+        </div>
+        <div class="panel-actions">
+            <a href="{{ url_for('index') }}" class="btn btn-secondary"><i class="fa-solid fa-house"></i> Voltar</a>
+        </div>
+    </div>
+
+    <!-- Logs Table -->
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Data / Hora</th>
+                <th>Usuário</th>
+                <th>Perfil</th>
+                <th>Ação Realizada</th>
+                <th>Tabela</th>
+                <th>ID Reg.</th>
+                <th>Detalhes / Justificativa</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for log in logs %}
+            <tr>
+                <td>#{{ log.id }}</td>
+                <td><small style="color: #94a3b8;">{{ log.data_hora }}</small></td>
+                <td><strong>{{ log.usuario }}</strong></td>
+                <td><span class="badge" style="background: rgba(255,255,255,0.08);">{{ log.perfil }}</span></td>
+                <td><strong style="color: #a78bfa;">{{ log.acao }}</strong></td>
+                <td><code>{{ log.tabela_afetada if log.tabela_afetada else '-' }}</code></td>
+                <td>{{ log.registro_id if log.registro_id else '-' }}</td>
+                <td>
+                    <small style="color: #cbd5e1;">
+                        {% if log.justificativa %}
+                            <strong>[Justificativa]:</strong> {{ log.justificativa }}<br>
+                        {% endif %}
+                        {% if log.detalhes_depois %}
+                            {{ log.detalhes_depois }}
+                        {% endif %}
+                    </small>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="8" style="text-align: center; color: #94a3b8; padding: 2rem;">
+                    Nenhum log de auditoria registrado até o momento.
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

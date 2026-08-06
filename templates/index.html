@@ -1,0 +1,130 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<!-- Quick Stats Banner -->
+<div class="stats-banner">
+    <div class="stat-box">
+        <div class="stat-box-num">{{ stats.total }}</div>
+        <div class="stat-box-label">Total de AITs</div>
+    </div>
+    <div class="stat-box">
+        <div class="stat-box-num blue">{{ stats.dct_processar }}</div>
+        <div class="stat-box-label">A Processar</div>
+    </div>
+    <div class="stat-box">
+        <div class="stat-box-num red">{{ stats.cancelado }}</div>
+        <div class="stat-box-label">Canceladas</div>
+    </div>
+    <div class="stat-box">
+        <div class="stat-box-num" style="color: var(--warning);">{{ stats.substituida }}</div>
+        <div class="stat-box-label">Substituídas</div>
+    </div>
+</div>
+
+<!-- Main Modules Navigation Grid -->
+<div class="dashboard-grid">
+    <!-- Cadastro Module -->
+    <div class="dashboard-card">
+        <div>
+            <div class="dashboard-card-icon">
+                <i class="fa-solid fa-file-invoice"></i>
+            </div>
+            <h3 class="dashboard-card-title">CADASTRO</h3>
+            <p class="dashboard-card-desc">Insira novos Autos de Infração (AIT) no sistema, consulte registros anteriores e navegue pela base de dados de forma sequencial.</p>
+        </div>
+        <a href="{{ url_for('cadastro') }}" class="btn btn-primary">
+            <i class="fa-solid fa-plus"></i> Cadastrar Autos
+        </a>
+    </div>
+
+    <!-- Relatórios Module -->
+    <div class="dashboard-card">
+        <div>
+            <div class="dashboard-card-icon" style="color: var(--accent-blue);">
+                <i class="fa-solid fa-file-pdf"></i>
+            </div>
+            <h3 class="dashboard-card-title">RELATÓRIOS</h3>
+            <p class="dashboard-card-desc">Emita relatórios consolidados formatados para impressão, incluindo relatórios por período de infração, data de digitação e listagem geral.</p>
+        </div>
+        <a href="{{ url_for('relatorios') }}" class="btn btn-primary" style="background: var(--accent-blue); box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3);">
+            <i class="fa-solid fa-print"></i> Gerar Relatórios
+        </a>
+    </div>
+
+    <!-- Consultas Module -->
+    <div class="dashboard-card">
+        <div>
+            <div class="dashboard-card-icon" style="color: var(--success);">
+                <i class="fa-solid fa-magnifying-glass"></i>
+            </div>
+            <h3 class="dashboard-card-title">CONSULTAS</h3>
+            <p class="dashboard-card-desc">Realize buscas avançadas e rápidas por período de infração, data específica em que o lote foi digitado ou por número de matrícula do agente autuador.</p>
+        </div>
+        <a href="{{ url_for('consultas') }}" class="btn btn-primary" style="background: var(--success); box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);">
+            <i class="fa-solid fa-search"></i> Consultar Base
+        </a>
+    </div>
+</div>
+
+<!-- Recent Records Table View -->
+<div class="panel" style="padding: 2rem;">
+    <div class="panel-header" style="margin-bottom: 1.25rem;">
+        <div class="panel-title">
+            <h2 style="font-size: 1.3rem;"><i class="fa-solid fa-clock-rotate-left" style="color: var(--accent-orange); margin-right: 0.5rem;"></i> Últimos Autos Inseridos</h2>
+            <p>Os 5 registros mais recentes na base de dados</p>
+        </div>
+        <a href="{{ url_for('cadastro', ait_id=stats.total) if stats.total > 0 else url_for('cadastro') }}" class="btn btn-secondary btn-action">
+            <i class="fa-solid fa-chevron-right"></i> Ver no formulário
+        </a>
+    </div>
+    
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Código</th>
+                    <th>Nº AIT</th>
+                    <th>Placa</th>
+                    <th>Data Infração</th>
+                    <th>Agente</th>
+                    <th>Status</th>
+                    <th>Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in recent_records %}
+                <tr>
+                    <td><strong>{{ row.id }}</strong></td>
+                    <td>{{ row.numero_ait }}</td>
+                    <td><span style="font-family: monospace; font-size: 0.95rem; font-weight: 600; letter-spacing: 0.05em;">{{ row.placa if row.placa else '---' }}</span></td>
+                    <td>{{ row.data_ait | format_date }}</td>
+                    <td>{{ row.agente }}</td>
+                    <td>
+                        {% if row.status == 'DCT PROCESSAR' %}
+                            <span class="badge badge-dct">A Processar</span>
+                        {% elif row.status == 'CANCELADO' %}
+                            <span class="badge badge-cancel">Cancelado</span>
+                        {% elif row.status == 'AIT SUBSTITUIDA' %}
+                            <span class="badge badge-subst">Substituído</span>
+                        {% elif row.status == 'RENAINF' %}
+                            <span class="badge badge-renainf">Renainf</span>
+                        {% else %}
+                            <span class="badge" style="background: rgba(255,255,255,0.05); color: var(--text-secondary);">{{ row.status }}</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <a href="{{ url_for('cadastro', ait_id=row.id) }}" class="btn btn-secondary btn-action" style="padding: 0.25rem 0.5rem;">
+                            <i class="fa-solid fa-pen-to-square"></i> Editar
+                        </a>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 2rem;">Nenhum registro encontrado no banco de dados.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

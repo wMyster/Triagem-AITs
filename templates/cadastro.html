@@ -1,0 +1,167 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="panel">
+    <div class="panel-header">
+        <div class="panel-title">
+            <h2><i class="fa-solid fa-file-signature" style="color: var(--accent-orange); margin-right: 0.5rem;"></i> Cadastro de Autos de Infração</h2>
+            <p>Formulário de Digitação Rápida e Manutenção de AIT</p>
+        </div>
+        <div class="panel-actions">
+            <a href="{{ url_for('index') }}" class="btn btn-secondary">
+                <i class="fa-solid fa-house"></i> Voltar
+            </a>
+            <a href="{{ url_for('cadastro') }}" class="btn btn-primary" style="background: var(--success); box-shadow: 0 4px 15px rgba(16, 185, 129, 0.25);">
+                <i class="fa-solid fa-file-circle-plus"></i> Novo Registro (F2)
+            </a>
+        </div>
+    </div>
+
+    {% if is_locked %}
+    <div class="alert alert-warning" style="background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.3); color: #fbbf24; margin-bottom: 1.5rem;">
+        <i class="fa-solid fa-lock" style="margin-right: 0.5rem;"></i>
+        <strong>REGISTRO CONFERIDO PELO SETOR DCT:</strong> Este AIT foi auditado e está travado para edições do setor Transporte. Apenas administradores podem modificar este registro.
+    </div>
+    {% endif %}
+
+    <!-- Form for editing / inserting -->
+    <form action="{{ url_for('cadastro', ait_id=record.id if record.id != 'Novo' else None) }}" method="POST" id="ait-form">
+        <div class="grid-form">
+            <!-- Código (Readonly) -->
+            <div class="form-group">
+                <label for="codigo">Código BD</label>
+                <input type="text" id="codigo" name="codigo" value="{{ record.id }}" readonly style="background: rgba(255,255,255,0.02); color: var(--text-muted); cursor: not-allowed; font-weight: 600;">
+            </div>
+
+            <!-- Número AIT com Validação Anti-Duplicidade -->
+            <div class="form-group">
+                <label for="numero_ait">Número AIT * <small id="dup-warning" style="color: #ef4444; font-weight: bold; margin-left: 0.5rem;"></small></label>
+                <input type="text" id="numero_ait" name="numero_ait" value="{{ record.numero_ait }}" required placeholder="Ex: 408820" maxlength="8" autofocus {% if is_locked %}readonly style="opacity: 0.6;"{% endif %}>
+            </div>
+
+            <!-- Placa -->
+            <div class="form-group">
+                <label for="placa">Placa do Veículo</label>
+                <input type="text" id="placa" name="placa" value="{{ record.placa if record.placa else '' }}" placeholder="Ex: ABC1D23" maxlength="7" style="text-transform: uppercase;" {% if is_locked %}readonly style="opacity: 0.6;"{% endif %}>
+            </div>
+
+            <!-- Data da Ocorrência -->
+            <div class="form-group">
+                <label for="data_ait">Data do Auto *</label>
+                <input type="date" id="data_ait" name="data_ait" value="{{ record.data_ait }}" required {% if is_locked %}readonly style="opacity: 0.6;"{% endif %}>
+            </div>
+
+            <!-- Agente -->
+            <div class="form-group">
+                <label for="agente">Código do Agente (Matrícula) *</label>
+                <input type="text" id="agente" name="agente" value="{{ record.agente }}" required placeholder="Ex: 25845" pattern="\d+" title="Digite apenas números" {% if is_locked %}readonly style="opacity: 0.6;"{% endif %}>
+            </div>
+
+            <!-- Status -->
+            <div class="form-group">
+                <label for="status">Status do Auto</label>
+                <select id="status" name="status" {% if is_locked or (session['user']['setor'] == 'transporte' and record.id != 'Novo') %}disabled style="opacity: 0.6;"{% endif %}>
+                    {% for option in status_options %}
+                        <option value="{{ option }}" {% if record.status == option %}selected{% endif %}>{{ option }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Data da Digitação -->
+            <div class="form-group">
+                <label for="data_digitacao">Data de Digitação</label>
+                <input type="date" id="data_digitacao" name="data_digitacao" value="{{ record.data_digitacao }}" {% if is_locked %}readonly style="opacity: 0.6;"{% endif %}>
+            </div>
+
+            <!-- Observações -->
+            <div class="form-group col-span-2">
+                <label for="observacao">Observação</label>
+                <textarea id="observacao" name="observacao" placeholder="Anotações complementares..." {% if is_locked %}readonly style="opacity: 0.6;"{% endif %}>{{ record.observacao if record.observacao else '' }}</textarea>
+            </div>
+        </div>
+
+        {% if not is_locked %}
+        <div style="margin-top: 2rem; display: flex; gap: 1rem; justify-content: flex-end;">
+            <button type="submit" class="btn btn-primary" style="padding: 0.85rem 2.5rem;" id="btn-salvar">
+                <i class="fa-solid fa-floppy-disk"></i> Salvar Registro (F2 / Enter)
+            </button>
+        </div>
+        {% endif %}
+    </form>
+</div>
+
+<!-- MS Access Style Navigation Bar -->
+<div class="navigation-bar no-print">
+    <div class="navigation-arrows">
+        <a href="{{ url_for('cadastro', ait_id=1) }}" class="btn btn-secondary btn-action" title="Primeiro Registro">
+            <i class="fa-solid fa-angles-left"></i>
+        </a>
+        {% if prev_id %}
+            <a href="{{ url_for('cadastro', ait_id=prev_id) }}" class="btn btn-secondary btn-action" title="Registro Anterior">
+                <i class="fa-solid fa-angle-left"></i> Anterior
+            </a>
+        {% else %}
+            <button class="btn btn-secondary btn-action" disabled style="opacity: 0.3;">
+                <i class="fa-solid fa-angle-left"></i> Anterior
+            </button>
+        {% endif %}
+    </div>
+
+    <div class="record-indicator">
+        Registro: <strong>{{ record.id }}</strong> de <strong>{{ total_records }}</strong>
+    </div>
+
+    <div class="navigation-arrows">
+        {% if next_id %}
+            <a href="{{ url_for('cadastro', ait_id=next_id) }}" class="btn btn-secondary btn-action" title="Próximo Registro">
+                Próximo <i class="fa-solid fa-angle-right"></i>
+            </a>
+        {% else %}
+            <button class="btn btn-secondary btn-action" disabled style="opacity: 0.3;">
+                Próximo <i class="fa-solid fa-angle-right"></i>
+            </button>
+        {% endif %}
+        <a href="{{ url_for('cadastro', ait_id=total_records) }}" class="btn btn-secondary btn-action" title="Último Registro">
+            <i class="fa-solid fa-angles-right"></i>
+        </a>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const numInput = document.getElementById("numero_ait");
+        const dupWarning = document.getElementById("dup-warning");
+        const currentId = "{{ record.id }}";
+
+        // Check duplicate AIT via AJAX
+        numInput.addEventListener("blur", function() {
+            const val = this.value.trim();
+            if (val.length >= 4) {
+                fetch(`/api/check_ait_duplicada/${val}`)
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.exists && data.id != currentId) {
+                            dupWarning.textContent = `⚠️ AIT JÁ CADASTRADO NO CÓDIGO #${data.id}!`;
+                            numInput.style.borderColor = "#ef4444";
+                        } else {
+                            dupWarning.textContent = "";
+                            numInput.style.borderColor = "";
+                        }
+                    })
+                    .catch(err => console.error(err));
+            }
+        });
+
+        // Keyboard Shortcut: F2 to submit form
+        document.addEventListener("keydown", function(e) {
+            if (e.key === "F2") {
+                e.preventDefault();
+                const btnSalvar = document.getElementById("btn-salvar");
+                if (btnSalvar) btnSalvar.click();
+            }
+        });
+    });
+</script>
+{% endblock %}
