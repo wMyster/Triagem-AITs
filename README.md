@@ -45,38 +45,6 @@ O sistema substituiu planilhas paralelas do Excel e bancos do MS Access por uma 
 
 ---
 
-## 🏗️ Arquitetura do Projeto
-
-```text
-Triagem-AITs/
-├── app.py                  # Controlador principal da aplicação Flask (Rotas & RBAC)
-├── audit.py                # Módulo de persistência imutável da Trilha de Auditoria
-├── requirements.txt        # Dependências do projeto Python
-├── triagem_ait.spec        # Especificação PyInstaller para compilação .EXE
-├── app_icon.ico            # Ícone oficial da aplicação
-├── scripts/                # Scripts de migração de banco e ferramentas de consolidação
-│   ├── migrate_v3.py       # Script de migração do banco para a versão v1.2
-│   └── merge_databases.py  # Consolidador de bases legadas Access
-├── static/
-│   ├── css/style.css       # Design System Vanilla CSS (Glassmorphism & Responsivo)
-│   └── js/                 # Scripts auxiliares para leitura de código de barras e atalhos
-└── templates/              # Interfaces HTML5 semânticas
-    ├── layout.html         # Shell principal com Header de Usuário e Status de Rede
-    ├── login.html          # Autenticação de Usuários
-    ├── index.html          # Dashboard Principal de Estatísticas
-    ├── agentes.html        # Cadastro de Agentes e GCMs
-    ├── taloes.html         # Distribuição de Talões e Transferências
-    ├── cadastro.html       # Digitação Rápida de AITs com atalhos F2
-    ├── faltantes.html      # Consulta de AITs Pendentes / Omitidos
-    ├── remessas.html       # Remessas Eletrônicas para Processamento
-    ├── empresa_conferencia.html # Portal Restrito da Empresa de Processamento
-    ├── divergencias.html   # Painel de Resolução de Divergências
-    ├── auditoria.html      # Visualizador dos Logs de Auditoria
-    └── usuarios.html       # Gestão de Contas e Perfis de Acesso
-```
-
----
-
 ## ⚙️ Como Executar o Projeto
 
 ### Pré-requisitos
@@ -113,14 +81,14 @@ Acesse o sistema no seu navegador através do endereço: `http://localhost:5000`
 
 ---
 
-## 🔑 Credenciais Padrão de Acesso
+## 🔑 Credenciais Atualizadas de Acesso
 
 | Usuário | Senha | Setor / Perfil | Atribuição |
 | :--- | :--- | :--- | :--- |
-| `transporte` | `transporte123` | Setor Transporte | Recebimento de AITs, Cadastro de Talões e Remessas |
-| `dct` | `dct123` | Setor DCT | Conferência em Lote, Transferências e Auditoria |
+| `transporte` | `transporte123!` | Setor Transporte | Recebimento de AITs, Cadastro de Talões e Remessas |
+| `dct` | `dct123!` | Setor DCT | Conferência em Lote, Transferências e Auditoria |
 | `empresa` | `empresa123` | Empresa Processamento | Portal de Conferência Individual de Remessas |
-| `admin` | `admin123` | Administrador | Gestão Total do Sistema e Usuários |
+| `admin` | `admin123!` | Administrador | Gestão Total do Sistema e Usuários |
 | `consulta` | `consulta123` | Consulta | Visualização de Relatórios (Somente Leitura) |
 
 ---
@@ -135,9 +103,9 @@ Para operar o sistema em 4 ou mais máquinas conectadas em rede local:
 
 ## 📦 Compilação para Executável (.EXE)
 
-Para compilar o projeto em um executável autônomo para Windows:
+Para compilar o projeto em um executável autônomo para Windows com suporte ao Tray Icon e Google Chrome:
 ```bash
-pyinstaller triagem_ait.spec
+pyinstaller triagem_ait.spec --noconfirm
 ```
 O executável compilado será gerado na pasta `dist/triagem_ait.exe`.
 

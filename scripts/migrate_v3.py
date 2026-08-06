@@ -5,7 +5,7 @@ import shutil
 from werkzeug.security import generate_password_hash
 
 def get_db_path():
-    local_db = os.path.join(os.path.dirname(os.path.abspath(__file__)), "triagem_ait.db")
+    local_db = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "triagem_ait.db")
     net_dir = r"G:\Triagem AITs"
     net_db = os.path.join(net_dir, "triagem_ait.db")
     
@@ -30,7 +30,7 @@ def apply_migrations(db_path):
     conn.execute("PRAGMA busy_timeout = 30000;")
     cursor = conn.cursor()
 
-    # Re-create usuarios table to allow new roles (empresa, consulta)
+    # Re-create usuarios table to allow new roles
     cursor.execute("CREATE TABLE IF NOT EXISTS usuarios_temp AS SELECT * FROM usuarios;")
     cursor.execute("DROP TABLE IF EXISTS usuarios;")
     
@@ -50,7 +50,6 @@ def apply_migrations(db_path):
     );
     """)
 
-    # Restore from temp if exists
     cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='usuarios_temp';")
     if cursor.fetchone():
         try:
@@ -62,23 +61,28 @@ def apply_migrations(db_path):
             print(f"Aviso ao restaurar usuarios_temp: {e}")
         cursor.execute("DROP TABLE IF EXISTS usuarios_temp;")
 
-    # Usuários padrões
+    # Usuários padrões com senhas atualizadas
     usuarios_iniciais = [
-        ("admin", "Administrador Geral", "0000", "admin123", "setor_publico", "admin"),
-        ("transporte", "Operador Transporte", "1001", "transporte123", "setor_publico", "transporte"),
-        ("dct", "Conferente DCT", "2002", "dct123", "setor_publico", "dct"),
+        ("admin", "Administrador Geral", "0000", "admin123!", "setor_publico", "admin"),
+        ("transporte", "Operador Transporte", "1001", "transporte123!", "setor_publico", "transporte"),
+        ("dct", "Conferente DCT", "2002", "dct123!", "setor_publico", "dct"),
         ("empresa", "Conferente Empresa Processamento", "3003", "empresa123", "empresa_processamento", "empresa"),
         ("consulta", "Usuário de Consulta", "4004", "consulta123", "setor_publico", "consulta")
     ]
     for username, nome, mat, senha, vinc, setor in usuarios_iniciais:
         cursor.execute("SELECT id FROM usuarios WHERE username = ?", (username,))
-        if not cursor.fetchone():
+        rec = cursor.fetchone()
+        if not rec:
             hash_s = generate_password_hash(senha)
             cursor.execute("""
             INSERT INTO usuarios (username, nome_completo, matricula, senha_hash, vinculo, setor)
             VALUES (?, ?, ?, ?, ?, ?)
             """, (username, nome, mat, hash_s, vinc, setor))
             print(f" -> Usuário '{username}' ({setor}) criado.")
+        else:
+            # Force update password hash for standard users
+            hash_s = generate_password_hash(senha)
+            cursor.execute("UPDATE usuarios SET senha_hash = ? WHERE username = ?", (hash_s, username))
 
     # 2. Tabela agentes_gcm
     cursor.execute("""
@@ -95,7 +99,6 @@ def apply_migrations(db_path):
     );
     """)
 
-    # Seed Agentes/GCM de teste se vazio
     cursor.execute("SELECT COUNT(*) FROM agentes_gcm")
     if cursor.fetchone()[0] == 0:
         agentes_seed = [
@@ -109,7 +112,6 @@ def apply_migrations(db_path):
             INSERT INTO agentes_gcm (nome_completo, matricula, categoria, situacao, unidade_setor, criado_por)
             VALUES (?, ?, ?, ?, ?, 'SISTEMA')
             """, (nome, mat, cat, sit, uni))
-            print(f" -> Agente/GCM '{nome}' (Matrícula: {mat}) criado.")
 
     # 3. Tabela taloes
     cursor.execute("""
@@ -178,7 +180,6 @@ def apply_migrations(db_path):
     for c_name, c_type in new_cols_ait:
         if c_name not in cols_ait:
             cursor.execute(f"ALTER TABLE ait ADD COLUMN {c_name} {c_type};")
-            print(f" -> Coluna '{c_name}' adicionada à tabela 'ait'.")
 
     # 7. Tabela remessa_divergencias
     cursor.execute("""
@@ -223,7 +224,7 @@ def migrate():
     main_db = get_db_path()
     apply_migrations(main_db)
 
-    local_db = os.path.join(os.path.dirname(os.path.abspath(__file__)), "triagem_ait.db")
+    local_db = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "triagem_ait.db")
     if main_db != local_db and os.path.exists(local_db):
         apply_migrations(local_db)
 
