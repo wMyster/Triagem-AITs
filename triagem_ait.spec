@@ -1,12 +1,18 @@
 # -*- mode: python ; coding: utf-8 -*-
-
+import os
+import shutil
 
 a = Analysis(
-    ['main_tray.py'],
+    ['app.py'],
     pathex=[],
     binaries=[],
-    datas=[('templates', 'templates'), ('static', 'static'), ('app_icon.ico', '.')],
-    hiddenimports=[],
+    datas=[
+        ('templates', 'templates'),
+        ('static', 'static'),
+        ('audit.py', '.'),
+        ('app_icon.ico', '.')
+    ],
+    hiddenimports=['audit', 'sqlite3', 'werkzeug.security'],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
@@ -39,9 +45,6 @@ exe = EXE(
 )
 
 # Sincronização automática do banco de dados na compilação
-import shutil
-import os
-
 spec_dir = SPECPATH if 'SPECPATH' in globals() else os.path.dirname(os.path.abspath(__file__))
 dist_dir = DISTPATH if 'DISTPATH' in globals() else os.path.join(spec_dir, 'dist')
 
@@ -54,15 +57,10 @@ if os.path.exists(src_db):
     print(f"[INFO] Destino: {dst_db}")
     
     try:
-        # Garantir que a pasta dist exista
         os.makedirs(dist_dir, exist_ok=True)
-        
-        # Copiar o banco de dados preservando os metadados (timestamp)
         shutil.copy2(src_db, dst_db)
         print(f"[INFO] Banco de dados sincronizado com sucesso!\n")
     except Exception as e:
         print(f"[ERROR] Não foi possível copiar o banco de dados: {e}")
-        print(f"[ERROR] Certifique-se de que a aplicação não está rodando e bloqueando o arquivo.\n")
 else:
-    print(f"\n[WARNING] Banco de dados original não encontrado em '{src_db}'. A sincronização foi ignorada.\n")
-
+    print(f"\n[WARNING] Banco de dados original não encontrado em '{src_db}'.\n")
