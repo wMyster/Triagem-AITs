@@ -420,9 +420,9 @@ def cadastro(ait_id=None):
                 new_id = cursor.lastrowid
                 conn.commit()
                 log_auditoria(user_name, user_setor, "CRIAR_AIT", "ait", new_id, depois=f"AIT {numero_ait}")
-                flash(f"Novo AIT cadastrado com sucesso! Código #{new_id}", "success")
+                flash(f"✓ AIT {numero_ait} recebido com sucesso!", "success")
                 conn.close()
-                return redirect(url_for("cadastro", ait_id=new_id))
+                return redirect(url_for("cadastro", last_agente=agente_mat, last_data=data_ait, last_dig=data_digitacao))
 
     record = None
     prev_id = None
@@ -444,9 +444,14 @@ def cadastro(ait_id=None):
         next_row = conn.execute("SELECT MIN(id) FROM ait WHERE id > ? AND data_ait IS NOT NULL", (ait_id,)).fetchone()
         next_id = next_row[0] if next_row else None
     else:
+        last_agente = request.args.get("last_agente", "")
+        last_data = request.args.get("last_data", "")
+        last_dig = request.args.get("last_dig", datetime.today().strftime("%Y-%m-%d"))
+
         record = {
-            "id": "Novo", "numero_ait": "", "placa": "", "data_ait": "", "agente": "",
-            "status": "DCT PROCESSAR", "observacao": "", "data_digitacao": datetime.today().strftime("%Y-%m-%d")
+            "id": "Novo", "numero_ait": "", "placa": "",
+            "data_ait": last_data, "agente": last_agente,
+            "status": "DCT PROCESSAR", "observacao": "", "data_digitacao": last_dig
         }
 
     conn.close()

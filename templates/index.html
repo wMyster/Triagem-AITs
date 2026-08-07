@@ -1,8 +1,252 @@
 {% extends "layout.html" %}
 
 {% block content %}
+<style>
+    .welcome-banner {
+        background: linear-gradient(135deg, rgba(30, 41, 59, 0.8), rgba(15, 23, 42, 0.9));
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 1rem;
+        padding: 1.5rem 2rem;
+        margin-bottom: 2rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1.5rem;
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+    }
+    .welcome-text h2 {
+        font-size: 1.6rem;
+        font-weight: 800;
+        margin-bottom: 0.3rem;
+        background: linear-gradient(135deg, #ffffff, #cbd5e1);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+    .welcome-text p {
+        color: #94a3b8;
+        font-size: 0.95rem;
+        margin: 0;
+    }
+    .action-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        gap: 1.25rem;
+        margin-bottom: 2.5rem;
+    }
+    .action-card-btn {
+        background: rgba(30, 41, 59, 0.6);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 1.25rem;
+        padding: 1.75rem;
+        text-decoration: none;
+        color: white;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        position: relative;
+        overflow: hidden;
+    }
+    .action-card-btn:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 15px 30px -10px rgba(0, 0, 0, 0.5);
+    }
+    .card-orange:hover { border-color: #f97316; background: rgba(249, 115, 22, 0.12); }
+    .card-blue:hover { border-color: #3b82f6; background: rgba(59, 130, 246, 0.12); }
+    .card-purple:hover { border-color: #8b5cf6; background: rgba(139, 92, 246, 0.12); }
+    .card-emerald:hover { border-color: #10b981; background: rgba(16, 185, 129, 0.12); }
+    .card-rose:hover { border-color: #f43f5e; background: rgba(244, 63, 94, 0.12); }
+
+    .action-icon {
+        width: 56px;
+        height: 56px;
+        border-radius: 1rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.6rem;
+        margin-bottom: 1.25rem;
+    }
+    .icon-bg-orange { background: rgba(249, 115, 22, 0.2); color: #f97316; }
+    .icon-bg-blue { background: rgba(59, 130, 246, 0.2); color: #60a5fa; }
+    .icon-bg-purple { background: rgba(139, 92, 246, 0.2); color: #a78bfa; }
+    .icon-bg-emerald { background: rgba(16, 185, 129, 0.2); color: #34d399; }
+    .icon-bg-rose { background: rgba(244, 63, 94, 0.2); color: #fb7185; }
+
+    .action-title {
+        font-size: 1.2rem;
+        font-weight: 700;
+        margin-bottom: 0.4rem;
+    }
+    .action-desc {
+        font-size: 0.85rem;
+        color: #94a3b8;
+        line-height: 1.4;
+        margin-bottom: 1.25rem;
+    }
+    .action-link-text {
+        font-weight: 600;
+        font-size: 0.9rem;
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+    }
+</style>
+
+<!-- Welcome & Role Banner -->
+<div class="welcome-banner">
+    <div class="welcome-text">
+        <h2>Olá, {{ session['user']['nome_completo'] }}!</h2>
+        <p>
+            Painel Operacional — Setor <span class="sector-tag sector-{{ session['user']['setor'] }}">{{ session['user']['setor'].upper() }}</span>
+        </p>
+    </div>
+    <div>
+        <a href="{{ url_for('cadastro') }}" class="btn btn-primary" style="padding: 0.75rem 1.25rem; font-size: 0.95rem;">
+            <i class="fa-solid fa-plus"></i> Receber AIT Rápido
+        </a>
+    </div>
+</div>
+
+<!-- Role-Tailored Operational Action Cards -->
+<h3 style="font-size: 1.1rem; color: #cbd5e1; margin-bottom: 1rem;"><i class="fa-solid fa-bolt" style="color: #f97316; margin-right: 0.4rem;"></i> Ações Rápidas do Seu Setor</h3>
+
+<div class="action-grid">
+    {% if session['user']['setor'] in ['transporte', 'admin'] %}
+    <!-- Receber AIT Card -->
+    <a href="{{ url_for('cadastro') }}" class="action-card-btn card-orange">
+        <div>
+            <div class="action-icon icon-bg-orange">
+                <i class="fa-solid fa-file-signature"></i>
+            </div>
+            <div class="action-title">Receber / Digitar AIT</div>
+            <div class="action-desc">Entrada rápida de novos AITs recebidos dos Agentes e da GCM com suporte a Enter automático.</div>
+        </div>
+        <div class="action-link-text" style="color: #f97316;">
+            Acessar Formulário <i class="fa-solid fa-arrow-right"></i>
+        </div>
+    </a>
+
+    <!-- Cadastrar Talão Card -->
+    <a href="{{ url_for('taloes') }}" class="action-card-btn card-blue">
+        <div>
+            <div class="action-icon icon-bg-blue">
+                <i class="fa-solid fa-book"></i>
+            </div>
+            <div class="action-title">Distribuição de Talões</div>
+            <div class="action-desc">Cadastrar novos talões (50 folhas), atribuir a servidores e efetuar transferências.</div>
+        </div>
+        <div class="action-link-text" style="color: #60a5fa;">
+            Gerenciar Talões <i class="fa-solid fa-arrow-right"></i>
+        </div>
+    </a>
+
+    <!-- Criar Remessa Card -->
+    <a href="{{ url_for('remessas') }}" class="action-card-btn card-purple">
+        <div>
+            <div class="action-icon icon-bg-purple">
+                <i class="fa-solid fa-truck-ramp-box"></i>
+            </div>
+            <div class="action-title">Remessas Eletrônicas</div>
+            <div class="action-desc">Agrupar AITs recebidos em remessas oficiais para envio físico à empresa de processamento.</div>
+        </div>
+        <div class="action-link-text" style="color: #a78bfa;">
+            Ver Remessas <i class="fa-solid fa-arrow-right"></i>
+        </div>
+    </a>
+
+    <!-- AITs Faltantes Card -->
+    <a href="{{ url_for('faltantes') }}" class="action-card-btn card-rose">
+        <div>
+            <div class="action-icon icon-bg-rose">
+                <i class="fa-solid fa-clock-rotate-left"></i>
+            </div>
+            <div class="action-title">AITs Faltantes</div>
+            <div class="action-desc">Identificar números omitidos de talões entregues há mais de 10 dias para cobrança.</div>
+        </div>
+        <div class="action-link-text" style="color: #fb7185;">
+            Ver Faltantes <i class="fa-solid fa-arrow-right"></i>
+        </div>
+    </a>
+    {% endif %}
+
+    {% if session['user']['setor'] in ['dct', 'admin'] %}
+    <!-- Conferência DCT Card -->
+    <a href="{{ url_for('dct_conferencia') }}" class="action-card-btn card-blue">
+        <div>
+            <div class="action-icon icon-bg-blue">
+                <i class="fa-solid fa-clipboard-check"></i>
+            </div>
+            <div class="action-title">Conferência DCT</div>
+            <div class="action-desc">Conferência em lote de relatórios, validação de remessas e emissão de termos oficiais.</div>
+        </div>
+        <div class="action-link-text" style="color: #60a5fa;">
+            Iniciar Conferência <i class="fa-solid fa-arrow-right"></i>
+        </div>
+    </a>
+
+    <!-- Divergências Card -->
+    <a href="{{ url_for('divergencias') }}" class="action-card-btn card-rose">
+        <div>
+            <div class="action-icon icon-bg-rose">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+            </div>
+            <div class="action-title">Painel de Divergências</div>
+            <div class="action-desc">Analisar e resolver pendências ou documentos ilegíveis/não localizados pela empresa.</div>
+        </div>
+        <div class="action-link-text" style="color: #fb7185;">
+            Tratar Pendências <i class="fa-solid fa-arrow-right"></i>
+        </div>
+    </a>
+
+    <!-- Quem Está Logado Card -->
+    <a href="{{ url_for('quem_esta_logado') }}" class="action-card-btn card-emerald">
+        <div>
+            <div class="action-icon icon-bg-emerald">
+                <i class="fa-solid fa-users-viewfinder"></i>
+            </div>
+            <div class="action-title">Quem Está Logado</div>
+            <div class="action-desc">Monitorar os operadores ativos conectados no sistema nas estações de trabalho.</div>
+        </div>
+        <div class="action-link-text" style="color: #34d399;">
+            Ver Operadores <i class="fa-solid fa-arrow-right"></i>
+        </div>
+    </a>
+    {% endif %}
+
+    {% if session['user']['setor'] in ['empresa', 'admin'] %}
+    <!-- Portal Empresa Card -->
+    <a href="{{ url_for('empresa_conferencia') }}" class="action-card-btn card-purple">
+        <div>
+            <div class="action-icon icon-bg-purple">
+                <i class="fa-solid fa-building-circle-check"></i>
+            </div>
+            <div class="action-title">Portal Empresa</div>
+            <div class="action-desc">Conferência individual item a item com suporte a leitor de código de barras USB/Wireless.</div>
+        </div>
+        <div class="action-link-text" style="color: #a78bfa;">
+            Acessar Portal <i class="fa-solid fa-arrow-right"></i>
+        </div>
+    </a>
+    {% endif %}
+
+    <!-- Consultas & Relatórios Card -->
+    <a href="{{ url_for('consultas') }}" class="action-card-btn card-emerald">
+        <div>
+            <div class="action-icon icon-bg-emerald">
+                <i class="fa-solid fa-magnifying-glass"></i>
+            </div>
+            <div class="action-title">Consultas & Pesquisas</div>
+            <div class="action-desc">Pesquisar por placa, agente, período de infração ou número sequencial de AIT.</div>
+        </div>
+        <div class="action-link-text" style="color: #34d399;">
+            Consultar Base <i class="fa-solid fa-arrow-right"></i>
+        </div>
+    </a>
+</div>
+
 <!-- Quick Stats Banner -->
-<div class="stats-banner">
+<div class="stats-banner" style="margin-bottom: 2.5rem;">
     <div class="stat-box">
         <div class="stat-box-num">{{ stats.total }}</div>
         <div class="stat-box-label">Total de AITs</div>
@@ -18,51 +262,6 @@
     <div class="stat-box">
         <div class="stat-box-num" style="color: var(--warning);">{{ stats.substituida }}</div>
         <div class="stat-box-label">Substituídas</div>
-    </div>
-</div>
-
-<!-- Main Modules Navigation Grid -->
-<div class="dashboard-grid">
-    <!-- Cadastro Module -->
-    <div class="dashboard-card">
-        <div>
-            <div class="dashboard-card-icon">
-                <i class="fa-solid fa-file-invoice"></i>
-            </div>
-            <h3 class="dashboard-card-title">CADASTRO</h3>
-            <p class="dashboard-card-desc">Insira novos Autos de Infração (AIT) no sistema, consulte registros anteriores e navegue pela base de dados de forma sequencial.</p>
-        </div>
-        <a href="{{ url_for('cadastro') }}" class="btn btn-primary">
-            <i class="fa-solid fa-plus"></i> Cadastrar Autos
-        </a>
-    </div>
-
-    <!-- Relatórios Module -->
-    <div class="dashboard-card">
-        <div>
-            <div class="dashboard-card-icon" style="color: var(--accent-blue);">
-                <i class="fa-solid fa-file-pdf"></i>
-            </div>
-            <h3 class="dashboard-card-title">RELATÓRIOS</h3>
-            <p class="dashboard-card-desc">Emita relatórios consolidados formatados para impressão, incluindo relatórios por período de infração, data de digitação e listagem geral.</p>
-        </div>
-        <a href="{{ url_for('relatorios') }}" class="btn btn-primary" style="background: var(--accent-blue); box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3);">
-            <i class="fa-solid fa-print"></i> Gerar Relatórios
-        </a>
-    </div>
-
-    <!-- Consultas Module -->
-    <div class="dashboard-card">
-        <div>
-            <div class="dashboard-card-icon" style="color: var(--success);">
-                <i class="fa-solid fa-magnifying-glass"></i>
-            </div>
-            <h3 class="dashboard-card-title">CONSULTAS</h3>
-            <p class="dashboard-card-desc">Realize buscas avançadas e rápidas por período de infração, data específica em que o lote foi digitado ou por número de matrícula do agente autuador.</p>
-        </div>
-        <a href="{{ url_for('consultas') }}" class="btn btn-primary" style="background: var(--success); box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);">
-            <i class="fa-solid fa-search"></i> Consultar Base
-        </a>
     </div>
 </div>
 
@@ -100,27 +299,19 @@
                     <td>{{ row.data_ait | format_date }}</td>
                     <td>{{ row.agente }}</td>
                     <td>
-                        {% if row.status == 'DCT PROCESSAR' %}
-                            <span class="badge badge-dct">A Processar</span>
-                        {% elif row.status == 'CANCELADO' %}
-                            <span class="badge badge-cancel">Cancelado</span>
-                        {% elif row.status == 'AIT SUBSTITUIDA' %}
-                            <span class="badge badge-subst">Substituído</span>
-                        {% elif row.status == 'RENAINF' %}
-                            <span class="badge badge-renainf">Renainf</span>
-                        {% else %}
-                            <span class="badge" style="background: rgba(255,255,255,0.05); color: var(--text-secondary);">{{ row.status }}</span>
-                        {% endif %}
+                        <span class="badge badge-{{ 'success' if row.status == 'PROCESSADO DCT' else ('danger' if row.status == 'CANCELADO' else 'warning') }}">
+                            {{ row.status }}
+                        </span>
                     </td>
                     <td>
-                        <a href="{{ url_for('cadastro', ait_id=row.id) }}" class="btn btn-secondary btn-action" style="padding: 0.25rem 0.5rem;">
-                            <i class="fa-solid fa-pen-to-square"></i> Editar
+                        <a href="{{ url_for('cadastro', ait_id=row.id) }}" class="btn btn-secondary" style="padding: 0.3rem 0.6rem; font-size: 0.8rem;">
+                            <i class="fa-solid fa-pen-to-square"></i> Ver
                         </a>
                     </td>
                 </tr>
                 {% else %}
                 <tr>
-                    <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 2rem;">Nenhum registro encontrado no banco de dados.</td>
+                    <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 2rem;">Nenhum AIT registrado no sistema.</td>
                 </tr>
                 {% endfor %}
             </tbody>

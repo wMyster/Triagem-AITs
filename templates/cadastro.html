@@ -4,15 +4,15 @@
 <div class="panel">
     <div class="panel-header">
         <div class="panel-title">
-            <h2><i class="fa-solid fa-file-signature" style="color: var(--accent-orange); margin-right: 0.5rem;"></i> Cadastro de Autos de Infração</h2>
-            <p>Formulário de Digitação Rápida e Manutenção de AIT</p>
+            <h2><i class="fa-solid fa-file-signature" style="color: var(--accent-orange); margin-right: 0.5rem;"></i> Cadastro e Recebimento de AITs</h2>
+            <p>Formulário de Digitação Rápida e Entrada Contínua</p>
         </div>
         <div class="panel-actions">
             <a href="{{ url_for('index') }}" class="btn btn-secondary">
                 <i class="fa-solid fa-house"></i> Voltar
             </a>
             <a href="{{ url_for('cadastro') }}" class="btn btn-primary" style="background: var(--success); box-shadow: 0 4px 15px rgba(16, 185, 129, 0.25);">
-                <i class="fa-solid fa-file-circle-plus"></i> Novo Registro (F2)
+                <i class="fa-solid fa-file-circle-plus"></i> Limpar Formulário (F2)
             </a>
         </div>
     </div>
@@ -36,7 +36,7 @@
             <!-- Número AIT com Validação Anti-Duplicidade -->
             <div class="form-group">
                 <label for="numero_ait">Número AIT * <small id="dup-warning" style="color: #ef4444; font-weight: bold; margin-left: 0.5rem;"></small></label>
-                <input type="text" id="numero_ait" name="numero_ait" value="{{ record.numero_ait }}" required placeholder="Ex: 408820" maxlength="8" autofocus {% if is_locked %}readonly style="opacity: 0.6;"{% endif %}>
+                <input type="text" id="numero_ait" name="numero_ait" value="{{ record.numero_ait }}" required placeholder="Digite o número do AIT (ex: 408820)" maxlength="12" autofocus {% if is_locked %}readonly style="opacity: 0.6;"{% endif %}>
             </div>
 
             <!-- Placa -->
@@ -83,7 +83,7 @@
         {% if not is_locked %}
         <div style="margin-top: 2rem; display: flex; gap: 1rem; justify-content: flex-end;">
             <button type="submit" class="btn btn-primary" style="padding: 0.85rem 2.5rem;" id="btn-salvar">
-                <i class="fa-solid fa-floppy-disk"></i> Salvar Registro (F2 / Enter)
+                <i class="fa-solid fa-floppy-disk"></i> Salvar AIT (ENTER / F2)
             </button>
         </div>
         {% endif %}
@@ -135,6 +135,11 @@
         const dupWarning = document.getElementById("dup-warning");
         const currentId = "{{ record.id }}";
 
+        if (numInput && !numInput.readOnly) {
+            numInput.focus();
+            numInput.select();
+        }
+
         // Check duplicate AIT via AJAX
         numInput.addEventListener("blur", function() {
             const val = this.value.trim();
@@ -154,6 +159,18 @@
             }
         });
 
+        // Submit form when pressing Enter in numero_ait field if form is valid
+        numInput.addEventListener("keydown", function(e) {
+            if (e.key === "Enter") {
+                const agenteInput = document.getElementById("agente");
+                const dataInput = document.getElementById("data_ait");
+                if (numInput.value.trim() !== "" && agenteInput.value.trim() !== "" && dataInput.value !== "") {
+                    e.preventDefault();
+                    document.getElementById("ait-form").submit();
+                }
+            }
+        });
+
         // Keyboard Shortcut: F2 to submit form
         document.addEventListener("keydown", function(e) {
             if (e.key === "F2") {
@@ -164,4 +181,5 @@
         });
     });
 </script>
+{% block scripts_end %}{% endblock %}
 {% endblock %}
