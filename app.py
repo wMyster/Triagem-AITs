@@ -817,6 +817,38 @@ def usuarios_criar():
 
     return redirect(url_for("usuarios"))
 
+# --- Backups (Admin) ---
+from scripts.backup_manager import criar_backup, listar_backups, get_base_db_path, get_backup_dir
+from flask import send_from_directory
+
+@app.route("/backups")
+@login_required
+@role_required("admin")
+def backups():
+    backups_list = listar_backups()
+    active_db = get_base_db_path()
+    return render_template("backups.html", backups=backups_list, active_db_path=active_db)
+
+@app.route("/backups/criar", methods=["POST"])
+@login_required
+@role_required("admin")
+def backups_criar():
+    ok, filename_or_err, path, size_mb = criar_backup()
+    if ok:
+        log_auditoria(session["user"]["username"], "admin", "CRIAR_BACKUP", "sistema", depois=f"{filename_or_err} ({size_mb} MB)")
+        flash(f"Backup '{filename_or_err}' ({size_mb} MB) criado com sucesso!", "success")
+    else:
+        flash(f"Erro ao criar backup: {filename_or_err}", "danger")
+    return redirect(url_for("backups"))
+
+@app.route("/backups/download/<filename>")
+@login_required
+@role_required("admin")
+def backups_download(filename):
+    backup_dir = get_backup_dir()
+    return send_from_directory(backup_dir, filename, as_attachment=True)
+
+
 # --- Consultas & Relatórios ---
 def get_base_filter_and_params(query_type, request_args):
     if query_type == "data":

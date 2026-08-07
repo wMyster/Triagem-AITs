@@ -1,0 +1,71 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="panel">
+    <div class="panel-header">
+        <div class="panel-title">
+            <h2><i class="fa-solid fa-database" style="color: var(--accent-orange); margin-right: 0.5rem;"></i> Gerenciamento e Backups de Banco de Dados</h2>
+            <p>Histórico de Cópias de Segurança e Prevenção de Perda de Dados na Rede</p>
+        </div>
+        <div class="panel-actions">
+            <a href="{{ url_for('index') }}" class="btn btn-secondary"><i class="fa-solid fa-house"></i> Voltar</a>
+            <form action="{{ url_for('backups_criar') }}" method="POST" style="display: inline;">
+                <button type="submit" class="btn btn-primary" style="background: var(--success); box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);">
+                    <i class="fa-solid fa-plus-circle"></i> Criar Backup Agora
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Active Storage Status Banner -->
+    <div style="background: rgba(30, 41, 59, 0.6); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 0.75rem; padding: 1.25rem; margin-bottom: 2rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
+        <div>
+            <h4 style="margin: 0 0 0.3rem 0; color: #ffffff;"><i class="fa-solid fa-hard-drive" style="color: #60a5fa; margin-right: 0.4rem;"></i> Local de Armazenamento Ativo</h4>
+            <p style="margin: 0; font-size: 0.85rem; color: #94a3b8; font-family: monospace;">{{ active_db_path }}</p>
+        </div>
+        <div>
+            <span class="badge badge-success" style="font-size: 0.85rem; padding: 0.4rem 0.8rem;">
+                <i class="fa-solid fa-shield-halved"></i> WAL Mode Ativo (SQLite Multi-Machine)
+            </span>
+        </div>
+    </div>
+
+    <!-- Backup List Table -->
+    <h3 style="color: #ffffff; font-size: 1.1rem; margin-bottom: 1rem;"><i class="fa-solid fa-box-archive" style="color: #a78bfa; margin-right: 0.4rem;"></i> Cópias de Segurança Salvas (Rede)</h3>
+    
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Nome do Arquivo</th>
+                    <th>Tamanho (MB)</th>
+                    <th>Data e Hora do Backup</th>
+                    <th>Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for b in backups %}
+                <tr>
+                    <td>
+                        <strong style="color: #f8fafc; font-family: monospace;"><i class="fa-solid fa-file-lines" style="color: #f97316; margin-right: 0.4rem;"></i> {{ b.filename }}</strong>
+                    </td>
+                    <td><span class="badge badge-info">{{ b.size_mb }} MB</span></td>
+                    <td><small style="color: #cbd5e1;"><i class="fa-solid fa-clock"></i> {{ b.data_hora }}</small></td>
+                    <td>
+                        <a href="{{ url_for('backups_download', filename=b.filename) }}" class="btn btn-secondary" style="padding: 0.3rem 0.7rem; font-size: 0.8rem;">
+                            <i class="fa-solid fa-download"></i> Baixar DB
+                        </a>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="4" style="text-align: center; color: #94a3b8; padding: 2rem;">
+                        Nenhum backup encontrado. Clique em "Criar Backup Agora" para gerar a primeira cópia.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

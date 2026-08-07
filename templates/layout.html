@@ -189,6 +189,9 @@
                 <a href="{{ url_for('usuarios') }}" class="nav-link {% if request.path.startswith('/usuarios') %}active{% endif %}">
                     <i class="fa-solid fa-users-gear"></i> Usuários
                 </a>
+                <a href="{{ url_for('backups') }}" class="nav-link {% if request.path.startswith('/backups') %}active{% endif %}">
+                    <i class="fa-solid fa-database"></i> Backups
+                </a>
                 {% endif %}
             </nav>
         </div>
