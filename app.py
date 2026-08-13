@@ -103,6 +103,25 @@ def format_month_year(value):
     except Exception:
         return value
 
+USER_NAMES_CACHE = {}
+
+@app.template_filter('user_fullname')
+def user_fullname(username):
+    if not username:
+        return ""
+    if username in USER_NAMES_CACHE:
+        return USER_NAMES_CACHE[username]
+    try:
+        conn = get_db_connection()
+        user = conn.execute("SELECT nome_completo FROM usuarios WHERE username = ?", (username,)).fetchone()
+        conn.close()
+        if user and user["nome_completo"]:
+            USER_NAMES_CACHE[username] = user["nome_completo"]
+            return f"{user['nome_completo']} ({username})"
+    except Exception:
+        pass
+    return username
+
 @app.context_processor
 def inject_globals():
     return {
@@ -493,8 +512,9 @@ def cadastro(ait_id=None):
             "status": "DCT PROCESSAR", "observacao": "", "data_digitacao": last_dig
         }
 
+    agentes_list = conn.execute("SELECT id, nome_completo, matricula FROM agentes_gcm ORDER BY nome_completo ASC").fetchall()
     conn.close()
-    return render_template("cadastro.html", record=record, prev_id=prev_id, next_id=next_id, total_records=total_records, status_options=STATUS_OPTIONS, is_locked=is_locked)
+    return render_template("cadastro.html", record=record, prev_id=prev_id, next_id=next_id, total_records=total_records, status_options=STATUS_OPTIONS, is_locked=is_locked, agentes=agentes_list)
 
 # --- Faltantes ---
 @app.route("/faltantes")
@@ -743,6 +763,8 @@ def divergencias_resolver(div_id):
 def dct_conferencia():
     data_inicial = request.args.get("data_inicial", "")
     data_final = request.args.get("data_final", "")
+    data_dig_inicial = request.args.get("data_dig_inicial", "")
+    data_dig_final = request.args.get("data_dig_final", "")
     agente = request.args.get("agente", "").strip()
     status_conferencia = request.args.get("status_conferencia", "PENDENTE")
 
@@ -752,6 +774,9 @@ def dct_conferencia():
     if data_inicial and data_final:
         where_clauses.append("data_ait BETWEEN ? AND ?")
         params.extend([data_inicial, data_final])
+    if data_dig_inicial and data_dig_final:
+        where_clauses.append("data_digitacao BETWEEN ? AND ?")
+        params.extend([data_dig_inicial, data_dig_final])
     if agente:
         where_clauses.append("agente = ?")
         params.append(agente)
@@ -760,7 +785,7 @@ def dct_conferencia():
         params.append(status_conferencia)
 
     where_str = " AND ".join(where_clauses)
-    sql = f"SELECT * FROM ait WHERE {where_str} ORDER BY id DESC LIMIT 500"
+    sql = f"SELECT * FROM ait WHERE {where_str} ORDER BY COALESCE(data_digitacao, criado_em, data_ait) DESC, id DESC LIMIT 500"
 
     conn = get_db_connection()
     records = conn.execute(sql, params).fetchall()

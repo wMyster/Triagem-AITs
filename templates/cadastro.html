@@ -53,8 +53,15 @@
 
             <!-- Agente -->
             <div class="form-group">
-                <label for="agente">Código do Agente (Matrícula) *</label>
-                <input type="text" id="agente" name="agente" value="{{ record.agente }}" required placeholder="Ex: 25845" pattern="\d+" title="Digite apenas números" {% if is_locked %}readonly style="opacity: 0.6;"{% endif %}>
+                <label for="agente">Agente / Servidor Responsável *</label>
+                <select id="agente" name="agente" required {% if is_locked %}disabled style="opacity: 0.6;"{% endif %}>
+                    <option value="">-- Selecione o Agente / GCM --</option>
+                    {% for a in agentes %}
+                        <option value="{{ a.matricula }}" {% if record.agente == a.matricula or (request.args.get('last_agente') == a.matricula) %}selected{% endif %}>
+                            [{{ a.matricula }}] {{ a.nome_completo }}
+                        </option>
+                    {% endfor %}
+                </select>
             </div>
 
             <!-- Status -->

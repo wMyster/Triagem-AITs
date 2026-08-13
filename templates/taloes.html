@@ -24,7 +24,7 @@
                     <select id="agente_gcm_id" name="agente_gcm_id" required>
                         <option value="">Selecione o Agente/GCM...</option>
                         {% for s in agentes %}
-                            <option value="{{ s.id }}">{{ s.nome_completo }} ({{ s.categoria }} - Mat: {{ s.matricula }})</option>
+                            <option value="{{ s.id }}">[{{ s.matricula }}] {{ s.nome_completo }} ({{ s.categoria }})</option>
                         {% endfor %}
                     </select>
                 </div>

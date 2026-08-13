@@ -376,6 +376,7 @@
                                 <th>Data Infração</th>
                                 <th>Agente</th>
                                 <th>Status</th>
+                                <th>Lançado Por</th>
                                 <th>Observação</th>
                                 <th>Ações</th>
                             </tr>
@@ -401,6 +402,7 @@
                                         <span class="badge" style="background: rgba(255,255,255,0.05); color: var(--text-secondary);">{{ row.status }}</span>
                                     {% endif %}
                                 </td>
+                                <td><small style="color: #cbd5e1; font-weight: 600;">{{ row.criado_por | user_fullname if row.criado_por else '-' }}</small></td>
                                 <td style="max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ row.observacao }}">
                                     {{ row.observacao if row.observacao else '' }}
                                 </td>
