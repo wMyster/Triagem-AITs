@@ -233,7 +233,7 @@
                     <label for="username">Usuário (Login)</label>
                     <div class="input-group">
                         <i class="fa-solid fa-user"></i>
-                        <input type="text" id="username" name="username" value="transporte" placeholder="Digite seu usuário" required autofocus>
+                        <input type="text" id="username" name="username" value="triagem" placeholder="Digite seu usuário" required autofocus>
                     </div>
                 </div>
 
@@ -261,7 +261,7 @@
             const submitBtn = document.getElementById('btn-login-submit');
 
             if (sector === 'transporte') {
-                userInput.value = 'transporte';
+                userInput.value = 'triagem';
                 submitBtn.innerHTML = 'Acessar Módulo Triagem <i class="fa-solid fa-right-to-bracket" style="margin-left: 0.5rem;"></i>';
             } else if (sector === 'dct') {
                 userInput.value = 'dct';

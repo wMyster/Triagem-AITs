@@ -98,7 +98,7 @@
     <div class="welcome-text">
         <h2>Olá, {{ session['user']['nome_completo'] }}!</h2>
         <p>
-            Painel Operacional — Setor <span class="sector-tag sector-{{ session['user']['setor'] }}">{{ session['user']['setor'].upper() }}</span>
+            Painel Operacional — <span class="sector-tag sector-{{ session['user']['setor'] }}">{% if session['user']['setor'] == 'transporte' %}MÓDULO TRIAGEM{% elif session['user']['setor'] == 'dct' %}MÓDULO DCT{% else %}{{ session['user']['setor'].upper() }}{% endif %}</span>
         </p>
     </div>
     <div>
