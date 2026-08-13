@@ -7,9 +7,17 @@
             <h2><i class="fa-solid fa-magnifying-glass" style="color: var(--success); margin-right: 0.5rem;"></i> Consultas ao Banco de Dados</h2>
             <p>Busca e pesquisa de registros AIT</p>
         </div>
-        <a href="{{ url_for('index') }}" class="btn btn-secondary">
-            <i class="fa-solid fa-house"></i> Voltar ao Menu
-        </a>
+        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+            <a href="{{ url_for('consultas_exportar', formato='excel', tipo=query_type, data_inicial=request.args.get('data_inicial',''), data_final=request.args.get('data_final',''), data_digitacao=request.args.get('data_digitacao',''), matricula=request.args.get('matricula','')) }}" class="btn btn-secondary" style="background: rgba(16, 185, 129, 0.2); border: 1px solid rgba(16, 185, 129, 0.4); color: #34d399;">
+                <i class="fa-solid fa-file-excel"></i> Exportar Excel
+            </a>
+            <a href="{{ url_for('consultas_exportar', formato='csv', tipo=query_type, data_inicial=request.args.get('data_inicial',''), data_final=request.args.get('data_final',''), data_digitacao=request.args.get('data_digitacao',''), matricula=request.args.get('matricula','')) }}" class="btn btn-secondary" style="background: rgba(59, 130, 246, 0.2); border: 1px solid rgba(59, 130, 246, 0.4); color: #60a5fa;">
+                <i class="fa-solid fa-file-csv"></i> Exportar CSV
+            </a>
+            <a href="{{ url_for('index') }}" class="btn btn-secondary">
+                <i class="fa-solid fa-house"></i> Voltar ao Menu
+            </a>
+        </div>
     </div>
 
     <!-- Switch Query Types -->

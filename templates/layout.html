@@ -114,6 +114,10 @@
                     <span id="net-status-text" style="font-size: 0.8rem; font-weight: 600; color: #34d399;">Status: Servidor Online (G:\ 1.7ms)</span>
                 </div>
 
+                <button class="btn btn-secondary" onclick="toggleShortcutsModal()" style="padding: 0.4rem 0.8rem; font-size: 0.8rem;" title="Atalhos de teclado (F1)">
+                    <i class="fa-solid fa-keyboard" style="color: #f97316;"></i> Atalhos (F1)
+                </button>
+
                 {% if session.get('user') %}
                 <div class="user-badge">
                     <i class="fa-solid fa-user-circle" style="color: #cbd5e1; font-size: 1.2rem;"></i>
@@ -270,7 +274,56 @@
             checkNetworkStatus();
             setInterval(checkNetworkStatus, 15000);
         });
+
+        function toggleShortcutsModal() {
+            const m = document.getElementById('shortcuts-modal');
+            if (m) {
+                m.style.display = m.style.display === 'none' || !m.style.display ? 'flex' : 'none';
+            }
+        }
+
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'F1') {
+                e.preventDefault();
+                toggleShortcutsModal();
+            } else if (e.key === 'Escape') {
+                const m = document.getElementById('shortcuts-modal');
+                if (m) m.style.display = 'none';
+            }
+        });
     </script>
+
+    <!-- F1 Shortcuts Modal -->
+    <div id="shortcuts-modal" class="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(8px); z-index: 9999; align-items: center; justify-content: center;">
+        <div style="background: rgba(30, 41, 59, 0.95); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 1rem; width: 90%; max-width: 550px; padding: 2rem; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); color: #ffffff; position: relative;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; border-bottom: 1px solid rgba(255, 255, 255, 0.1); padding-bottom: 1rem;">
+                <h3 style="margin: 0; font-size: 1.25rem;"><i class="fa-solid fa-keyboard" style="color: #f97316; margin-right: 0.5rem;"></i> Atalhos de Produtividade (F1)</h3>
+                <i class="fa-solid fa-xmark" style="cursor: pointer; font-size: 1.2rem; color: #94a3b8;" onclick="toggleShortcutsModal()"></i>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 1rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(15, 23, 42, 0.6); padding: 0.75rem 1rem; border-radius: 0.5rem;">
+                    <span>Salvar AIT e Próxima Digitação</span>
+                    <kbd style="background: #f97316; color: #ffffff; padding: 0.2rem 0.6rem; border-radius: 0.25rem; font-weight: 700;">ENTER</kbd>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(15, 23, 42, 0.6); padding: 0.75rem 1rem; border-radius: 0.5rem;">
+                    <span>Focalizar Campo Número do AIT</span>
+                    <kbd style="background: #3b82f6; color: #ffffff; padding: 0.2rem 0.6rem; border-radius: 0.25rem; font-weight: 700;">F2</kbd>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(15, 23, 42, 0.6); padding: 0.75rem 1rem; border-radius: 0.5rem;">
+                    <span>Abrir / Fechar Guia de Atalhos</span>
+                    <kbd style="background: #10b981; color: #ffffff; padding: 0.2rem 0.6rem; border-radius: 0.25rem; font-weight: 700;">F1</kbd>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(15, 23, 42, 0.6); padding: 0.75rem 1rem; border-radius: 0.5rem;">
+                    <span>Fechar Janelas Modais</span>
+                    <kbd style="background: #64748b; color: #ffffff; padding: 0.2rem 0.6rem; border-radius: 0.25rem; font-weight: 700;">ESC</kbd>
+                </div>
+            </div>
+            <div style="margin-top: 1.5rem; text-align: right;">
+                <button class="btn btn-secondary" onclick="toggleShortcutsModal()">Entendido</button>
+            </div>
+        </div>
+    </div>
+
     {% block scripts %}{% endblock %}
 </body>
 </html>

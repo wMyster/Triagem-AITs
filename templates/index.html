@@ -108,6 +108,54 @@
     </div>
 </div>
 
+<!-- KPI Metrics Grid -->
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.25rem; margin-bottom: 2rem;">
+    <!-- KPI 1: Digitados Hoje -->
+    <div style="background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(249, 115, 22, 0.3); border-radius: 1rem; padding: 1.25rem; display: flex; align-items: center; justify-content: space-between;">
+        <div>
+            <span style="font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; color: #94a3b8; font-weight: 600;">Digitados Hoje</span>
+            <h3 style="font-size: 2rem; margin: 0.2rem 0 0 0; color: #ffffff; font-weight: 800;">{{ kpis.digitados_hoje }}</h3>
+        </div>
+        <div style="width: 48px; height: 48px; border-radius: 0.75rem; background: rgba(249, 115, 22, 0.15); color: #f97316; display: flex; align-items: center; justify-content: center; font-size: 1.4rem;">
+            <i class="fa-solid fa-calendar-check"></i>
+        </div>
+    </div>
+
+    <!-- KPI 2: Pendentes DCT -->
+    <div style="background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 1rem; padding: 1.25rem; display: flex; align-items: center; justify-content: space-between;">
+        <div>
+            <span style="font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; color: #94a3b8; font-weight: 600;">Pendentes DCT</span>
+            <h3 style="font-size: 2rem; margin: 0.2rem 0 0 0; color: #38bdf8; font-weight: 800;">{{ kpis.pendentes_dct }}</h3>
+        </div>
+        <div style="width: 48px; height: 48px; border-radius: 0.75rem; background: rgba(59, 130, 246, 0.15); color: #38bdf8; display: flex; align-items: center; justify-content: center; font-size: 1.4rem;">
+            <i class="fa-solid fa-clipboard-question"></i>
+        </div>
+    </div>
+
+    <!-- KPI 3: AITs Faltantes Omissos -->
+    <div style="background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 1rem; padding: 1.25rem; display: flex; align-items: center; justify-content: space-between;">
+        <div>
+            <span style="font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; color: #94a3b8; font-weight: 600;">AITs Faltantes</span>
+            <h3 style="font-size: 2rem; margin: 0.2rem 0 0 0; color: #f87171; font-weight: 800;">{{ kpis.aits_faltantes }}</h3>
+        </div>
+        <div style="width: 48px; height: 48px; border-radius: 0.75rem; background: rgba(239, 68, 68, 0.15); color: #f87171; display: flex; align-items: center; justify-content: center; font-size: 1.4rem;">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+        </div>
+    </div>
+
+    <!-- KPI 4: Último Backup -->
+    <div style="background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 1rem; padding: 1.25rem; display: flex; align-items: center; justify-content: space-between;">
+        <div>
+            <span style="font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; color: #94a3b8; font-weight: 600;">Último Backup</span>
+            <h4 style="font-size: 0.95rem; margin: 0.3rem 0 0 0; color: #34d399; font-weight: 700;">{{ kpis.ultimo_backup_str }}</h4>
+            <small style="color: #94a3b8; font-size: 0.75rem;">{{ kpis.ultimo_backup_size }}</small>
+        </div>
+        <div style="width: 48px; height: 48px; border-radius: 0.75rem; background: rgba(16, 185, 129, 0.15); color: #34d399; display: flex; align-items: center; justify-content: center; font-size: 1.4rem;">
+            <i class="fa-solid fa-database"></i>
+        </div>
+    </div>
+</div>
+
 <!-- Role-Tailored Operational Action Cards -->
 <h3 style="font-size: 1.1rem; color: #cbd5e1; margin-bottom: 1rem;"><i class="fa-solid fa-bolt" style="color: #f97316; margin-right: 0.4rem;"></i> Ações Rápidas do Seu Setor</h3>
 

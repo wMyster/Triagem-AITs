@@ -214,20 +214,47 @@ def logout():
 def index():
     conn = get_db_connection()
     stats = {}
+    kpis = {
+        'digitados_hoje': 0,
+        'pendentes_dct': 0,
+        'aits_faltantes': 0,
+        'ultimo_backup_str': 'Nenhum backup',
+        'ultimo_backup_size': ''
+    }
+    recent_records = []
+    
     try:
         stats['total'] = conn.execute("SELECT COUNT(*) FROM ait").fetchone()[0]
         stats['dct_processar'] = conn.execute("SELECT COUNT(*) FROM ait WHERE status = 'DCT PROCESSAR'").fetchone()[0]
         stats['cancelado'] = conn.execute("SELECT COUNT(*) FROM ait WHERE status = 'CANCELADO'").fetchone()[0]
         stats['substituida'] = conn.execute("SELECT COUNT(*) FROM ait WHERE status = 'AIT SUBSTITUIDA'").fetchone()[0]
         stats['renainf'] = conn.execute("SELECT COUNT(*) FROM ait WHERE status = 'RENAINF'").fetchone()[0]
+        
+        # KPIs
+        today_str = datetime.today().strftime("%Y-%m-%d")
+        kpis['digitados_hoje'] = conn.execute("SELECT COUNT(*) FROM ait WHERE data_ait = ? OR date(criado_em) = ?", (today_str, today_str)).fetchone()[0]
+        kpis['pendentes_dct'] = stats['dct_processar']
+        
+        # Calculate missing AIT count
+        total_taloes_aits = conn.execute("SELECT SUM(quantidade_calculada) FROM taloes").fetchone()[0] or 0
+        kpis['aits_faltantes'] = max(0, total_taloes_aits - stats['total'])
+        
         recent_records = conn.execute("SELECT * FROM ait ORDER BY id DESC LIMIT 5").fetchall()
     except Exception:
         stats = {'total': 0, 'dct_processar': 0, 'cancelado': 0, 'substituida': 0, 'renainf': 0}
-        recent_records = []
     finally:
         conn.close()
 
-    return render_template("index.html", stats=stats, recent_records=recent_records)
+    try:
+        backups_list = listar_backups()
+        if backups_list:
+            last_b = backups_list[0]
+            kpis['ultimo_backup_str'] = last_b['data_hora']
+            kpis['ultimo_backup_size'] = f"{last_b['size_mb']} MB"
+    except Exception:
+        pass
+
+    return render_template("index.html", stats=stats, kpis=kpis, recent_records=recent_records)
 
 # --- Agentes e GCMs ---
 @app.route("/agentes")
@@ -986,6 +1013,142 @@ def relatorio_digitacao():
     conn.close()
     dt_d = datetime.strptime(data_dig, "%Y-%m-%d").strftime("%d/%m/%Y")
     return render_template("relatorio_print.html", title="Relatório por Data da Digitação", results=results, subtitle=f"Data da Digitação: {dt_d}", opcao_filtro=opcao_filtro, total_geral=total_geral)
+
+# --- Exportação de Dados (Excel / CSV) ---
+import io
+import csv
+import openpyxl
+from openpyxl.styles import Font, PatternFill, Alignment
+from flask import Response
+
+@app.route("/consultas/exportar")
+@login_required
+def consultas_exportar():
+    fmt = request.args.get("formato", "excel")
+    query_type = request.args.get("tipo", "geral")
+    opcao_filtro = ["lista"]
+    
+    conn = get_db_connection()
+    results, total_geral = execute_filtered_queries(conn, query_type, request.args, opcao_filtro)
+    conn.close()
+    
+    rows = results.get("lista", [])
+    filename_prefix = f"triagem_ait_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    
+    if fmt == "csv":
+        output = io.StringIO()
+        writer = csv.writer(output, delimiter=';')
+        writer.writerow(["ID", "Número AIT", "Placa", "Data AIT", "Agente/Matrícula", "Status", "Status Conferência", "Remessa ID"])
+        for r in rows:
+            writer.writerow([r.get("id"), r.get("numero_ait"), r.get("placa"), r.get("data_ait"), r.get("agente"), r.get("status"), r.get("status_conferencia"), r.get("remessa_id")])
+        
+        csv_bytes = ("\ufeff" + output.getvalue()).encode('utf-8-sig')
+        return Response(csv_bytes, mimetype="text/csv", headers={"Content-Disposition": f"attachment; filename={filename_prefix}.csv"})
+    else:
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "AITs Exportados"
+        
+        header_fill = PatternFill(start_color="1E293B", end_color="1E293B", fill_type="solid")
+        header_font = Font(name="Calibri", size=11, bold=True, color="FFFFFF")
+        
+        headers = ["ID", "Número AIT", "Placa", "Data AIT", "Agente/Matrícula", "Status", "Status Conferência", "Remessa ID"]
+        ws.append(headers)
+        
+        for col_num in range(1, len(headers) + 1):
+            cell = ws.cell(row=1, column=col_num)
+            cell.fill = header_fill
+            cell.font = header_font
+            cell.alignment = Alignment(horizontal="center", vertical="center")
+            
+        for r in rows:
+            ws.append([r.get("id"), r.get("numero_ait"), r.get("placa"), r.get("data_ait"), r.get("agente"), r.get("status"), r.get("status_conferencia"), r.get("remessa_id")])
+            
+        for col in ws.columns:
+            max_len = max(len(str(cell.value or '')) for cell in col)
+            col_letter = openpyxl.utils.get_column_letter(col[0].column)
+            ws.column_dimensions[col_letter].width = max(max_len + 3, 12)
+            
+        stream = io.BytesIO()
+        wb.save(stream)
+        stream.seek(0)
+        
+        return Response(stream.getvalue(), mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers={"Content-Disposition": f"attachment; filename={filename_prefix}.xlsx"})
+
+@app.route("/faltantes/exportar")
+@login_required
+def faltantes_exportar():
+    fmt = request.args.get("formato", "excel")
+    conn = get_db_connection()
+    
+    taloes = conn.execute("SELECT t.*, ag.nome_completo as agente_nome, ag.matricula as agente_matricula FROM taloes t LEFT JOIN agentes_gcm ag ON t.agente_gcm_id = ag.id ORDER BY t.id ASC").fetchall()
+    aits_existentes = set([row[0] for row in conn.execute("SELECT numero_ait FROM ait WHERE numero_ait IS NOT NULL").fetchall()])
+    conn.close()
+
+    today = date.today()
+    faltantes_list = []
+
+    for t in taloes:
+        inicio = t["numero_inicial"]
+        fim = t["numero_final"]
+        for num in range(inicio, fim + 1):
+            str_num = str(num)
+            if str_num not in aits_existentes:
+                dict_r = dict(t)
+                dict_r['numero_ait_faltante'] = str_num
+                dict_r['talao_recibo'] = t['numero_recibo']
+                dict_r['talao_data_entrega'] = t['data_entrega']
+                dias = 0
+                if dict_r['talao_data_entrega']:
+                    try:
+                        dt_e = datetime.strptime(dict_r['talao_data_entrega'], "%Y-%m-%d").date()
+                        dias = (today - dt_e).days
+                    except Exception:
+                        dias = 0
+                dict_r['dias_decorridos'] = dias
+                faltantes_list.append(dict_r)
+
+    filename_prefix = f"triagem_ait_faltantes_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+
+    if fmt == "csv":
+        output = io.StringIO()
+        writer = csv.writer(output, delimiter=';')
+        writer.writerow(["Nº AIT Faltante", "Agente Responsável", "Matrícula", "Recibo Talão", "Data Entrega", "Dias Omissão"])
+        for r in faltantes_list:
+            writer.writerow([r.get("numero_ait_faltante"), r.get("agente_nome"), r.get("agente_matricula"), r.get("talao_recibo"), r.get("talao_data_entrega"), r.get("dias_decorridos")])
+        
+        csv_bytes = ("\ufeff" + output.getvalue()).encode('utf-8-sig')
+        return Response(csv_bytes, mimetype="text/csv", headers={"Content-Disposition": f"attachment; filename={filename_prefix}.csv"})
+    else:
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "AITs Faltantes"
+        
+        header_fill = PatternFill(start_color="1E293B", end_color="1E293B", fill_type="solid")
+        header_font = Font(name="Calibri", size=11, bold=True, color="FFFFFF")
+        
+        headers = ["Nº AIT Faltante", "Agente Responsável", "Matrícula", "Recibo Talão", "Data Entrega", "Dias Omissão"]
+        ws.append(headers)
+        
+        for col_num in range(1, len(headers) + 1):
+            cell = ws.cell(row=1, column=col_num)
+            cell.fill = header_fill
+            cell.font = header_font
+            cell.alignment = Alignment(horizontal="center", vertical="center")
+            
+        for r in faltantes_list:
+            ws.append([r.get("numero_ait_faltante"), r.get("agente_nome"), r.get("agente_matricula"), r.get("talao_recibo"), r.get("talao_data_entrega"), r.get("dias_decorridos")])
+            
+        for col in ws.columns:
+            max_len = max(len(str(cell.value or '')) for cell in col)
+            col_letter = openpyxl.utils.get_column_letter(col[0].column)
+            ws.column_dimensions[col_letter].width = max(max_len + 3, 12)
+            
+        stream = io.BytesIO()
+        wb.save(stream)
+        stream.seek(0)
+        
+        return Response(stream.getvalue(), mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers={"Content-Disposition": f"attachment; filename={filename_prefix}.xlsx"})
 
 if __name__ == "__main__":
     print("Iniciando servidor local Triagem AIT v1.1 na porta 5000...")

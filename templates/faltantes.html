@@ -7,7 +7,13 @@
             <h2><i class="fa-solid fa-clock-rotate-left" style="color: #ef4444; margin-right: 0.5rem;"></i> Consulta de AITs Faltantes e Pendências</h2>
             <p>Controle Sequencial de Folhas Omitidas por Agente e GCM</p>
         </div>
-        <div class="panel-actions">
+        <div class="panel-actions" style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+            <a href="{{ url_for('faltantes_exportar', formato='excel') }}" class="btn btn-secondary" style="background: rgba(16, 185, 129, 0.2); border: 1px solid rgba(16, 185, 129, 0.4); color: #34d399;">
+                <i class="fa-solid fa-file-excel"></i> Exportar Excel
+            </a>
+            <a href="{{ url_for('faltantes_exportar', formato='csv') }}" class="btn btn-secondary" style="background: rgba(59, 130, 246, 0.2); border: 1px solid rgba(59, 130, 246, 0.4); color: #60a5fa;">
+                <i class="fa-solid fa-file-csv"></i> Exportar CSV
+            </a>
             <a href="{{ url_for('index') }}" class="btn btn-secondary"><i class="fa-solid fa-house"></i> Voltar</a>
         </div>
     </div>
