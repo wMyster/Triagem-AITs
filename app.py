@@ -215,9 +215,13 @@ def login():
             return redirect(url_for("index"))
         else:
             log_auditoria(username, "DESCONHECIDO", "LOGIN_FALHA", justificativa="Senha ou usuário incorreto")
-            flash("Usuário ou senha inválidos.", "danger")
+    conn = get_db_connection()
+    triagem_users = conn.execute("SELECT username, nome_completo FROM usuarios WHERE setor IN ('transporte', 'triagem', 'setor_publico') AND username != 'admin' AND ativo = 1 ORDER BY nome_completo ASC").fetchall()
+    dct_users = conn.execute("SELECT username, nome_completo FROM usuarios WHERE setor = 'dct' AND ativo = 1 ORDER BY nome_completo ASC").fetchall()
+    admin_users = conn.execute("SELECT username, nome_completo FROM usuarios WHERE setor = 'admin' AND ativo = 1 ORDER BY nome_completo ASC").fetchall()
+    conn.close()
 
-    return render_template("login.html")
+    return render_template("login.html", triagem_users=triagem_users, dct_users=dct_users, admin_users=admin_users)
 
 @app.route("/logout")
 def logout():

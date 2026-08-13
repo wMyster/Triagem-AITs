@@ -230,18 +230,22 @@
 
             <form action="{{ url_for('login') }}" method="POST">
                 <div class="form-group">
-                    <label for="username">Usuário (Login)</label>
+                    <label for="username" id="lbl-username">Selecione o Funcionário / Usuário *</label>
                     <div class="input-group">
                         <i class="fa-solid fa-user"></i>
-                        <input type="text" id="username" name="username" value="triagem" placeholder="Digite seu usuário" required autofocus>
+                        <select id="username" name="username" required style="width: 100%; padding: 0.85rem 1rem 0.85rem 2.8rem; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 0.5rem; color: #ffffff; font-size: 0.95rem; box-sizing: border-box; cursor: pointer;">
+                            {% for u in triagem_users %}
+                                <option value="{{ u.username }}">{{ u.nome_completo }} ({{ u.username }})</option>
+                            {% endfor %}
+                        </select>
                     </div>
                 </div>
 
                 <div class="form-group">
-                    <label for="password">Senha</label>
+                    <label for="password">Senha de Acesso *</label>
                     <div class="input-group">
                         <i class="fa-solid fa-lock"></i>
-                        <input type="password" id="password" name="password" placeholder="Digite sua senha" required>
+                        <input type="password" id="password" name="password" placeholder="Digite sua senha" required autofocus>
                     </div>
                 </div>
 
@@ -253,21 +257,53 @@
     </div>
 
     <script>
+        const usersData = {
+            transporte: [
+                {% for u in triagem_users %}
+                    { username: "{{ u.username }}", name: "{{ u.nome_completo }}" },
+                {% endfor %}
+            ],
+            dct: [
+                {% for u in dct_users %}
+                    { username: "{{ u.username }}", name: "{{ u.nome_completo }}" },
+                {% endfor %}
+            ],
+            admin: [
+                {% for u in admin_users %}
+                    { username: "{{ u.username }}", name: "{{ u.nome_completo }}" },
+                {% endfor %}
+            ]
+        };
+
         function selectSector(sector) {
             document.querySelectorAll('.sector-card').forEach(c => c.classList.remove('active'));
             document.getElementById(`card-${sector}`).classList.add('active');
             
-            const userInput = document.getElementById('username');
+            const userSelect = document.getElementById('username');
             const submitBtn = document.getElementById('btn-login-submit');
 
+            userSelect.innerHTML = '';
+            const list = usersData[sector] || [];
+
+            if (list.length === 0) {
+                const opt = document.createElement('option');
+                opt.value = sector === 'transporte' ? 'triagem' : sector;
+                opt.textContent = sector === 'transporte' ? 'Operador Triagem (triagem)' : (sector === 'dct' ? 'Conferente DCT (dct)' : 'Administrador Geral (admin)');
+                userSelect.appendChild(opt);
+            } else {
+                list.forEach(u => {
+                    const opt = document.createElement('option');
+                    opt.value = u.username;
+                    opt.textContent = `${u.name} (${u.username})`;
+                    userSelect.appendChild(opt);
+                });
+            }
+
             if (sector === 'transporte') {
-                userInput.value = 'triagem';
                 submitBtn.innerHTML = 'Acessar Módulo Triagem <i class="fa-solid fa-right-to-bracket" style="margin-left: 0.5rem;"></i>';
             } else if (sector === 'dct') {
-                userInput.value = 'dct';
                 submitBtn.innerHTML = 'Acessar Módulo DCT <i class="fa-solid fa-right-to-bracket" style="margin-left: 0.5rem;"></i>';
             } else if (sector === 'admin') {
-                userInput.value = 'admin';
                 submitBtn.innerHTML = 'Acessar Painel Administração <i class="fa-solid fa-right-to-bracket" style="margin-left: 0.5rem;"></i>';
             }
             document.getElementById('password').focus();
