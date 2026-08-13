@@ -205,7 +205,7 @@ def logout():
     if "user" in session:
         log_auditoria(session["user"]["username"], session["user"]["setor"], "LOGOUT")
     session.pop("user", None)
-    flash("Sessão encerrada.", "info")
+    flash("Sessão encerrada com sucesso. O servidor Triagem AIT continua ativo na barra de tarefas (próximo ao relógio).", "info")
     return redirect(url_for("login"))
 
 # --- Dashboard Principal ---

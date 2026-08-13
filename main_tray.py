@@ -111,6 +111,13 @@ def on_exit_action(icon, item):
     icon.stop()
     os._exit(0)
 
+def notify_started(icon):
+    time.sleep(1.5)
+    try:
+        icon.notify("O servidor Triagem AIT está em execução na barra de tarefas (próximo ao relógio).", "Triagem AIT")
+    except Exception:
+        pass
+
 def main():
     # 1. Start Flask in background thread
     flask_thread = threading.Thread(target=run_flask)
@@ -139,6 +146,7 @@ def main():
         menu
     )
     
+    threading.Thread(target=notify_started, args=(tray_icon,), daemon=True).start()
     tray_icon.run()
 
 if __name__ == "__main__":
