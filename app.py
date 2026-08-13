@@ -91,6 +91,18 @@ def format_date(value):
     except Exception:
         return value
 
+@app.template_filter('format_month_year')
+def format_month_year(value):
+    if not value:
+        return ""
+    try:
+        parts = str(value).split('-')
+        if len(parts) == 2:
+            return f"{parts[1]}/{parts[0]}"
+        return value
+    except Exception:
+        return value
+
 @app.context_processor
 def inject_globals():
     return {
@@ -544,9 +556,11 @@ def remessas_criar():
     """, (remessa_num, user_name, len(aits)))
     remessa_id = cursor.lastrowid
 
-    ait_ids = [str(r["id"]) for r in aits]
-    placeholders = ",".join(["?"] * len(ait_ids))
-    cursor.execute(f"UPDATE ait SET remessa_id = ? WHERE id IN ({placeholders})", [remessa_id] + ait_ids)
+    cursor.execute("""
+    UPDATE ait 
+    SET remessa_id = ? 
+    WHERE data_ait IS NOT NULL AND data_ait != '' AND (remessa_id IS NULL OR remessa_id = '')
+    """, (remessa_id,))
 
     conn.commit()
     conn.close()
@@ -745,19 +759,26 @@ def dct_aprovar_lote():
     conn = get_db_connection()
 
     if acao == "imprimir_termo":
-        placeholders = ",".join(["?"] * len(ait_ids))
-        sql = f"SELECT * FROM ait WHERE id IN ({placeholders})"
-        records = conn.execute(sql, ait_ids).fetchall()
+        records = []
+        CHUNK_SIZE = 500
+        for i in range(0, len(ait_ids), CHUNK_SIZE):
+            chunk = ait_ids[i:i + CHUNK_SIZE]
+            placeholders = ",".join(["?"] * len(chunk))
+            sql = f"SELECT * FROM ait WHERE id IN ({placeholders})"
+            records.extend(conn.execute(sql, chunk).fetchall())
         conn.close()
         return render_template("termo_conferencia_print.html", records=records, novo_status=novo_status)
 
-    placeholders = ",".join(["?"] * len(ait_ids))
-    sql = f"""
-        UPDATE ait 
-        SET status = ?, status_conferencia = 'CONFERIDO', conferido_por = ?, conferido_em = ?
-        WHERE id IN ({placeholders})
-    """
-    conn.execute(sql, [novo_status, user_name, now_str] + ait_ids)
+    CHUNK_SIZE = 500
+    for i in range(0, len(ait_ids), CHUNK_SIZE):
+        chunk = ait_ids[i:i + CHUNK_SIZE]
+        placeholders = ",".join(["?"] * len(chunk))
+        sql = f"""
+            UPDATE ait 
+            SET status = ?, status_conferencia = 'CONFERIDO', conferido_por = ?, conferido_em = ?
+            WHERE id IN ({placeholders})
+        """
+        conn.execute(sql, [novo_status, user_name, now_str] + chunk)
     conn.commit()
     conn.close()
 
