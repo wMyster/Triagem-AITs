@@ -85,11 +85,11 @@ Acesse o sistema no seu navegador através do endereço: `http://localhost:5000`
 
 | Usuário | Senha | Setor / Perfil | Atribuição |
 | :--- | :--- | :--- | :--- |
-| `transporte` | `transporte123!` | Setor Transporte | Recebimento de AITs, Cadastro de Talões e Remessas |
-| `dct` | `dct123!` | Setor DCT | Conferência em Lote, Transferências e Auditoria |
-| `empresa` | `empresa123` | Empresa Processamento | Portal de Conferência Individual de Remessas |
+| `transporte` | `triagem123!` | Módulo Triagem | Recebimento de AITs, Cadastro de Talões e Remessas |
+| `dct` | `dct123!` | Módulo DCT | Conferência em Lote, Transferências e Auditoria |
+| `empresa` | `empresa123!` | Empresa Processamento | Portal de Conferência Individual de Remessas |
 | `admin` | `admin123!` | Administrador | Gestão Total do Sistema e Usuários |
-| `consulta` | `consulta123` | Consulta | Visualização de Relatórios (Somente Leitura) |
+| `consulta` | `consulta123!` | Consulta | Visualização de Relatórios (Somente Leitura) |
 
 ---
 

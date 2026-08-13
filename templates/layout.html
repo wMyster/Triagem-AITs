@@ -119,7 +119,9 @@
                     <i class="fa-solid fa-user-circle" style="color: #cbd5e1; font-size: 1.2rem;"></i>
                     <div style="display: flex; flex-direction: column;">
                         <span style="font-size: 0.85rem; font-weight: 600; color: #f8fafc;">{{ session['user']['nome_completo'].split(' ')[0] }}</span>
-                        <span class="sector-tag sector-{{ session['user']['setor'] }}">{{ session['user']['setor'] }}</span>
+                        <span class="sector-tag sector-{{ session['user']['setor'] }}">
+                            {% if session['user']['setor'] == 'transporte' %}Mód. Triagem{% elif session['user']['setor'] == 'dct' %}Mód. DCT{% else %}{{ session['user']['setor'].upper() }}{% endif %}
+                        </span>
                     </div>
                     <a href="{{ url_for('logout') }}" title="Sair do sistema" style="color: #ef4444; margin-left: 0.4rem; padding: 0.2rem 0.4rem; text-decoration: none;">
                         <i class="fa-solid fa-right-from-bracket"></i>

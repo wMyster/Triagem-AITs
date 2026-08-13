@@ -6,7 +6,7 @@ from werkzeug.security import generate_password_hash
 def sync_passwords():
     new_passwords = {
         "admin": "admin123!",
-        "transporte": "transporte123!",
+        "transporte": "triagem123!",
         "dct": "dct123!",
         "empresa": "empresa123!",
         "consulta": "consulta123!"

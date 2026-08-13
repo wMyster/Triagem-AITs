@@ -162,9 +162,16 @@
             border-radius: 0.5rem;
             margin-bottom: 1.25rem;
             font-size: 0.875rem;
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            gap: 0.55rem;
+            text-align: left;
         }
         .alert-danger { background: rgba(239, 68, 68, 0.2); border: 1px solid rgba(239, 68, 68, 0.4); color: #fca5a5; }
         .alert-success { background: rgba(16, 185, 129, 0.2); border: 1px solid rgba(16, 185, 129, 0.4); color: #6ee7b7; }
+        .alert-warning { background: rgba(245, 158, 11, 0.2); border: 1px solid rgba(245, 158, 11, 0.4); color: #fcd34d; }
+        .alert-info { background: rgba(59, 130, 246, 0.2); border: 1px solid rgba(59, 130, 246, 0.4); color: #93c5fd; }
     </style>
 </head>
 <body>
@@ -173,17 +180,17 @@
         <div class="login-header-main">
             <i class="fa-solid fa-shield-halved" style="font-size: 3rem; color: #f97316; margin-bottom: 0.5rem;"></i>
             <h1>TRIAGEM AIT — SISTEMA DE GESTÃO</h1>
-            <p>Selecione o seu setor de trabalho e informe suas credenciais</p>
+            <p>Selecione o módulo de trabalho e informe suas credenciais</p>
         </div>
 
         <!-- Sector Panels Selection -->
         <div class="sector-cards">
             <div class="sector-card active" id="card-transporte" onclick="selectSector('transporte')">
                 <div class="sector-card-icon icon-transporte">
-                    <i class="fa-solid fa-truck-fast"></i>
+                    <i class="fa-solid fa-file-signature"></i>
                 </div>
                 <div class="sector-card-info">
-                    <h3>Setor Transporte</h3>
+                    <h3>Módulo Triagem</h3>
                     <p>Digitação e Lançamentos</p>
                 </div>
             </div>
@@ -193,7 +200,7 @@
                     <i class="fa-solid fa-clipboard-check"></i>
                 </div>
                 <div class="sector-card-info">
-                    <h3>Setor DCT</h3>
+                    <h3>Módulo DCT</h3>
                     <p>Conferência e Auditoria</p>
                 </div>
             </div>
@@ -214,7 +221,8 @@
                 {% if messages %}
                     {% for category, message in messages %}
                         <div class="alert alert-{{ category if category != 'error' else 'danger' }}">
-                            <i class="fa-solid fa-circle-info" style="margin-right: 0.4rem;"></i> {{ message }}
+                            <i class="fa-solid fa-circle-info"></i>
+                            <span>{{ message }}</span>
                         </div>
                     {% endfor %}
                 {% endif %}
@@ -238,7 +246,7 @@
                 </div>
 
                 <button type="submit" class="btn-login" id="btn-login-submit">
-                    Acessar Painel Transporte <i class="fa-solid fa-right-to-bracket" style="margin-left: 0.5rem;"></i>
+                    Acessar Módulo Triagem <i class="fa-solid fa-right-to-bracket" style="margin-left: 0.5rem;"></i>
                 </button>
             </form>
         </div>
@@ -254,10 +262,10 @@
 
             if (sector === 'transporte') {
                 userInput.value = 'transporte';
-                submitBtn.innerHTML = 'Acessar Painel Transporte <i class="fa-solid fa-right-to-bracket" style="margin-left: 0.5rem;"></i>';
+                submitBtn.innerHTML = 'Acessar Módulo Triagem <i class="fa-solid fa-right-to-bracket" style="margin-left: 0.5rem;"></i>';
             } else if (sector === 'dct') {
                 userInput.value = 'dct';
-                submitBtn.innerHTML = 'Acessar Painel DCT <i class="fa-solid fa-right-to-bracket" style="margin-left: 0.5rem;"></i>';
+                submitBtn.innerHTML = 'Acessar Módulo DCT <i class="fa-solid fa-right-to-bracket" style="margin-left: 0.5rem;"></i>';
             } else if (sector === 'admin') {
                 userInput.value = 'admin';
                 submitBtn.innerHTML = 'Acessar Painel Administração <i class="fa-solid fa-right-to-bracket" style="margin-left: 0.5rem;"></i>';

@@ -64,10 +64,10 @@ def apply_migrations(db_path):
     # Usuários padrões com senhas atualizadas
     usuarios_iniciais = [
         ("admin", "Administrador Geral", "0000", "admin123!", "setor_publico", "admin"),
-        ("transporte", "Operador Transporte", "1001", "transporte123!", "setor_publico", "transporte"),
+        ("transporte", "Operador Triagem", "1001", "triagem123!", "setor_publico", "transporte"),
         ("dct", "Conferente DCT", "2002", "dct123!", "setor_publico", "dct"),
-        ("empresa", "Conferente Empresa Processamento", "3003", "empresa123", "empresa_processamento", "empresa"),
-        ("consulta", "Usuário de Consulta", "4004", "consulta123", "setor_publico", "consulta")
+        ("empresa", "Conferente Empresa Processamento", "3003", "empresa123!", "empresa_processamento", "empresa"),
+        ("consulta", "Usuário de Consulta", "4004", "consulta123!", "setor_publico", "consulta")
     ]
     for username, nome, mat, senha, vinc, setor in usuarios_iniciais:
         cursor.execute("SELECT id FROM usuarios WHERE username = ?", (username,))
