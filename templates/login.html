@@ -115,8 +115,8 @@
             color: #94a3b8;
             margin: 0;
             white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
+            overflow: visible;
+            text-overflow: clip;
         }
 
         /* Login Card */
@@ -227,7 +227,7 @@
         /* Responsive Breakpoints for 1366x768 (HD) vs 1920x1080 (Full HD) */
         @media screen and (max-width: 1400px) and (max-height: 800px) {
             .login-wrapper {
-                max-width: 760px;
+                max-width: 860px;
                 gap: 0.65rem;
             }
             .login-header-main i.main-icon {
@@ -245,19 +245,22 @@
                 gap: 0.65rem;
             }
             .sector-card {
-                padding: 0.5rem 0.75rem;
-                gap: 0.55rem;
+                padding: 0.5rem 0.65rem;
+                gap: 0.5rem;
             }
             .sector-card-icon {
-                width: 32px;
-                height: 32px;
-                font-size: 0.95rem;
+                width: 34px;
+                height: 34px;
+                font-size: 1rem;
             }
             .sector-card-info h3 {
-                font-size: 0.825rem;
+                font-size: 0.85rem;
             }
             .sector-card-info p {
                 font-size: 0.725rem;
+                white-space: nowrap;
+                overflow: visible;
+                text-overflow: clip;
             }
             .login-card {
                 padding: 1.15rem 1.5rem;
