@@ -14,7 +14,6 @@ def clean_database():
     usuarios_padrao = [
         ("admin", "Administrador Geral", "0000", "admin123!", "setor_publico", "admin"),
         ("triagem", "Operador Triagem", "1001", "triagem123!", "setor_publico", "transporte"),
-        ("transporte", "Operador Triagem (Legacy)", "1002", "triagem123!", "setor_publico", "transporte"),
         ("dct", "Conferente DCT", "2002", "dct123!", "setor_publico", "dct"),
         ("empresa", "Conferente Empresa Processamento", "3003", "empresa123!", "empresa_processamento", "empresa"),
         ("consulta", "Usuário de Consulta", "4004", "consulta123!", "setor_publico", "consulta")

@@ -231,6 +231,20 @@ def logout():
     flash("Sessão encerrada com sucesso. O servidor Triagem AIT continua ativo na barra de tarefas (próximo ao relógio).", "info")
     return redirect(url_for("login"))
 
+@app.route("/system/shutdown", methods=["POST"])
+def system_shutdown():
+    user = session.get("user", {})
+    user_name = user.get("username", "DESCONHECIDO")
+    user_setor = user.get("setor", "SISTEMA")
+    log_auditoria(user_name, user_setor, "SHUTDOWN_SERVIDOR", justificativa="Encerramento manual do servidor via interface")
+    
+    def kill_process():
+        time.sleep(0.5)
+        os._exit(0)
+        
+    threading.Thread(target=kill_process, daemon=True).start()
+    return jsonify({"status": "shutdown", "message": "Servidor encerrado com sucesso!"})
+
 # --- Dashboard Principal ---
 @app.route("/")
 @login_required

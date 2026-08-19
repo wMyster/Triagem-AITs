@@ -128,8 +128,11 @@
                         </span>
                     </div>
                     <a href="{{ url_for('logout') }}" title="Sair do sistema" style="color: #ef4444; margin-left: 0.4rem; padding: 0.2rem 0.4rem; text-decoration: none;">
-                        <i class="fa-solid fa-right-from-bracket"></i>
+                        <i class="fa-solid fa-right-from-bracket"></i> Sair
                     </a>
+                    <button onclick="shutdownSystem()" title="Encerrar Servidor do Sistema" style="background: rgba(239, 68, 68, 0.2); border: 1px solid rgba(239, 68, 68, 0.4); color: #ef4444; border-radius: 0.4rem; padding: 0.25rem 0.6rem; font-size: 0.8rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 0.3rem; margin-left: 0.5rem;" id="btn-shutdown-nav">
+                        <i class="fa-solid fa-power-off"></i> Encerrar Servidor
+                    </button>
                 </div>
                 {% endif %}
             </div>
@@ -230,6 +233,21 @@
 
     <!-- Javascript for Dynamic Date, Network Health Monitoring and interactions -->
     <script>
+        function shutdownSystem() {
+            if (confirm("Deseja realmente fechar o sistema e encerrar o servidor nesta máquina?\n\nIsso desligará o processo em segundo plano.")) {
+                fetch('/system/shutdown', { method: 'POST' })
+                    .then(res => res.json())
+                    .then(data => {
+                        alert("Servidor encerrado com sucesso! Você pode fechar esta aba.");
+                        window.close();
+                    })
+                    .catch(err => {
+                        alert("Servidor encerrado.");
+                        window.close();
+                    });
+            }
+        }
+
         function updateDate() {
             const footerElement = document.getElementById("footer-date-text");
             const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };

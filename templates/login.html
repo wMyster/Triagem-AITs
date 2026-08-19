@@ -253,10 +253,28 @@
                     Acessar Módulo Triagem <i class="fa-solid fa-right-to-bracket" style="margin-left: 0.5rem;"></i>
                 </button>
             </form>
+
+            <button type="button" onclick="shutdownSystem()" style="width: 100%; margin-top: 1.25rem; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); color: #fca5a5; padding: 0.75rem; border-radius: 0.5rem; font-weight: 600; cursor: pointer; transition: all 0.2s ease;" onmouseover="this.style.background='rgba(239, 68, 68, 0.3)'" onmouseout="this.style.background='rgba(239, 68, 68, 0.15)'">
+                <i class="fa-solid fa-power-off" style="margin-right: 0.4rem;"></i> Encerrar Servidor nesta Máquina
+            </button>
         </div>
     </div>
 
     <script>
+        function shutdownSystem() {
+            if (confirm("Deseja realmente fechar o sistema e encerrar o servidor nesta máquina?\n\nIsso desligará o processo em segundo plano.")) {
+                fetch('/system/shutdown', { method: 'POST' })
+                    .then(res => res.json())
+                    .then(data => {
+                        alert("Servidor encerrado com sucesso! Você pode fechar esta aba.");
+                        window.close();
+                    })
+                    .catch(err => {
+                        alert("Servidor encerrado.");
+                        window.close();
+                    });
+            }
+        }
         const usersData = {
             transporte: [
                 {% for u in triagem_users %}
