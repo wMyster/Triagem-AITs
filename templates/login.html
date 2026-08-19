@@ -14,45 +14,44 @@
             overflow: hidden;
             margin: 0;
             padding: 0;
-            background: #0f172a;
-            background-image: radial-gradient(at 50% 0%, rgba(249, 115, 22, 0.14) 0, transparent 65%),
-                              linear-gradient(180deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+            background-color: #0f172a;
+            background-image: radial-gradient(circle at 50% 30%, rgba(30, 41, 59, 0.8) 0%, #0f172a 100%);
             display: flex;
             align-items: center;
             justify-content: center;
             font-family: 'Inter', sans-serif;
         }
         .login-wrapper {
-            width: 92%;
-            max-width: 760px;
+            width: min(92%, 980px);
             display: flex;
             flex-direction: column;
-            gap: 0.75rem;
+            gap: 1rem;
             box-sizing: border-box;
+            transition: all 0.3s ease;
         }
         .login-header-main {
             text-align: center;
             color: #ffffff;
         }
         .login-header-main i.main-icon {
-            font-size: 1.8rem;
+            font-size: 2.2rem;
             color: #f97316;
-            margin-bottom: 0.15rem;
-            filter: drop-shadow(0 0 10px rgba(249, 115, 22, 0.4));
+            margin-bottom: 0.25rem;
+            filter: drop-shadow(0 0 12px rgba(249, 115, 22, 0.45));
         }
         .login-header-main h1 {
             font-family: 'Outfit', sans-serif;
-            font-size: 1.35rem;
+            font-size: 1.6rem;
             font-weight: 800;
             background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
-            margin: 0 0 0.15rem 0;
+            margin: 0 0 0.25rem 0;
             letter-spacing: -0.01em;
         }
         .login-header-main p {
             color: #94a3b8;
-            font-size: 0.8rem;
+            font-size: 0.875rem;
             margin: 0;
         }
 
@@ -60,34 +59,34 @@
         .sector-cards {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
-            gap: 0.75rem;
+            gap: 1rem;
         }
         .sector-card {
-            background: rgba(30, 41, 59, 0.65);
+            background: rgba(30, 41, 59, 0.7);
             border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 0.75rem;
-            padding: 0.55rem 0.85rem;
+            border-radius: 0.85rem;
+            padding: 0.75rem 1rem;
             cursor: pointer;
             transition: all 0.25s ease;
             display: flex;
             align-items: center;
-            gap: 0.65rem;
+            gap: 0.85rem;
             color: white;
         }
         .sector-card:hover, .sector-card.active {
             transform: translateY(-2px);
             border-color: #f97316;
             background: rgba(30, 41, 59, 0.95);
-            box-shadow: 0 8px 20px -5px rgba(249, 115, 22, 0.3);
+            box-shadow: 0 10px 25px -5px rgba(249, 115, 22, 0.35);
         }
         .sector-card-icon {
-            width: 34px;
-            height: 34px;
-            border-radius: 0.5rem;
+            width: 40px;
+            height: 40px;
+            border-radius: 0.6rem;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 1rem;
+            font-size: 1.2rem;
             flex-shrink: 0;
         }
         .icon-transporte { background: rgba(16, 185, 129, 0.15); color: #34d399; }
@@ -95,13 +94,13 @@
         .icon-admin { background: rgba(244, 63, 94, 0.15); color: #fb7185; }
 
         .sector-card-info h3 {
-            font-size: 0.85rem;
-            margin: 0 0 0.1rem 0;
+            font-size: 0.95rem;
+            margin: 0 0 0.15rem 0;
             font-weight: 700;
             white-space: nowrap;
         }
         .sector-card-info p {
-            font-size: 0.725rem;
+            font-size: 0.775rem;
             color: #94a3b8;
             margin: 0;
             white-space: nowrap;
@@ -112,40 +111,40 @@
             background: rgba(30, 41, 59, 0.85);
             backdrop-filter: blur(16px);
             border: 1px solid rgba(255, 255, 255, 0.12);
-            border-radius: 1rem;
-            box-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.6);
-            padding: 1.25rem 1.5rem;
+            border-radius: 1.15rem;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.65);
+            padding: 1.75rem 2.25rem;
             color: #f8fafc;
         }
         .form-group {
-            margin-bottom: 0.65rem;
+            margin-bottom: 0.9rem;
         }
         .form-group label {
             display: block;
-            font-size: 0.8rem;
+            font-size: 0.85rem;
             font-weight: 500;
             color: #cbd5e1;
-            margin-bottom: 0.25rem;
+            margin-bottom: 0.35rem;
         }
         .input-group {
             position: relative;
         }
         .input-group i {
             position: absolute;
-            left: 0.85rem;
+            left: 0.9rem;
             top: 50%;
             transform: translateY(-50%);
             color: #64748b;
-            font-size: 0.85rem;
+            font-size: 0.9rem;
         }
         .input-group input, .input-group select {
             width: 100%;
-            padding: 0.65rem 1rem 0.65rem 2.5rem;
+            padding: 0.75rem 1.1rem 0.75rem 2.7rem;
             background: rgba(15, 23, 42, 0.6);
             border: 1px solid rgba(255, 255, 255, 0.15);
-            border-radius: 0.4rem;
+            border-radius: 0.45rem;
             color: #ffffff;
-            font-size: 0.875rem;
+            font-size: 0.9rem;
             box-sizing: border-box;
             transition: all 0.2s ease;
         }
@@ -157,32 +156,32 @@
         }
         .btn-login {
             width: 100%;
-            padding: 0.7rem;
+            padding: 0.8rem;
             background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
             border: none;
-            border-radius: 0.4rem;
+            border-radius: 0.45rem;
             color: #ffffff;
-            font-size: 0.9rem;
+            font-size: 0.95rem;
             font-weight: 700;
             cursor: pointer;
             transition: all 0.2s ease;
-            box-shadow: 0 4px 12px rgba(249, 115, 22, 0.3);
-            margin-top: 0.25rem;
+            box-shadow: 0 4px 14px rgba(249, 115, 22, 0.35);
+            margin-top: 0.35rem;
         }
         .btn-login:hover {
             transform: translateY(-1px);
-            box-shadow: 0 6px 16px rgba(249, 115, 22, 0.4);
+            box-shadow: 0 6px 18px rgba(249, 115, 22, 0.45);
         }
         .btn-shutdown {
             width: 100%;
-            margin-top: 0.65rem;
+            margin-top: 0.75rem;
             background: rgba(239, 68, 68, 0.1);
             border: 1px solid rgba(239, 68, 68, 0.3);
             color: #f87171;
-            padding: 0.5rem;
-            border-radius: 0.4rem;
+            padding: 0.6rem;
+            border-radius: 0.45rem;
             font-weight: 600;
-            font-size: 0.825rem;
+            font-size: 0.85rem;
             cursor: pointer;
             transition: all 0.2s ease;
             display: flex;
@@ -197,20 +196,80 @@
             box-shadow: 0 4px 12px rgba(239, 68, 68, 0.25);
         }
         .alert {
-            padding: 0.5rem 0.75rem;
-            border-radius: 0.4rem;
-            margin-bottom: 0.65rem;
-            font-size: 0.8rem;
+            padding: 0.6rem 0.85rem;
+            border-radius: 0.45rem;
+            margin-bottom: 0.75rem;
+            font-size: 0.825rem;
             display: flex;
             align-items: center;
             justify-content: flex-start;
-            gap: 0.5rem;
+            gap: 0.55rem;
             text-align: left;
         }
         .alert-danger { background: rgba(239, 68, 68, 0.2); border: 1px solid rgba(239, 68, 68, 0.4); color: #fca5a5; }
         .alert-success { background: rgba(16, 185, 129, 0.2); border: 1px solid rgba(16, 185, 129, 0.4); color: #6ee7b7; }
         .alert-warning { background: rgba(245, 158, 11, 0.2); border: 1px solid rgba(245, 158, 11, 0.4); color: #fcd34d; }
         .alert-info { background: rgba(59, 130, 246, 0.2); border: 1px solid rgba(59, 130, 246, 0.4); color: #93c5fd; }
+
+        /* Responsive Breakpoints for 1366x768 (HD) vs 1920x1080 (Full HD) */
+        @media screen and (max-width: 1400px) and (max-height: 800px) {
+            .login-wrapper {
+                max-width: 760px;
+                gap: 0.65rem;
+            }
+            .login-header-main i.main-icon {
+                font-size: 1.75rem;
+                margin-bottom: 0.1rem;
+            }
+            .login-header-main h1 {
+                font-size: 1.3rem;
+                margin-bottom: 0.1rem;
+            }
+            .login-header-main p {
+                font-size: 0.8rem;
+            }
+            .sector-cards {
+                gap: 0.65rem;
+            }
+            .sector-card {
+                padding: 0.5rem 0.75rem;
+                gap: 0.55rem;
+            }
+            .sector-card-icon {
+                width: 32px;
+                height: 32px;
+                font-size: 0.95rem;
+            }
+            .sector-card-info h3 {
+                font-size: 0.825rem;
+            }
+            .sector-card-info p {
+                font-size: 0.725rem;
+            }
+            .login-card {
+                padding: 1.15rem 1.5rem;
+            }
+            .form-group {
+                margin-bottom: 0.6rem;
+            }
+            .form-group label {
+                font-size: 0.785rem;
+                margin-bottom: 0.2rem;
+            }
+            .input-group input, .input-group select {
+                padding: 0.6rem 0.9rem 0.6rem 2.4rem;
+                font-size: 0.85rem;
+            }
+            .btn-login {
+                padding: 0.65rem;
+                font-size: 0.875rem;
+            }
+            .btn-shutdown {
+                margin-top: 0.55rem;
+                padding: 0.45rem;
+                font-size: 0.8rem;
+            }
+        }
     </style>
 </head>
 <body>
