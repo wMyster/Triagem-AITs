@@ -8,15 +8,35 @@ from datetime import datetime, date
 from werkzeug.security import generate_password_hash, check_password_hash
 from audit import log_auditoria
 
+_DB_PATH_CACHE = {
+    "path": None,
+    "last_check": 0
+}
+
 def get_base_path():
+    now = time.time()
+    if _DB_PATH_CACHE["path"] and (now - _DB_PATH_CACHE["last_check"] < 30):
+        return _DB_PATH_CACHE["path"]
+    
     net_dir = r"G:\Triagem AITs"
     net_db = os.path.join(net_dir, "triagem_ait.db")
-    if os.path.exists(net_dir) and os.path.exists(net_db):
-        return net_db
+    
+    resolved_path = None
+    try:
+        if os.path.exists(net_dir) and os.path.exists(net_db):
+            resolved_path = net_db
+    except Exception:
+        resolved_path = None
 
-    if getattr(sys, 'frozen', False):
-        return os.path.join(os.path.dirname(sys.executable), "triagem_ait.db")
-    return os.path.join(os.path.dirname(os.path.abspath(__file__)), "triagem_ait.db")
+    if not resolved_path:
+        if getattr(sys, 'frozen', False):
+            resolved_path = os.path.join(os.path.dirname(sys.executable), "triagem_ait.db")
+        else:
+            resolved_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "triagem_ait.db")
+            
+    _DB_PATH_CACHE["path"] = resolved_path
+    _DB_PATH_CACHE["last_check"] = now
+    return resolved_path
 
 def get_resources_path():
     if getattr(sys, 'frozen', False):
@@ -37,6 +57,23 @@ def get_db_connection():
     conn.execute("PRAGMA busy_timeout = 30000;")
     conn.row_factory = sqlite3.Row
     return conn
+
+def init_db_performance_indexes():
+    try:
+        conn = get_db_connection()
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_ait_numero ON ait(numero_ait);")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_ait_talao ON ait(talao_id);")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_ait_agente ON ait(agente_gcm_id);")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_ait_data ON ait(data_ait);")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_ait_status ON ait(status);")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_taloes_agente ON taloes(agente_gcm_id);")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_usuarios_username ON usuarios(username);")
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"[WARN] Erro ao inicializar indices: {e}")
+
+init_db_performance_indexes()
 
 def with_db_retry(max_retries=5, delay=0.5):
     def decorator(f):
@@ -132,14 +169,18 @@ def inject_globals():
 @app.before_request
 def update_last_seen():
     if "user" in session:
-        try:
-            conn = get_db_connection()
-            now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            conn.execute("UPDATE usuarios SET ultimo_acesso = ? WHERE id = ?", (now_str, session["user"]["id"]))
-            conn.commit()
-            conn.close()
-        except Exception:
-            pass
+        now_ts = time.time()
+        last_update = session.get("_last_seen_ts", 0)
+        if now_ts - last_update > 60:
+            session["_last_seen_ts"] = now_ts
+            try:
+                conn = get_db_connection()
+                now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                conn.execute("UPDATE usuarios SET ultimo_acesso = ? WHERE id = ?", (now_str, session["user"]["id"]))
+                conn.commit()
+                conn.close()
+            except Exception:
+                pass
 
 @app.route("/quem_esta_logado")
 @login_required
@@ -210,13 +251,14 @@ def login():
                 "setor": user["setor"],
                 "vinculo": user["vinculo"]
             }
+            session["_last_seen_ts"] = time.time()
             log_auditoria(user["username"], user["setor"], "LOGIN_SUCESSO")
             flash(f"Bem-vindo(a), {user['nome_completo']}!", "success")
             return redirect(url_for("index"))
         else:
             log_auditoria(username, "DESCONHECIDO", "LOGIN_FALHA", justificativa="Senha ou usuário incorreto")
     conn = get_db_connection()
-    triagem_users = conn.execute("SELECT username, nome_completo FROM usuarios WHERE setor IN ('transporte', 'triagem', 'setor_publico') AND username != 'admin' AND ativo = 1 ORDER BY nome_completo ASC").fetchall()
+    triagem_users = conn.execute("SELECT username, nome_completo FROM usuarios WHERE setor IN ('transporte', 'triagem', 'setor_publico') AND username NOT IN ('admin', 'transporte') AND ativo = 1 ORDER BY nome_completo ASC").fetchall()
     dct_users = conn.execute("SELECT username, nome_completo FROM usuarios WHERE setor = 'dct' AND ativo = 1 ORDER BY nome_completo ASC").fetchall()
     admin_users = conn.execute("SELECT username, nome_completo FROM usuarios WHERE setor = 'admin' AND ativo = 1 ORDER BY nome_completo ASC").fetchall()
     conn.close()
@@ -333,6 +375,79 @@ def agentes_criar():
 
     return redirect(url_for("agentes"))
 
+@app.route("/agentes/editar/<int:agente_id>", methods=["POST"])
+@login_required
+@role_required("dct", "admin")
+@with_db_retry()
+def agentes_editar(agente_id):
+    nome = request.form.get("nome_completo", "").strip()
+    matricula = request.form.get("matricula", "").strip()
+    categoria = request.form.get("categoria", "").strip()
+    unidade = request.form.get("unidade_setor", "").strip()
+    situacao = request.form.get("situacao", "ATIVO").strip()
+    user_name = session["user"]["username"]
+
+    if not nome or not matricula or not categoria:
+        flash("Nome, Matrícula e Categoria são obrigatórios.", "danger")
+        return redirect(url_for("agentes"))
+
+    conn = get_db_connection()
+    try:
+        dup = conn.execute("SELECT id FROM agentes_gcm WHERE matricula = ? AND id != ?", (matricula, agente_id)).fetchone()
+        if dup:
+            flash(f"Erro: A matrícula '{matricula}' já pertence a outro servidor.", "danger")
+            conn.close()
+            return redirect(url_for("agentes"))
+
+        conn.execute("""
+            UPDATE agentes_gcm 
+            SET nome_completo = ?, matricula = ?, categoria = ?, unidade_setor = ?, situacao = ?
+            WHERE id = ?
+        """, (nome, matricula, categoria, unidade, situacao, agente_id))
+        conn.commit()
+        log_auditoria(user_name, session["user"]["setor"], "EDITAR_AGENTE", "agentes_gcm", agente_id, depois=f"{nome} ({matricula}) - {situacao}")
+        flash(f"Servidor '{nome}' atualizado com sucesso!", "success")
+    except Exception as e:
+        flash(f"Erro ao atualizar servidor: {e}", "danger")
+    finally:
+        conn.close()
+
+    return redirect(url_for("agentes"))
+
+@app.route("/agentes/excluir/<int:agente_id>", methods=["POST"])
+@login_required
+@role_required("admin")
+@with_db_retry()
+def agentes_excluir(agente_id):
+    user_name = session["user"]["username"]
+    conn = get_db_connection()
+    try:
+        agente = conn.execute("SELECT * FROM agentes_gcm WHERE id = ?", (agente_id,)).fetchone()
+        if not agente:
+            flash("Servidor não encontrado.", "warning")
+            conn.close()
+            return redirect(url_for("agentes"))
+
+        taloes_count = conn.execute("SELECT COUNT(*) FROM taloes WHERE agente_gcm_id = ?", (agente_id,)).fetchone()[0]
+        aits_count = conn.execute("SELECT COUNT(*) FROM ait WHERE agente_gcm_id = ?", (agente_id,)).fetchone()[0]
+        
+        if taloes_count > 0 or aits_count > 0:
+            conn.execute("UPDATE agentes_gcm SET situacao = 'INATIVO' WHERE id = ?", (agente_id,))
+            conn.commit()
+            log_auditoria(user_name, "admin", "INATIVAR_AGENTE", "agentes_gcm", agente_id, justificativa="Servidor possui talões/AITs vinculados. Situação alterada para INATIVO.")
+            flash(f"Servidor '{agente['nome_completo']}' possui registros vinculados ({taloes_count} talões, {aits_count} AITs) e foi marcado como INATIVO para preservar o histórico.", "warning")
+        else:
+            conn.execute("DELETE FROM agentes_gcm WHERE id = ?", (agente_id,))
+            conn.commit()
+            log_auditoria(user_name, "admin", "EXCLUIR_AGENTE", "agentes_gcm", agente_id, antes=f"{agente['nome_completo']} ({agente['matricula']})")
+            flash(f"Servidor '{agente['nome_completo']}' excluído com sucesso!", "success")
+    except Exception as e:
+        flash(f"Erro ao excluir servidor: {e}", "danger")
+    finally:
+        conn.close()
+
+    return redirect(url_for("agentes"))
+
 # --- Talões ---
 @app.route("/taloes")
 @login_required
@@ -430,6 +545,68 @@ def taloes_transferir():
 
     log_auditoria(user_name, session["user"]["setor"], "TRANSFERIR_AITS", "ait", justificativa=motivo, depois=f"Faixa {t_inicial}-{t_final} do Agente {origem_id} -> {destino_id}")
     flash(f"AITs pendentes na faixa {t_inicial} à {t_final} transferidos com sucesso!", "success")
+    return redirect(url_for("taloes"))
+
+@app.route("/taloes/editar/<int:talao_id>", methods=["POST"])
+@login_required
+@role_required("dct", "admin")
+@with_db_retry()
+def taloes_editar(talao_id):
+    num_recibo = request.form.get("numero_recibo", "").strip()
+    data_entrega = request.form.get("data_entrega", "").strip()
+    agente_id = request.form.get("agente_gcm_id")
+    situacao = request.form.get("situacao", "ENTREGUE").strip()
+    user_name = session["user"]["username"]
+
+    conn = get_db_connection()
+    try:
+        conn.execute("""
+            UPDATE taloes 
+            SET numero_recibo = ?, data_entrega = ?, agente_gcm_id = ?, situacao = ?
+            WHERE id = ?
+        """, (num_recibo, data_entrega, agente_id, situacao, talao_id))
+        # Atualiza o responsável nos AITs ainda não preenchidos deste talão
+        conn.execute("""
+            UPDATE ait 
+            SET agente_gcm_id = ?
+            WHERE talao_id = ? AND (data_ait IS NULL OR data_ait = '')
+        """, (agente_id, talao_id))
+        conn.commit()
+        log_auditoria(user_name, session["user"]["setor"], "EDITAR_TALAO", "taloes", talao_id, depois=f"Recibo: {num_recibo}, Data: {data_entrega}, Agente ID: {agente_id}, Situacao: {situacao}")
+        flash(f"Talão #{talao_id} atualizado com sucesso!", "success")
+    except Exception as e:
+        flash(f"Erro ao atualizar talão: {e}", "danger")
+    finally:
+        conn.close()
+
+    return redirect(url_for("taloes"))
+
+@app.route("/taloes/excluir/<int:talao_id>", methods=["POST"])
+@login_required
+@role_required("admin")
+@with_db_retry()
+def taloes_excluir(talao_id):
+    user_name = session["user"]["username"]
+    motivo = request.form.get("motivo", "").strip() or "Exclusão administrativa de talão"
+    conn = get_db_connection()
+    try:
+        talao = conn.execute("SELECT * FROM taloes WHERE id = ?", (talao_id,)).fetchone()
+        if not talao:
+            flash("Talão não encontrado.", "warning")
+            conn.close()
+            return redirect(url_for("taloes"))
+
+        # Excluir AITs do talão
+        del_aits = conn.execute("DELETE FROM ait WHERE talao_id = ?", (talao_id,)).rowcount
+        conn.execute("DELETE FROM taloes WHERE id = ?", (talao_id,))
+        conn.commit()
+        log_auditoria(user_name, "admin", "EXCLUIR_TALAO", "taloes", talao_id, justificativa=motivo, depois=f"Talão #{talao_id} e {del_aits} AITs vinculados excluídos")
+        flash(f"Talão #{talao_id} e seus {del_aits} AITs vinculados foram excluídos com sucesso!", "success")
+    except Exception as e:
+        flash(f"Erro ao excluir talão: {e}", "danger")
+    finally:
+        conn.close()
+
     return redirect(url_for("taloes"))
 
 # --- Cadastro AIT ---
@@ -907,6 +1084,105 @@ def usuarios_criar():
         conn.close()
 
     return redirect(url_for("usuarios"))
+
+@app.route("/usuarios/editar/<int:user_id>", methods=["POST"])
+@login_required
+@role_required("admin")
+@with_db_retry()
+def usuarios_editar(user_id):
+    nome_completo = request.form.get("nome_completo", "").strip()
+    setor = request.form.get("setor", "").strip()
+    vinculo = request.form.get("vinculo", "setor_publico").strip()
+    ativo = int(request.form.get("ativo", 1))
+    nova_senha = request.form.get("nova_senha", "").strip()
+    user_name = session["user"]["username"]
+
+    if not nome_completo or not setor:
+        flash("Nome completo e Setor são obrigatórios.", "danger")
+        return redirect(url_for("usuarios"))
+
+    conn = get_db_connection()
+    try:
+        if nova_senha:
+            senha_hash = generate_password_hash(nova_senha)
+            conn.execute("""
+                UPDATE usuarios 
+                SET nome_completo = ?, setor = ?, vinculo = ?, ativo = ?, senha_hash = ?
+                WHERE id = ?
+            """, (nome_completo, setor, vinculo, ativo, senha_hash, user_id))
+        else:
+            conn.execute("""
+                UPDATE usuarios 
+                SET nome_completo = ?, setor = ?, vinculo = ?, ativo = ?
+                WHERE id = ?
+            """, (nome_completo, setor, vinculo, ativo, user_id))
+        conn.commit()
+        log_auditoria(user_name, "admin", "EDITAR_USUARIO", "usuarios", user_id, depois=f"{nome_completo} ({setor}) - Ativo: {ativo}")
+        flash("Usuário atualizado com sucesso!", "success")
+    except Exception as e:
+        flash(f"Erro ao atualizar usuário: {e}", "danger")
+    finally:
+        conn.close()
+
+    return redirect(url_for("usuarios"))
+
+@app.route("/usuarios/excluir/<int:user_id>", methods=["POST"])
+@login_required
+@role_required("admin")
+@with_db_retry()
+def usuarios_excluir(user_id):
+    if user_id == session["user"]["id"]:
+        flash("Você não pode excluir sua própria conta de administrador conectada.", "danger")
+        return redirect(url_for("usuarios"))
+
+    user_name = session["user"]["username"]
+    conn = get_db_connection()
+    try:
+        target = conn.execute("SELECT username, nome_completo FROM usuarios WHERE id = ?", (user_id,)).fetchone()
+        if target:
+            conn.execute("DELETE FROM usuarios WHERE id = ?", (user_id,))
+            conn.commit()
+            log_auditoria(user_name, "admin", "EXCLUIR_USUARIO", "usuarios", user_id, antes=f"{target['nome_completo']} ({target['username']})")
+            flash(f"Usuário '{target['nome_completo']}' excluído com sucesso!", "success")
+        else:
+            flash("Usuário não encontrado.", "warning")
+    except Exception as e:
+        flash(f"Erro ao excluir usuário: {e}", "danger")
+    finally:
+        conn.close()
+
+    return redirect(url_for("usuarios"))
+
+# --- Exclusão de AIT (Admin) ---
+@app.route("/ait/excluir/<int:ait_id>", methods=["POST"])
+@login_required
+@role_required("admin")
+@with_db_retry()
+def ait_excluir(ait_id):
+    user_name = session["user"]["username"]
+    motivo = request.form.get("motivo", "").strip() or "Exclusão administrativa"
+    redirect_to = request.form.get("redirect_to", "consultas")
+
+    conn = get_db_connection()
+    try:
+        rec = conn.execute("SELECT * FROM ait WHERE id = ?", (ait_id,)).fetchone()
+        if not rec:
+            flash("AIT não encontrado.", "warning")
+            conn.close()
+            return redirect(url_for(redirect_to))
+
+        conn.execute("DELETE FROM ait WHERE id = ?", (ait_id,))
+        conn.commit()
+        log_auditoria(user_name, "admin", "EXCLUIR_AIT", "ait", ait_id, justificativa=motivo, antes=f"Nº AIT: {rec['numero_ait']}, Placa: {rec['placa']}, Status: {rec['status']}")
+        flash(f"AIT #{rec['numero_ait']} excluído com sucesso!", "success")
+    except Exception as e:
+        flash(f"Erro ao excluir AIT: {e}", "danger")
+    finally:
+        conn.close()
+
+    if redirect_to == "cadastro":
+        return redirect(url_for("cadastro"))
+    return redirect(request.referrer or url_for("consultas"))
 
 # --- Backups (Admin) ---
 from scripts.backup_manager import criar_backup, listar_backups, get_base_db_path, get_backup_dir

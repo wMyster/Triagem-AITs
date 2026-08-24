@@ -345,7 +345,7 @@
                         <i class="fa-solid fa-user"></i>
                         <select id="username" name="username" required style="width: 100%; padding: 0.65rem 1rem 0.65rem 2.5rem; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 0.4rem; color: #ffffff; font-size: 0.875rem; box-sizing: border-box; cursor: pointer;">
                             {% for u in triagem_users %}
-                                <option value="{{ u.username }}">{{ u.nome_completo }} ({{ u.username }})</option>
+                                <option value="{{ u.username }}">{{ u.nome_completo }}</option>
                             {% endfor %}
                         </select>
                     </div>
@@ -416,13 +416,13 @@
             if (list.length === 0) {
                 const opt = document.createElement('option');
                 opt.value = sector === 'transporte' ? 'triagem' : sector;
-                opt.textContent = sector === 'transporte' ? 'Operador Triagem (triagem)' : (sector === 'dct' ? 'Conferente DCT (dct)' : 'Administrador Geral (admin)');
+                opt.textContent = sector === 'transporte' ? 'Operador Triagem' : (sector === 'dct' ? 'Conferente DCT' : 'Administrador Geral');
                 userSelect.appendChild(opt);
             } else {
                 list.forEach(u => {
                     const opt = document.createElement('option');
                     opt.value = u.username;
-                    opt.textContent = `${u.name} (${u.username})`;
+                    opt.textContent = u.name;
                     userSelect.appendChild(opt);
                 });
             }
