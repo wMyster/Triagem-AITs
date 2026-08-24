@@ -59,8 +59,9 @@
         
         <div style="background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.25); border-radius: 0.75rem; padding: 1rem 1.25rem; margin-bottom: 1.5rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
             <div style="display: flex; align-items: center; gap: 0.75rem;">
-                <label style="cursor: pointer; font-weight: 600; color: #f8fafc; display: flex; align-items: center; gap: 0.4rem;">
-                    <input type="checkbox" id="select-all" style="transform: scale(1.3); cursor: pointer;"> Selecionar Todos os AITs do Lote (<span id="selected-count">0</span> selecionados)
+                <label style="cursor: pointer; font-weight: 600; color: #f8fafc; display: flex; align-items: center; gap: 0.6rem; user-select: none;">
+                    <input type="checkbox" id="select-all" style="width: 1.25rem; height: 1.25rem; accent-color: #3b82f6; cursor: pointer;">
+                    <span>SELECIONAR TODOS OS AITS DO LOTE ( <span id="selected-count" style="color: #60a5fa; font-weight: 700;">0</span> SELECIONADOS )</span>
                 </label>
             </div>
 
@@ -86,7 +87,9 @@
             <table>
                 <thead>
                     <tr>
-                        <th style="width: 40px; text-align: center;">Sel.</th>
+                        <th style="width: 45px; text-align: center;">
+                            <input type="checkbox" id="header-select-all" title="Selecionar / Desmarcar Todos" style="width: 1.15rem; height: 1.15rem; accent-color: #3b82f6; cursor: pointer;">
+                        </th>
                         <th>Código</th>
                         <th>Número AIT</th>
                         <th>Placa</th>
@@ -100,9 +103,9 @@
                 </thead>
                 <tbody>
                     {% for item in records %}
-                    <tr>
-                        <td style="text-align: center;">
-                            <input type="checkbox" name="ait_ids" value="{{ item.id }}" class="ait-checkbox" style="transform: scale(1.2); cursor: pointer;">
+                    <tr id="row-ait-{{ item.id }}" class="ait-table-row" style="cursor: pointer; transition: background 0.15s ease;">
+                        <td style="text-align: center;" onclick="event.stopPropagation();">
+                            <input type="checkbox" name="ait_ids" value="{{ item.id }}" class="ait-checkbox" style="width: 1.15rem; height: 1.15rem; accent-color: #3b82f6; cursor: pointer;">
                         </td>
                         <td><strong>#{{ item.id }}</strong></td>
                         <td><span style="font-weight: 600; color: #f97316;">{{ item.numero_ait }}</span></td>
@@ -140,9 +143,95 @@
 
 {% block scripts %}
 <script>
-    function toggleSelectAll(master) {
-        const checkboxes = document.querySelectorAll('.ait-checkbox');
-        checkboxes.forEach(cb => cb.checked = master.checked);
+document.addEventListener("DOMContentLoaded", function() {
+    const masterCheckbox = document.getElementById("select-all");
+    const headerCheckbox = document.getElementById("header-select-all");
+    const itemCheckboxes = document.querySelectorAll(".ait-checkbox");
+    const counterSpan = document.getElementById("selected-count");
+    const formLote = document.getElementById("form-lote");
+
+    function updateSelectionState() {
+        const total = itemCheckboxes.length;
+        const selected = Array.from(itemCheckboxes).filter(cb => cb.checked).length;
+
+        if (counterSpan) {
+            counterSpan.textContent = selected;
+        }
+
+        const allSelected = total > 0 && selected === total;
+        const isIndeterminate = selected > 0 && selected < total;
+
+        if (masterCheckbox) {
+            masterCheckbox.checked = allSelected;
+            masterCheckbox.indeterminate = isIndeterminate;
+        }
+
+        if (headerCheckbox) {
+            headerCheckbox.checked = allSelected;
+            headerCheckbox.indeterminate = isIndeterminate;
+        }
+
+        // Highlight selected rows
+        itemCheckboxes.forEach(cb => {
+            const tr = cb.closest("tr");
+            if (tr) {
+                if (cb.checked) {
+                    tr.style.backgroundColor = "rgba(59, 130, 246, 0.15)";
+                } else {
+                    tr.style.backgroundColor = "";
+                }
+            }
+        });
     }
+
+    function setAll(checked) {
+        itemCheckboxes.forEach(cb => {
+            cb.checked = checked;
+        });
+        updateSelectionState();
+    }
+
+    if (masterCheckbox) {
+        masterCheckbox.addEventListener("change", function() {
+            setAll(this.checked);
+        });
+    }
+
+    if (headerCheckbox) {
+        headerCheckbox.addEventListener("change", function() {
+            setAll(this.checked);
+        });
+    }
+
+    itemCheckboxes.forEach(cb => {
+        cb.addEventListener("change", updateSelectionState);
+    });
+
+    // Clicking anywhere on the row toggles the checkbox
+    document.querySelectorAll(".ait-table-row").forEach(row => {
+        row.addEventListener("click", function(e) {
+            if (['INPUT', 'BUTTON', 'A', 'I', 'SELECT'].includes(e.target.tagName)) return;
+            const cb = this.querySelector(".ait-checkbox");
+            if (cb) {
+                cb.checked = !cb.checked;
+                updateSelectionState();
+            }
+        });
+    });
+
+    // Form submission validation: notify if 0 items selected
+    if (formLote) {
+        formLote.addEventListener("submit", function(e) {
+            const selected = Array.from(itemCheckboxes).filter(cb => cb.checked).length;
+            if (selected === 0) {
+                e.preventDefault();
+                alert("Por favor, selecione ao menos um AIT na lista para realizar esta ação em lote.");
+                return false;
+            }
+        });
+    }
+
+    updateSelectionState();
+});
 </script>
 {% endblock %}
