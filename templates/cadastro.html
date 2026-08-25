@@ -42,7 +42,7 @@
             <!-- Placa -->
             <div class="form-group">
                 <label for="placa">Placa do Veículo</label>
-                <input type="text" id="placa" name="placa" value="{{ record.placa if record.placa else '' }}" placeholder="Ex: ABC1D23" maxlength="7" style="text-transform: uppercase;" {% if is_locked %}readonly style="opacity: 0.6;"{% endif %}>
+                <input type="text" id="placa" name="placa" value="{{ record.placa if record.placa else '' }}" maxlength="7" style="text-transform: uppercase;" {% if is_locked %}readonly style="opacity: 0.6;"{% endif %}>
             </div>
 
             <!-- Data da Ocorrência -->
@@ -116,7 +116,7 @@
             <input type="hidden" name="redirect_to" value="cadastro">
             <div class="form-group">
                 <label for="excluir_ait_motivo">Justificativa da Exclusão *</label>
-                <input type="text" id="excluir_ait_motivo" name="motivo" placeholder="Ex: Erro de digitação / Auto cancelado na origem" required style="width: 100%;">
+                <input type="text" id="excluir_ait_motivo" name="motivo" required style="width: 100%;">
             </div>
             <div style="display: flex; justify-content: flex-end; gap: 0.75rem;">
                 <button type="button" class="btn btn-secondary" onclick="fecharModalExcluirAIT()">Cancelar</button>

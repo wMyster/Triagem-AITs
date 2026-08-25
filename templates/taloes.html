@@ -35,16 +35,16 @@
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 1rem;">
                     <div class="form-group">
                         <label for="numero_inicial">Nº AIT Inicial *</label>
-                        <input type="number" id="numero_inicial" name="numero_inicial" placeholder="Ex: 433501" required>
+                        <input type="number" id="numero_inicial" name="numero_inicial" required>
                     </div>
                     <div class="form-group">
                         <label for="numero_final">Nº AIT Final *</label>
-                        <input type="number" id="numero_final" name="numero_final" placeholder="Ex: 433550" required>
+                        <input type="number" id="numero_final" name="numero_final" required>
                     </div>
                 </div>
                 <div class="form-group" style="margin-bottom: 1rem;">
                     <label for="numero_recibo">Número do Recibo / Protocolo</label>
-                    <input type="text" id="numero_recibo" name="numero_recibo" placeholder="Ex: REC-2026/089">
+                    <input type="text" id="numero_recibo" name="numero_recibo">
                 </div>
                 <button type="submit" class="btn btn-primary" style="width: 100%; background: #f97316;"><i class="fa-solid fa-paper-plane"></i> Registrar Talão e Gerar 50 AITs</button>
             </form>
@@ -75,16 +75,16 @@
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 1rem;">
                     <div class="form-group">
                         <label for="transf_inicial">1º AIT Transferido *</label>
-                        <input type="number" id="transf_inicial" name="transf_inicial" required placeholder="Ex: 433521">
+                        <input type="number" id="transf_inicial" name="transf_inicial" required>
                     </div>
                     <div class="form-group">
                         <label for="transf_final">Último AIT *</label>
-                        <input type="number" id="transf_final" name="transf_final" required placeholder="Ex: 433550">
+                        <input type="number" id="transf_final" name="transf_final" required>
                     </div>
                 </div>
                 <div class="form-group" style="margin-bottom: 1rem;">
                     <label for="motivo">Motivo da Transferência *</label>
-                    <input type="text" id="motivo" name="motivo" required placeholder="Ex: Afastamento / Redirecionamento de frota">
+                    <input type="text" id="motivo" name="motivo" required>
                 </div>
                 <button type="submit" class="btn btn-primary" style="width: 100%; background: #8b5cf6;"><i class="fa-solid fa-rotate"></i> Efetoar Transferência</button>
             </form>
@@ -93,116 +93,141 @@
     </div>
 
     <!-- List of Delivered Talões -->
-    <h3 style="color: #ffffff; font-size: 1.1rem; margin-bottom: 1rem;"><i class="fa-solid fa-layer-group"></i> Talões Registrados</h3>
-    <table class="data-table">
-        <thead>
-            <tr>
-                <th>ID</th>
-                <th>Recibo</th>
-                <th>Data Entrega</th>
-                <th>Responsável Atual</th>
-                <th>Intervalo Numérico</th>
-                <th>Qtd Total</th>
-                <th>Situação</th>
-                <th>Entregues ao Setor</th>
-                <th>Faltantes</th>
-                {% if session['user']['setor'] in ['dct', 'admin'] %}
-                <th style="text-align: center;">Ações</th>
-                {% endif %}
-            </tr>
-        </thead>
-        <tbody>
-            {% for item in taloes %}
-            <tr>
-                <td>#{{ item.id }}</td>
-                <td><strong>{{ item.numero_recibo if item.numero_recibo else 'N/A' }}</strong></td>
-                <td>{{ item.data_entrega }}</td>
-                <td><strong>{{ item.agente_nome }}</strong> (Mat: {{ item.agente_matricula }})</td>
-                <td><span style="font-weight: 600; color: #f97316;">{{ item.numero_inicial }} à {{ item.numero_final }}</span></td>
-                <td>{{ item.quantidade_calculada }}</td>
-                <td>
-                    <span class="badge badge-info">{{ item.situacao }}</span>
-                </td>
-                <td><strong style="color: #34d399;">{{ item.qtd_entregue }}</strong></td>
-                <td><strong style="color: #f87171;">{{ item.qtd_faltante }}</strong></td>
-                {% if session['user']['setor'] in ['dct', 'admin'] %}
-                <td style="text-align: center; white-space: nowrap;">
-                    <button type="button" class="btn btn-secondary btn-action" onclick="abrirModalEditarTalao({{ item.id }}, '{{ item.numero_recibo or '' }}', '{{ item.data_entrega }}', {{ item.agente_gcm_id }}, '{{ item.situacao }}')" title="Editar Talão">
-                        <i class="fa-solid fa-pen-to-square"></i> Editar
-                    </button>
-                    {% if session['user']['setor'] == 'admin' %}
-                    <button type="button" class="btn btn-danger btn-action" onclick="abrirModalExcluirTalao({{ item.id }}, '{{ item.numero_inicial }} à {{ item.numero_final }}')" title="Excluir Talão" style="background: rgba(239, 68, 68, 0.2); border: 1px solid rgba(239, 68, 68, 0.4); color: #fca5a5; margin-left: 0.35rem;">
-                        <i class="fa-solid fa-trash"></i> Excluir
-                    </button>
-                    {% endif %}
-                </td>
-                {% endif %}
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+    <div style="background: rgba(255,255,255,0.02); padding: 1.5rem; border-radius: 0.75rem; border: 1px solid rgba(255,255,255,0.08);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+            <h3 style="margin: 0; color: #f8fafc; font-size: 1.15rem;"><i class="fa-solid fa-layer-group"></i> Talões em Circulação</h3>
+            <span style="font-size: 0.85rem; color: #94a3b8;">Total: {{ taloes|length }} talões</span>
+        </div>
+
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Nº Recibo</th>
+                        <th>Data Entrega</th>
+                        <th>Servidor Titular</th>
+                        <th>Faixa Numérica</th>
+                        <th>Qtd</th>
+                        <th>Situação</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for t in taloes %}
+                    <tr>
+                        <td><strong style="color: #60a5fa;">{{ t.numero_recibo or 'S/N' }}</strong></td>
+                        <td>{{ t.data_entrega }}</td>
+                        <td>
+                            <strong style="color: #f8fafc;">{{ t.agente_nome }}</strong>
+                            <span style="display: block; font-size: 0.75rem; color: #94a3b8;">Mat: {{ t.matricula }} | {{ t.categoria }}</span>
+                        </td>
+                        <td>
+                            <span class="badge" style="background: rgba(249,115,22,0.15); color: #f97316; border: 1px solid rgba(249,115,22,0.3);">
+                                {{ t.numero_inicial }} a {{ t.numero_final }}
+                            </span>
+                        </td>
+                        <td>{{ t.quantidade_calculada }}</td>
+                        <td>
+                            {% if t.situacao == 'EM_UTILIZACAO' %}
+                                <span class="badge" style="background: rgba(16,185,129,0.15); color: #34d399; border: 1px solid rgba(16,185,129,0.3);">Em Utilização</span>
+                            {% elif t.situacao == 'PARCIALMENTE_ENTREGUE' %}
+                                <span class="badge" style="background: rgba(234,179,8,0.15); color: #facc15; border: 1px solid rgba(234,179,8,0.3);">Parcial</span>
+                            {% elif t.situacao == 'INTEGRALMENTE_ENTREGUE' %}
+                                <span class="badge" style="background: rgba(59,130,246,0.15); color: #60a5fa; border: 1px solid rgba(59,130,246,0.3);">Entregue</span>
+                            {% elif t.situacao == 'TRANSFERIDO' %}
+                                <span class="badge" style="background: rgba(139,92,246,0.15); color: #a78bfa; border: 1px solid rgba(139,92,246,0.3);">Transferido</span>
+                            {% else %}
+                                <span class="badge" style="background: rgba(148,163,184,0.15); color: #94a3b8; border: 1px solid rgba(148,163,184,0.3);">{{ t.situacao }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div style="display: flex; gap: 0.4rem;">
+                                <button type="button" class="btn btn-secondary" style="padding: 0.25rem 0.6rem; font-size: 0.78rem;" 
+                                        onclick="abrirModalEditarTalao('{{ t.id }}', '{{ t.numero_recibo or '' }}', '{{ t.data_entrega }}', '{{ t.agente_gcm_id }}', '{{ t.situacao }}')">
+                                    <i class="fa-solid fa-pen-to-square"></i> Editar
+                                </button>
+                                {% if session['user']['setor'] == 'admin' %}
+                                <button type="button" class="btn btn-danger" style="padding: 0.25rem 0.6rem; font-size: 0.78rem; background: rgba(239, 68, 68, 0.2); border: 1px solid rgba(239, 68, 68, 0.4); color: #ef4444;" 
+                                        onclick="abrirModalExcluirTalao('{{ t.id }}', '{{ t.numero_recibo or 'S/N' }}', '{{ t.numero_inicial }}', '{{ t.numero_final }}')">
+                                    <i class="fa-solid fa-trash"></i> Excluir
+                                </button>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7" style="text-align: center; color: #94a3b8; padding: 2rem;">
+                            <i class="fa-solid fa-book-open" style="font-size: 2rem; margin-bottom: 0.5rem; display: block; opacity: 0.3;"></i>
+                            Nenhum talão registrado no sistema.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
 </div>
 
 <!-- Modal de Edição de Talão -->
 <div id="modal-editar-talao" class="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(8px); z-index: 9999; align-items: center; justify-content: center;">
-    <div style="background: rgba(30, 41, 59, 0.95); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 1rem; width: 90%; max-width: 500px; padding: 1.75rem; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); color: #ffffff;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; border-bottom: 1px solid rgba(255, 255, 255, 0.1); padding-bottom: 0.75rem;">
-            <h3 style="margin: 0; font-size: 1.2rem; color: #f97316;"><i class="fa-solid fa-pen-to-square"></i> Editar Talão</h3>
+    <div style="background: rgba(30, 41, 59, 0.98); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 1rem; width: 90%; max-width: 500px; padding: 2rem; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); color: #ffffff;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; border-bottom: 1px solid rgba(255, 255, 255, 0.1); padding-bottom: 1rem;">
+            <h3 style="margin: 0; font-size: 1.25rem;"><i class="fa-solid fa-pen-to-square" style="color: #60a5fa; margin-right: 0.5rem;"></i> Editar Talão</h3>
             <i class="fa-solid fa-xmark" style="cursor: pointer; font-size: 1.2rem; color: #94a3b8;" onclick="fecharModalEditarTalao()"></i>
         </div>
-        <form id="form-editar-talao" method="POST" action="">
-            <div class="form-group" style="margin-bottom: 1rem;">
+        <form id="form-editar-talao" method="POST" action="" style="display: flex; flex-direction: column; gap: 1rem;">
+            <div class="form-group">
                 <label for="edit_talao_recibo">Número do Recibo / Protocolo</label>
                 <input type="text" id="edit_talao_recibo" name="numero_recibo" style="width: 100%;">
             </div>
-            <div class="form-group" style="margin-bottom: 1rem;">
+            <div class="form-group">
                 <label for="edit_talao_data">Data de Entrega *</label>
                 <input type="date" id="edit_talao_data" name="data_entrega" required style="width: 100%;">
             </div>
-            <div class="form-group" style="margin-bottom: 1rem;">
-                <label for="edit_talao_agente">Servidor Responsável *</label>
+            <div class="form-group">
+                <label for="edit_talao_agente">Servidor Titular *</label>
                 <select id="edit_talao_agente" name="agente_gcm_id" required style="width: 100%;">
                     {% for s in agentes %}
-                        <option value="{{ s.id }}">[{{ s.matricula }}] {{ s.nome_completo }}</option>
+                        <option value="{{ s.id }}">{{ s.nome_completo }} (Mat: {{ s.matricula }})</option>
                     {% endfor %}
                 </select>
             </div>
-            <div class="form-group" style="margin-bottom: 1.25rem;">
-                <label for="edit_talao_situacao">Situação do Talão</label>
+            <div class="form-group">
+                <label for="edit_talao_situacao">Situação do Talão *</label>
                 <select id="edit_talao_situacao" name="situacao" required style="width: 100%;">
                     <option value="EM_UTILIZACAO">Em Utilização</option>
                     <option value="PARCIALMENTE_ENTREGUE">Parcialmente Entregue</option>
                     <option value="INTEGRALMENTE_ENTREGUE">Integralmente Entregue</option>
-                    <option value="ENCERRADO">Encerrado</option>
                     <option value="TRANSFERIDO">Transferido</option>
-                    <option value="CADASTRADO">Cadastrado</option>
+                    <option value="ENCERRADO">Encerrado</option>
                 </select>
             </div>
-            <div style="display: flex; justify-content: flex-end; gap: 0.75rem;">
+            <div style="display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1rem;">
                 <button type="button" class="btn btn-secondary" onclick="fecharModalEditarTalao()">Cancelar</button>
-                <button type="submit" class="btn btn-primary" style="background: #f97316;"><i class="fa-solid fa-check"></i> Salvar Alterações</button>
+                <button type="submit" class="btn btn-primary" style="background: #3b82f6;"><i class="fa-solid fa-save"></i> Salvar Alterações</button>
             </div>
         </form>
     </div>
 </div>
 
-<!-- Modal de Exclusão de Talão -->
+<!-- Modal de Exclusão de Talão (Admin Only) -->
 <div id="modal-excluir-talao" class="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(8px); z-index: 9999; align-items: center; justify-content: center;">
-    <div style="background: rgba(30, 41, 59, 0.95); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 1rem; width: 90%; max-width: 450px; padding: 1.75rem; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); color: #ffffff;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; border-bottom: 1px solid rgba(255, 255, 255, 0.1); padding-bottom: 0.75rem;">
-            <h3 style="margin: 0; font-size: 1.15rem; color: #f87171;"><i class="fa-solid fa-triangle-exclamation"></i> Confirmar Exclusão de Talão</h3>
+    <div style="background: rgba(30, 41, 59, 0.98); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 1rem; width: 90%; max-width: 500px; padding: 2rem; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); color: #ffffff;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; border-bottom: 1px solid rgba(255, 255, 255, 0.1); padding-bottom: 1rem;">
+            <h3 style="margin: 0; font-size: 1.25rem; color: #ef4444;"><i class="fa-solid fa-triangle-exclamation" style="margin-right: 0.5rem;"></i> Excluir Talão</h3>
             <i class="fa-solid fa-xmark" style="cursor: pointer; font-size: 1.2rem; color: #94a3b8;" onclick="fecharModalExcluirTalao()"></i>
         </div>
         <p style="color: #cbd5e1; font-size: 0.95rem; line-height: 1.5;">
-            Deseja realmente excluir o talão referente à faixa <strong id="excluir_talao_faixa" style="color: #f97316;"></strong>?
+            Tem certeza que deseja excluir o talão com faixa de AITs <strong id="excluir_talao_info" style="color: #f97316;"></strong>?
         </p>
-        <p style="color: #f87171; font-size: 0.825rem;">
+        <p style="color: #ef4444; font-size: 0.85rem;">
             <strong>Atenção:</strong> Isso removerá este talão e todos os AITs vinculados a ele do banco de dados. Esta ação é auditada.
         </p>
         <form id="form-excluir-talao" method="POST" action="" style="display: flex; flex-direction: column; gap: 1rem; margin-top: 1rem;">
             <div class="form-group">
                 <label for="excluir_talao_motivo">Justificativa da Exclusão *</label>
-                <input type="text" id="excluir_talao_motivo" name="motivo" placeholder="Ex: Cadastro duplicado / Cancelamento de lote" required style="width: 100%;">
+                <input type="text" id="excluir_talao_motivo" name="motivo" required style="width: 100%;">
             </div>
             <div style="display: flex; justify-content: flex-end; gap: 0.75rem;">
                 <button type="button" class="btn btn-secondary" onclick="fecharModalExcluirTalao()">Cancelar</button>

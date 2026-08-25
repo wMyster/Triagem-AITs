@@ -148,7 +148,7 @@
         <div style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: flex-end;">
             <div class="form-group" style="flex: 1; min-width: 250px;">
                 <label for="matricula">Digite a Matrícula do Agente</label>
-                <input type="text" id="matricula" name="matricula" value="{{ request.args.get('matricula', '') }}" placeholder="Ex: 25845" required pattern="\d+" style="width: 100%;">
+                <input type="text" id="matricula" name="matricula" value="{{ request.args.get('matricula', '') }}" required pattern="\d+" style="width: 100%;">
             </div>
             <button type="submit" class="btn btn-primary" style="background: var(--success); height: 46px; padding: 0 2rem;">
                 <i class="fa-solid fa-search"></i> Consultar Agente
@@ -447,7 +447,7 @@
             <input type="hidden" name="redirect_to" value="consultas">
             <div class="form-group">
                 <label for="excluir_ait_motivo">Justificativa da Exclusão *</label>
-                <input type="text" id="excluir_ait_motivo" name="motivo" placeholder="Ex: Erro de digitação / Auto cancelado na origem" required style="width: 100%;">
+                <input type="text" id="excluir_ait_motivo" name="motivo" required style="width: 100%;">
             </div>
             <div style="display: flex; justify-content: flex-end; gap: 0.75rem;">
                 <button type="button" class="btn btn-secondary" onclick="fecharModalExcluirAIT()">Cancelar</button>

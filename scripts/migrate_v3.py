@@ -61,13 +61,12 @@ def apply_migrations(db_path):
             print(f"Aviso ao restaurar usuarios_temp: {e}")
         cursor.execute("DROP TABLE IF EXISTS usuarios_temp;")
 
-    # Usuários padrões com senhas atualizadas
+    # Usuários padrões com senhas atualizadas (apenas admin, triagem e dct)
+    cursor.execute("DELETE FROM usuarios WHERE username IN ('transporte', 'empresa', 'consulta');")
     usuarios_iniciais = [
         ("admin", "Administrador Geral", "0000", "admin123!", "setor_publico", "admin"),
-        ("transporte", "Operador Triagem", "1001", "triagem123!", "setor_publico", "transporte"),
-        ("dct", "Conferente DCT", "2002", "dct123!", "setor_publico", "dct"),
-        ("empresa", "Conferente Empresa Processamento", "3003", "empresa123!", "empresa_processamento", "empresa"),
-        ("consulta", "Usuário de Consulta", "4004", "consulta123!", "setor_publico", "consulta")
+        ("triagem", "Operador Triagem", "1001", "triagem123!", "setor_publico", "transporte"),
+        ("dct", "Conferente DCT", "2002", "dct123!", "setor_publico", "dct")
     ]
     for username, nome, mat, senha, vinc, setor in usuarios_iniciais:
         cursor.execute("SELECT id FROM usuarios WHERE username = ?", (username,))
@@ -98,20 +97,6 @@ def apply_migrations(db_path):
         criado_por TEXT
     );
     """)
-
-    cursor.execute("SELECT COUNT(*) FROM agentes_gcm")
-    if cursor.fetchone()[0] == 0:
-        agentes_seed = [
-            ("Carlos Alberto Silva", "25845", "AGENTE", "ATIVO", "Central de Trânsito"),
-            ("Fernanda Maria Souza", "25846", "AGENTE", "ATIVO", "Fiscalização"),
-            ("Roberto Santos GCM", "30101", "GCM", "ATIVO", "Guarda Municipal"),
-            ("Luciana Oliveira GCM", "30102", "GCM", "ATIVO", "Guarda Municipal")
-        ]
-        for nome, mat, cat, sit, uni in agentes_seed:
-            cursor.execute("""
-            INSERT INTO agentes_gcm (nome_completo, matricula, categoria, situacao, unidade_setor, criado_por)
-            VALUES (?, ?, ?, ?, ?, 'SISTEMA')
-            """, (nome, mat, cat, sit, uni))
 
     # 3. Tabela taloes
     cursor.execute("""
