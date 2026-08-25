@@ -8,19 +8,37 @@ from datetime import datetime, date
 from werkzeug.security import generate_password_hash, check_password_hash
 from audit import log_auditoria
 
-_DB_PATH_CACHE = {
-    "path": None,
+_DB_SETTINGS = {
+    "mode": "AUTO",  # "AUTO", "REDE_G", "LOCAL"
+    "net_dir": r"G:\Triagem AITs",
+    "cache_path": None,
     "last_check": 0
 }
 
+def get_local_db_path():
+    if getattr(sys, 'frozen', False):
+        return os.path.join(os.path.dirname(sys.executable), "triagem_ait.db")
+    return os.path.join(os.path.dirname(os.path.abspath(__file__)), "triagem_ait.db")
+
+def get_net_db_path():
+    return os.path.join(_DB_SETTINGS["net_dir"], "triagem_ait.db")
+
 def get_base_path():
     now = time.time()
-    if _DB_PATH_CACHE["path"] and (now - _DB_PATH_CACHE["last_check"] < 30):
-        return _DB_PATH_CACHE["path"]
+    mode = _DB_SETTINGS.get("mode", "AUTO")
     
-    net_dir = r"G:\Triagem AITs"
-    net_db = os.path.join(net_dir, "triagem_ait.db")
-    
+    if mode == "LOCAL":
+        return get_local_db_path()
+        
+    if mode == "REDE_G":
+        return get_net_db_path()
+        
+    # AUTO mode: com cache em memória de 30s
+    if _DB_SETTINGS["cache_path"] and (now - _DB_SETTINGS["last_check"] < 30):
+        return _DB_SETTINGS["cache_path"]
+        
+    net_dir = _DB_SETTINGS["net_dir"]
+    net_db = get_net_db_path()
     resolved_path = None
     try:
         if os.path.exists(net_dir) and os.path.exists(net_db):
@@ -29,13 +47,10 @@ def get_base_path():
         resolved_path = None
 
     if not resolved_path:
-        if getattr(sys, 'frozen', False):
-            resolved_path = os.path.join(os.path.dirname(sys.executable), "triagem_ait.db")
-        else:
-            resolved_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "triagem_ait.db")
+        resolved_path = get_local_db_path()
             
-    _DB_PATH_CACHE["path"] = resolved_path
-    _DB_PATH_CACHE["last_check"] = now
+    _DB_SETTINGS["cache_path"] = resolved_path
+    _DB_SETTINGS["last_check"] = now
     return resolved_path
 
 def get_resources_path():
@@ -199,38 +214,108 @@ def quem_esta_logado():
 
 STATUS_OPTIONS = ["DCT PROCESSAR", "PROCESSADO DCT", "CANCELADO", "AIT SUBSTITUIDA", "RENAINF"]
 
-# --- API Status de Rede ---
+# --- API Status e Gerenciamento de Rede ---
 @app.route("/api/status_rede")
 def api_status_rede():
-    net_dir = r"G:\Triagem AITs"
-    net_db = os.path.join(net_dir, "triagem_ait.db")
-    start_t = time.time()
+    net_dir = _DB_SETTINGS["net_dir"]
+    net_db = get_net_db_path()
+    current_mode = _DB_SETTINGS.get("mode", "AUTO")
+    active_path = get_base_path()
+    local_path = get_local_db_path()
     
-    if os.path.exists(net_dir) and os.path.exists(net_db):
-        try:
+    net_available = False
+    latency_ms = None
+    net_error = None
+    
+    start_t = time.time()
+    try:
+        if os.path.exists(net_dir) and os.path.exists(net_db):
             conn = sqlite3.connect(net_db, timeout=2.0)
             conn.execute("SELECT 1")
             conn.close()
-            elapsed_ms = round((time.time() - start_t) * 1000, 1)
+            latency_ms = round((time.time() - start_t) * 1000, 1)
+            net_available = True
+    except Exception as e:
+        net_error = str(e)
+
+    is_using_net = (active_path == net_db)
+    
+    return jsonify({
+        "status": "online" if (active_path and os.path.exists(active_path)) else "offline",
+        "modo": current_mode,
+        "usando_rede": is_using_net,
+        "caminho_ativo": active_path,
+        "rede_g_disponivel": net_available,
+        "rede_g_caminho": net_db,
+        "rede_g_latencia_ms": latency_ms,
+        "rede_g_erro": net_error,
+        "local_caminho": local_path
+    }), 200
+
+@app.route("/api/rede/conectar", methods=["POST"])
+def api_rede_conectar():
+    data = request.get_json(silent=True) or request.form or {}
+    novo_modo = (data.get("modo") or "AUTO").upper().strip()
+    if novo_modo not in ["AUTO", "REDE_G", "LOCAL"]:
+        return jsonify({"sucesso": False, "mensagem": "Modo inválido. Escolha AUTO, REDE_G ou LOCAL."}), 400
+        
+    _DB_SETTINGS["mode"] = novo_modo
+    _DB_SETTINGS["cache_path"] = None
+    _DB_SETTINGS["last_check"] = 0
+    
+    active_path = get_base_path()
+    net_db = get_net_db_path()
+    
+    if novo_modo == "REDE_G":
+        if not (os.path.exists(_DB_SETTINGS["net_dir"]) and os.path.exists(net_db)):
             return jsonify({
-                "status": "online",
-                "path": net_db,
-                "modo": "REDE_COMPARTILHADA",
-                "latencia_ms": elapsed_ms
-            })
-        except Exception as e:
-            return jsonify({
-                "status": "offline",
-                "path": net_db,
-                "modo": "REDE_COM_ERRO",
-                "erro": str(e)
-            }), 503
+                "sucesso": False,
+                "mensagem": f"Pasta ou arquivo de banco na Rede G: ({net_db}) não encontrado. Verifique se o drive G:\\ está mapeado.",
+                "modo": novo_modo,
+                "caminho_ativo": active_path
+            }), 404
 
     return jsonify({
-        "status": "online" if os.path.exists(get_base_path()) else "offline",
-        "path": get_base_path(),
-        "modo": "BASE_LOCAL"
+        "sucesso": True,
+        "mensagem": f"Conexão alterada para modo {novo_modo} com sucesso!",
+        "modo": novo_modo,
+        "caminho_ativo": active_path
     }), 200
+
+@app.route("/api/rede/testar", methods=["POST", "GET"])
+def api_rede_testar():
+    net_dir = _DB_SETTINGS["net_dir"]
+    net_db = get_net_db_path()
+    start_t = time.time()
+    
+    if not os.path.exists(net_dir):
+        return jsonify({
+            "sucesso": False,
+            "mensagem": f"Pasta '{net_dir}' não encontrada. Verifique se o drive de rede G:\\ está conectado."
+        }), 404
+        
+    if not os.path.exists(net_db):
+        return jsonify({
+            "sucesso": False,
+            "mensagem": f"Pasta '{net_dir}' localizada, porém o arquivo de banco '{net_db}' não existe."
+        }), 404
+        
+    try:
+        conn = sqlite3.connect(net_db, timeout=3.0)
+        conn.execute("SELECT 1")
+        conn.close()
+        elapsed_ms = round((time.time() - start_t) * 1000, 1)
+        return jsonify({
+            "sucesso": True,
+            "mensagem": f"Conexão com Rede G:\\Triagem AITs bem-sucedida! Latência: {elapsed_ms}ms",
+            "latencia_ms": elapsed_ms,
+            "caminho": net_db
+        }), 200
+    except Exception as e:
+        return jsonify({
+            "sucesso": False,
+            "mensagem": f"Erro de acesso ao banco na Rede G:: {e}"
+        }), 500
 
 # --- Authentication Routes ---
 @app.route("/login", methods=["GET", "POST"])

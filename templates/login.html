@@ -325,6 +325,16 @@
             </div>
         </div>
 
+        <!-- Network Quick Status Pill -->
+        <div style="display: flex; justify-content: center; align-items: center; margin-bottom: 1rem;">
+            <div id="login-net-badge" style="background: rgba(16, 185, 129, 0.12); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 9999px; padding: 0.3rem 0.9rem; font-size: 0.8rem; color: #34d399; display: inline-flex; align-items: center; gap: 0.45rem; cursor: pointer; transition: all 0.2s ease;" onclick="abrirModalRede()" title="Clique para gerenciar ou testar a conexão com a Rede G:">
+                <span id="login-net-dot" style="height: 8px; width: 8px; background-color: #34d399; border-radius: 50%; display: inline-block; box-shadow: 0 0 6px #34d399;"></span>
+                <span id="login-net-text" style="font-weight: 600;">Verificando Rede...</span>
+                <i class="fa-solid fa-network-wired" style="font-size: 0.75rem; opacity: 0.8; margin-left: 0.3rem; color: #60a5fa;"></i>
+            </div>
+        </div>
+
+        <!-- Login Form Panel -->
         <div class="login-card">
             {% with messages = get_flashed_messages(with_categories=true) %}
                 {% if messages %}
@@ -369,29 +379,268 @@
         </div>
     </div>
 
+    <!-- Modal de Gerenciamento e Conexão de Rede (G:\ vs Local) -->
+    <div id="modal-gerenciamento-rede" class="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(15, 23, 42, 0.88); backdrop-filter: blur(8px); z-index: 9999; align-items: center; justify-content: center;">
+        <div style="background: rgba(30, 41, 59, 0.98); border: 1px solid rgba(59, 130, 246, 0.4); border-radius: 1rem; width: 92%; max-width: 580px; padding: 1.75rem; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6); color: #ffffff;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; border-bottom: 1px solid rgba(255, 255, 255, 0.1); padding-bottom: 0.75rem;">
+                <h3 style="margin: 0; font-size: 1.2rem; color: #60a5fa; display: flex; align-items: center; gap: 0.5rem;">
+                    <i class="fa-solid fa-network-wired"></i> Gerenciador e Conector de Rede
+                </h3>
+                <i class="fa-solid fa-xmark" style="cursor: pointer; font-size: 1.2rem; color: #94a3b8;" onclick="fecharModalRede()"></i>
+            </div>
+
+            <!-- Status Box -->
+            <div style="background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 0.75rem; padding: 1rem; margin-bottom: 1.25rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                    <span style="color: #94a3b8; font-size: 0.85rem;">Status Atual:</span>
+                    <span id="modal-rede-status-tag" class="badge badge-success">Conectado</span>
+                </div>
+                <div style="margin-bottom: 0.5rem;">
+                    <span style="color: #94a3b8; font-size: 0.85rem;">Banco de Dados Ativo:</span>
+                    <p id="modal-rede-caminho" style="margin: 0.2rem 0 0 0; font-family: monospace; font-size: 0.8rem; color: #f8fafc; word-break: break-all; background: rgba(0,0,0,0.3); padding: 0.4rem 0.6rem; border-radius: 0.4rem;"></p>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="color: #94a3b8; font-size: 0.85rem;">Rede G:\Triagem AITs:</span>
+                    <span id="modal-rede-latencia" style="font-size: 0.85rem; font-weight: 600; color: #34d399;">Verificando...</span>
+                </div>
+            </div>
+
+            <!-- Mode Selection Options -->
+            <div style="margin-bottom: 1.5rem;">
+                <label style="display: block; font-weight: 600; font-size: 0.9rem; margin-bottom: 0.75rem; color: #cbd5e1;">Selecione o Modo de Conexão:</label>
+                
+                <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                    <label style="display: flex; align-items: flex-start; gap: 0.75rem; background: rgba(15, 23, 42, 0.5); padding: 0.75rem 1rem; border-radius: 0.6rem; border: 1px solid rgba(255,255,255,0.1); cursor: pointer;">
+                        <input type="radio" name="modal_modo_conexao" value="AUTO" id="opt_modo_auto" style="margin-top: 0.25rem;">
+                        <div>
+                            <strong style="color: #ffffff; font-size: 0.9rem; display: flex; align-items: center; gap: 0.4rem;"><i class="fa-solid fa-bolt" style="color: #f59e0b;"></i> Automático (Recomendado)</strong>
+                            <p style="margin: 0.2rem 0 0 0; font-size: 0.8rem; color: #94a3b8;">Prioriza a Rede G:\Triagem AITs se estiver disponível; se a rede cair, alterna automaticamente para a base local.</p>
+                        </div>
+                    </label>
+
+                    <label style="display: flex; align-items: flex-start; gap: 0.75rem; background: rgba(15, 23, 42, 0.5); padding: 0.75rem 1rem; border-radius: 0.6rem; border: 1px solid rgba(255,255,255,0.1); cursor: pointer;">
+                        <input type="radio" name="modal_modo_conexao" value="REDE_G" id="opt_modo_rede_g" style="margin-top: 0.25rem;">
+                        <div>
+                            <strong style="color: #ffffff; font-size: 0.9rem; display: flex; align-items: center; gap: 0.4rem;"><i class="fa-solid fa-server" style="color: #3b82f6;"></i> Forçar Conexão na Rede G:\ (G:\Triagem AITs)</strong>
+                            <p style="margin: 0.2rem 0 0 0; font-size: 0.8rem; color: #94a3b8;">Opera exclusivamente conectado no servidor compartilhado em G:\Triagem AITs.</p>
+                        </div>
+                    </label>
+
+                    <label style="display: flex; align-items: flex-start; gap: 0.75rem; background: rgba(15, 23, 42, 0.5); padding: 0.75rem 1rem; border-radius: 0.6rem; border: 1px solid rgba(255,255,255,0.1); cursor: pointer;">
+                        <input type="radio" name="modal_modo_conexao" value="LOCAL" id="opt_modo_local" style="margin-top: 0.25rem;">
+                        <div>
+                            <strong style="color: #ffffff; font-size: 0.9rem; display: flex; align-items: center; gap: 0.4rem;"><i class="fa-solid fa-laptop" style="color: #10b981;"></i> Forçar Armazenamento Local (Offline)</strong>
+                            <p style="margin: 0.2rem 0 0 0; font-size: 0.8rem; color: #94a3b8;">Opera exclusivamente com o banco de dados gravado no disco desta máquina.</p>
+                        </div>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Feedback Message -->
+            <div id="modal-rede-feedback" style="display: none; padding: 0.6rem 0.85rem; border-radius: 0.45rem; font-size: 0.85rem; margin-bottom: 1.25rem;"></div>
+
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
+                <button type="button" class="btn btn-secondary" onclick="testarConexaoRedeG()" id="btn-testar-rede-g">
+                    <i class="fa-solid fa-stethoscope"></i> Testar Conexão G:\
+                </button>
+                <div style="display: flex; gap: 0.75rem;">
+                    <button type="button" class="btn btn-secondary" onclick="fecharModalRede()">Cancelar</button>
+                    <button type="button" class="btn btn-primary" onclick="aplicarModoRede()" style="background: #3b82f6;">
+                        <i class="fa-solid fa-check"></i> Aplicar e Conectar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
         function shutdownSystem() {
             if (confirm("Deseja realmente encerrar o servidor e fechar o sistema nesta máquina?")) {
-                // Envia requisição de encerramento do processo
-                fetch('/system/shutdown', { method: 'POST' }).catch(function() {});
-                
-                // Tenta fechar a aba imediatamente
+                // Exibe overlay visual imediato
+                document.body.innerHTML = `
+                    <div style="height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #0f172a; color: #ffffff; font-family: sans-serif; text-align: center; padding: 20px;">
+                        <div style="font-size: 3.5rem; color: #ef4444; margin-bottom: 1rem;">
+                            <i class="fa-solid fa-power-off"></i>
+                        </div>
+                        <h2 style="font-size: 1.6rem; margin-bottom: 0.5rem;">Servidor Encerrado com Sucesso!</h2>
+                        <p style="color: #94a3b8; font-size: 1rem; max-width: 450px; margin-bottom: 1.5rem;">
+                            O processo em segundo plano foi desligado. Fechando aba...
+                        </p>
+                    </div>
+                `;
+
+                // Dispara o desligamento no backend
                 try {
-                    window.open('', '_self', '');
-                    window.close();
+                    fetch('/system/shutdown', { method: 'POST', keepalive: true }).catch(function() {});
                 } catch(e) {}
-                
-                // Fallback garantido para navegadores que bloqueiam window.close()
+
+                // Executa fechamento da aba imediatamente
                 setTimeout(function() {
-                    try {
-                        window.close();
-                    } catch(e) {}
-                    try {
-                        window.location.href = "about:blank";
-                    } catch(e) {}
-                }, 200);
+                    try { window.open('', '_self', ''); window.close(); } catch(e) {}
+                    try { window.close(); } catch(e) {}
+                    try { self.close(); } catch(e) {}
+                    setTimeout(function() {
+                        try { window.location.href = "about:blank"; } catch(e) {}
+                    }, 200);
+                }, 100);
             }
         }
+
+        function checkNetworkStatus() {
+            fetch('/api/status_rede')
+                .then(res => res.json())
+                .then(data => {
+                    const badge = document.getElementById('login-net-badge');
+                    const dot = document.getElementById('login-net-dot');
+                    const text = document.getElementById('login-net-text');
+
+                    if (data.status === 'online') {
+                        if (badge) badge.style.borderColor = 'rgba(16, 185, 129, 0.3)';
+                        if (dot) { dot.style.backgroundColor = '#34d399'; dot.style.boxShadow = '0 0 6px #34d399'; }
+                        if (text) {
+                            if (data.usando_rede) {
+                                text.textContent = `Online: Rede G:\\ (${data.rede_g_latencia_ms || 1.7}ms)`;
+                            } else {
+                                text.textContent = data.modo === 'LOCAL' ? 'Online: Local Forçado' : 'Online: Base Local';
+                            }
+                        }
+                    } else {
+                        if (badge) badge.style.borderColor = 'rgba(239, 68, 68, 0.5)';
+                        if (dot) { dot.style.backgroundColor = '#ef4444'; dot.style.boxShadow = '0 0 6px #ef4444'; }
+                        if (text) text.textContent = 'Servidor Offline';
+                    }
+                })
+                .catch(() => {
+                    const text = document.getElementById('login-net-text');
+                    if (text) text.textContent = 'Servidor Indisponível';
+                });
+        }
+
+        function abrirModalRede() {
+            const m = document.getElementById('modal-gerenciamento-rede');
+            if (!m) return;
+            m.style.display = 'flex';
+            
+            const fb = document.getElementById('modal-rede-feedback');
+            if (fb) fb.style.display = 'none';
+
+            fetch('/api/status_rede')
+                .then(res => res.json())
+                .then(data => {
+                    const tag = document.getElementById('modal-rede-status-tag');
+                    const path = document.getElementById('modal-rede-caminho');
+                    const lat = document.getElementById('modal-rede-latencia');
+
+                    if (tag) {
+                        tag.textContent = data.status === 'online' ? (data.usando_rede ? 'Rede G: Conectada' : 'Base Local Ativa') : 'Desconectado';
+                        tag.className = 'badge ' + (data.status === 'online' ? 'badge-success' : 'badge-danger');
+                    }
+                    if (path) path.textContent = data.caminho_ativo || 'Não identificado';
+                    if (lat) {
+                        if (data.rede_g_disponivel) {
+                            lat.textContent = `Disponível (${data.rede_g_latencia_ms}ms)`;
+                            lat.style.color = '#34d399';
+                        } else {
+                            lat.textContent = 'Indisponível (Drive G:\\ não acessível)';
+                            lat.style.color = '#f87171';
+                        }
+                    }
+
+                    const modo = data.modo || 'AUTO';
+                    if (modo === 'AUTO') document.getElementById('opt_modo_auto').checked = true;
+                    else if (modo === 'REDE_G') document.getElementById('opt_modo_rede_g').checked = true;
+                    else if (modo === 'LOCAL') document.getElementById('opt_modo_local').checked = true;
+                });
+        }
+
+        function fecharModalRede() {
+            const m = document.getElementById('modal-gerenciamento-rede');
+            if (m) m.style.display = 'none';
+        }
+
+        function testarConexaoRedeG() {
+            const btn = document.getElementById('btn-testar-rede-g');
+            const fb = document.getElementById('modal-rede-feedback');
+            const lat = document.getElementById('modal-rede-latencia');
+
+            if (btn) btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Testando G:\\...';
+            if (fb) fb.style.display = 'none';
+
+            fetch('/api/rede/testar', { method: 'POST' })
+                .then(res => res.json().then(data => ({ status: res.status, data })))
+                .then(({ status, data }) => {
+                    if (btn) btn.innerHTML = '<i class="fa-solid fa-stethoscope"></i> Testar Conexão G:\\';
+                    if (fb) {
+                        fb.style.display = 'block';
+                        fb.className = data.sucesso ? 'alert alert-success' : 'alert alert-danger';
+                        fb.innerHTML = `<i class="fa-solid ${data.sucesso ? 'fa-circle-check' : 'fa-circle-exclamation'}"></i> ${data.mensagem}`;
+                    }
+                    if (lat) {
+                        lat.textContent = data.sucesso ? `Disponível (${data.latencia_ms}ms)` : 'Indisponível';
+                        lat.style.color = data.sucesso ? '#34d399' : '#f87171';
+                    }
+                })
+                .catch(err => {
+                    if (btn) btn.innerHTML = '<i class="fa-solid fa-stethoscope"></i> Testar Conexão G:\\';
+                    if (fb) {
+                        fb.style.display = 'block';
+                        fb.className = 'alert alert-danger';
+                        fb.innerHTML = '<i class="fa-solid fa-circle-exclamation"></i> Falha ao comunicar com o servidor.';
+                    }
+                });
+        }
+
+        function aplicarModoRede() {
+            const radios = document.getElementsByName('modal_modo_conexao');
+            let selectedMode = 'AUTO';
+            for (let r of radios) {
+                if (r.checked) { selectedMode = r.value; break; }
+            }
+
+            const fb = document.getElementById('modal-rede-feedback');
+            if (fb) fb.style.display = 'none';
+
+            fetch('/api/rede/conectar', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ modo: selectedMode })
+            })
+            .then(res => res.json().then(data => ({ status: res.status, data })))
+            .then(({ status, data }) => {
+                if (data.sucesso) {
+                    fecharModalRede();
+                    checkNetworkStatus();
+                    alert(`Configuração atualizada com sucesso!\n\nModo ativo: ${data.modo}\nBanco em uso: ${data.caminho_ativo}`);
+                    window.location.reload();
+                } else {
+                    if (fb) {
+                        fb.style.display = 'block';
+                        fb.className = 'alert alert-danger';
+                        fb.innerHTML = `<i class="fa-solid fa-circle-exclamation"></i> ${data.mensagem}`;
+                    }
+                }
+            })
+            .catch(err => {
+                if (fb) {
+                    fb.style.display = 'block';
+                    fb.className = 'alert alert-danger';
+                    fb.innerHTML = '<i class="fa-solid fa-circle-exclamation"></i> Erro ao alterar configuração de rede.';
+                }
+            });
+        }
+
+        document.addEventListener("DOMContentLoaded", function() {
+            checkNetworkStatus();
+            setInterval(checkNetworkStatus, 15000);
+        });
+
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                const m = document.getElementById('modal-gerenciamento-rede');
+                if (m) m.style.display = 'none';
+            }
+        });
+
         const usersData = {
             transporte: [
                 {% for u in triagem_users %}
