@@ -1215,6 +1215,33 @@ def backups_download(filename):
     backup_dir = get_backup_dir()
     return send_from_directory(backup_dir, filename, as_attachment=True)
 
+from scripts.clean_database import clean_database
+
+@app.route("/backups/resetar_banco", methods=["POST"])
+@login_required
+@role_required("admin")
+@with_db_retry()
+def backups_resetar_banco():
+    confirmacao = request.form.get("confirmacao", "").strip().upper()
+    if confirmacao != "ZERAR":
+        flash("Ação cancelada: você deve digitar exatamente a palavra 'ZERAR' para confirmar o reset.", "warning")
+        return redirect(url_for("backups"))
+
+    user_name = session["user"]["username"]
+    try:
+        # Gera cópia de segurança antes do reset
+        criar_backup()
+        
+        # Executa limpeza de todas as tabelas operacionais e servidores
+        clean_database()
+        
+        log_auditoria(user_name, "admin", "RESET_BANCO_DADOS", "sistema", justificativa="Reset total do banco de dados executado pelo Administrador.")
+        flash("Banco de dados completamente zerado com sucesso! Todos os servidores, talões, AITs e logs foram excluídos e um backup de segurança pré-reset foi salvo.", "success")
+    except Exception as e:
+        flash(f"Erro ao resetar banco de dados: {e}", "danger")
+
+    return redirect(url_for("backups"))
+
 
 # --- Consultas & Relatórios ---
 def get_base_filter_and_params(query_type, request_args):
