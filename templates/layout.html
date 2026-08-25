@@ -234,17 +234,25 @@
     <!-- Javascript for Dynamic Date, Network Health Monitoring and interactions -->
     <script>
         function shutdownSystem() {
-            if (confirm("Deseja realmente fechar o sistema e encerrar o servidor nesta máquina?\n\nIsso desligará o processo em segundo plano.")) {
-                fetch('/system/shutdown', { method: 'POST' })
-                    .then(res => res.json())
-                    .then(data => {
-                        alert("Servidor encerrado com sucesso! Você pode fechar esta aba.");
+            if (confirm("Deseja realmente encerrar o servidor e fechar o sistema nesta máquina?")) {
+                // Envia requisição de encerramento do processo
+                fetch('/system/shutdown', { method: 'POST' }).catch(function() {});
+                
+                // Tenta fechar a aba imediatamente
+                try {
+                    window.open('', '_self', '');
+                    window.close();
+                } catch(e) {}
+                
+                // Fallback garantido para navegadores que bloqueiam window.close()
+                setTimeout(function() {
+                    try {
                         window.close();
-                    })
-                    .catch(err => {
-                        alert("Servidor encerrado.");
-                        window.close();
-                    });
+                    } catch(e) {}
+                    try {
+                        window.location.href = "about:blank";
+                    } catch(e) {}
+                }, 200);
             }
         }
 
