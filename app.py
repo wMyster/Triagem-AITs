@@ -3,6 +3,8 @@ import sqlite3
 import os
 import sys
 import time
+import threading
+import signal
 from functools import wraps
 from datetime import datetime, date
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -358,7 +360,7 @@ def logout():
     flash("Sessão encerrada com sucesso. O servidor Triagem AIT continua ativo na barra de tarefas (próximo ao relógio).", "info")
     return redirect(url_for("login"))
 
-@app.route("/system/shutdown", methods=["POST"])
+@app.route("/system/shutdown", methods=["POST", "GET"])
 def system_shutdown():
     user = session.get("user", {})
     user_name = user.get("username", "DESCONHECIDO")
@@ -366,11 +368,22 @@ def system_shutdown():
     log_auditoria(user_name, user_setor, "SHUTDOWN_SERVIDOR", justificativa="Encerramento manual do servidor via interface")
     
     def kill_process():
-        time.sleep(0.5)
-        os._exit(0)
+        time.sleep(0.3)
+        try:
+            os._exit(0)
+        except Exception:
+            pass
+        try:
+            sys.exit(0)
+        except Exception:
+            pass
+        try:
+            os.kill(os.getpid(), signal.SIGTERM)
+        except Exception:
+            pass
         
     threading.Thread(target=kill_process, daemon=True).start()
-    return jsonify({"status": "shutdown", "message": "Servidor encerrado com sucesso!"})
+    return jsonify({"status": "shutdown", "message": "Servidor encerrado com sucesso!"}), 200
 
 # --- Dashboard Principal ---
 @app.route("/")
