@@ -385,7 +385,36 @@ def system_shutdown():
         pass
 
     def kill_process():
-        time.sleep(0.3)
+        # 1. Tenta fechar janelas do navegador com título Triagem AIT no Windows
+        try:
+            import ctypes
+            from ctypes import wintypes
+            user32 = ctypes.windll.user32
+            WM_CLOSE = 0x0010
+            
+            hwnds = []
+            def enum_cb(hwnd, extra):
+                if user32.IsWindowVisible(hwnd):
+                    length = user32.GetWindowTextLengthW(hwnd)
+                    if length > 0:
+                        buf = ctypes.create_unicode_buffer(length + 1)
+                        user32.GetWindowTextW(hwnd, buf, length + 1)
+                        title = buf.value
+                        if "Triagem AIT" in title or "127.0.0.1:5000" in title:
+                            hwnds.append(hwnd)
+                return True
+
+            EnumWindowsProc = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
+            user32.EnumWindows(EnumWindowsProc(enum_cb), 0)
+            
+            for h in hwnds:
+                user32.PostMessageW(h, WM_CLOSE, 0, 0)
+        except Exception:
+            pass
+
+        time.sleep(0.4)
+
+        # 2. Finaliza o processo do servidor
         try:
             os._exit(0)
         except Exception:

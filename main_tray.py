@@ -40,15 +40,15 @@ def get_chrome_path():
     return None
 
 def open_in_chrome():
-    """Launch URL in Google Chrome App Mode (--app=) or default browser for clean UI and guaranteed window.close()."""
+    """Launch URL as a standard tab in Google Chrome or default browser."""
     chrome_path = get_chrome_path()
     if chrome_path:
         try:
-            subprocess.Popen([chrome_path, f"--app={URL}"])
-            return
+            subprocess.Popen([chrome_path, URL])
         except Exception:
-            pass
-    webbrowser.open(URL)
+            webbrowser.open(URL)
+    else:
+        webbrowser.open(URL)
 
 if last_error == 183:  # ERROR_ALREADY_EXISTS
     # Single Instance Alert: If already running, open Chrome and notify user
