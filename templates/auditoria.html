@@ -4,57 +4,148 @@
 <div class="panel">
     <div class="panel-header">
         <div class="panel-title">
-            <h2><i class="fa-solid fa-file-shield" style="color: #a78bfa; margin-right: 0.5rem;"></i> Trilha de Auditoria e Logs Transacionais</h2>
-            <p>Histórico Imutável de Operações, Alterações e Acessos ao Sistema</p>
+            <h2><i class="fa-solid fa-file-shield" style="color: #a78bfa; margin-right: 0.5rem;"></i> Trilha de Auditoria e Logs de Segurança</h2>
+            <p>Rastreamento Imutável de Transações, IP de Origem, Máquina e Histórico de Alterações (Antes vs Depois)</p>
         </div>
         <div class="panel-actions">
             <a href="{{ url_for('index') }}" class="btn btn-secondary"><i class="fa-solid fa-house"></i> Voltar</a>
         </div>
     </div>
 
+    <!-- Filters Bar -->
+    <div style="background: rgba(30, 41, 59, 0.6); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 0.75rem; padding: 1.25rem; margin-bottom: 1.5rem;">
+        <form method="GET" action="{{ url_for('auditoria') }}" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; align-items: flex-end;">
+            <div class="form-group">
+                <label for="busca" style="font-size: 0.8rem; color: #94a3b8;"><i class="fa-solid fa-magnifying-glass"></i> Busca Rápida</label>
+                <input type="text" id="busca" name="busca" value="{{ request.args.get('busca', '') }}" style="width: 100%;">
+            </div>
+            <div class="form-group">
+                <label for="usuario" style="font-size: 0.8rem; color: #94a3b8;"><i class="fa-solid fa-user"></i> Usuário</label>
+                <select id="usuario" name="usuario" style="width: 100%;">
+                    <option value="">Todos os Usuários</option>
+                    {% for u in usuarios_disponiveis %}
+                        <option value="{{ u }}" {% if request.args.get('usuario') == u %}selected{% endif %}>{{ u }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="acao" style="font-size: 0.8rem; color: #94a3b8;"><i class="fa-solid fa-bolt"></i> Tipo de Ação</label>
+                <select id="acao" name="acao" style="width: 100%;">
+                    <option value="">Todas as Ações</option>
+                    {% for a in acoes_disponiveis %}
+                        <option value="{{ a }}" {% if request.args.get('acao') == a %}selected{% endif %}>{{ a }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="data_inicial" style="font-size: 0.8rem; color: #94a3b8;"><i class="fa-solid fa-calendar"></i> De</label>
+                <input type="date" id="data_inicial" name="data_inicial" value="{{ request.args.get('data_inicial', '') }}" style="width: 100%;">
+            </div>
+            <div class="form-group">
+                <label for="data_final" style="font-size: 0.8rem; color: #94a3b8;"><i class="fa-solid fa-calendar"></i> Até</label>
+                <input type="date" id="data_final" name="data_final" value="{{ request.args.get('data_final', '') }}" style="width: 100%;">
+            </div>
+            <div style="display: flex; gap: 0.5rem;">
+                <button type="submit" class="btn btn-primary" style="background: #3b82f6; height: 42px; flex: 1;">
+                    <i class="fa-solid fa-filter"></i> Filtrar
+                </button>
+                <a href="{{ url_for('auditoria') }}" class="btn btn-secondary" style="height: 42px; display: flex; align-items: center; justify-content: center;" title="Limpar Filtros">
+                    <i class="fa-solid fa-rotate-left"></i>
+                </a>
+            </div>
+        </form>
+    </div>
+
+    <!-- Results Header -->
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem;">
+        <h3 style="color: #ffffff; font-size: 1.1rem; margin: 0;"><i class="fa-solid fa-list-check" style="color: #60a5fa; margin-right: 0.4rem;"></i> Registros de Auditoria</h3>
+        <span style="font-size: 0.85rem; color: #94a3b8;">Exibindo {{ logs|length }} eventos</span>
+    </div>
+
     <!-- Logs Table -->
-    <table class="data-table">
-        <thead>
-            <tr>
-                <th>ID</th>
-                <th>Data / Hora</th>
-                <th>Usuário</th>
-                <th>Perfil</th>
-                <th>Ação Realizada</th>
-                <th>Tabela</th>
-                <th>ID Reg.</th>
-                <th>Detalhes / Justificativa</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for log in logs %}
-            <tr>
-                <td>#{{ log.id }}</td>
-                <td><small style="color: #94a3b8;">{{ log.data_hora }}</small></td>
-                <td><strong>{{ log.usuario }}</strong></td>
-                <td><span class="badge" style="background: rgba(255,255,255,0.08);">{{ log.perfil }}</span></td>
-                <td><strong style="color: #a78bfa;">{{ log.acao }}</strong></td>
-                <td><code>{{ log.tabela_afetada if log.tabela_afetada else '-' }}</code></td>
-                <td>{{ log.registro_id if log.registro_id else '-' }}</td>
-                <td>
-                    <small style="color: #cbd5e1;">
-                        {% if log.justificativa %}
-                            <strong>[Justificativa]:</strong> {{ log.justificativa }}<br>
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 60px;">ID</th>
+                    <th style="width: 140px;">Data / Hora</th>
+                    <th style="width: 150px;">Usuário & Perfil</th>
+                    <th style="width: 170px;">Origem (IP / Host)</th>
+                    <th style="width: 160px;">Ação</th>
+                    <th style="width: 110px;">Alvo</th>
+                    <th>Rastreio de Alterações & Justificativa</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in logs %}
+                <tr>
+                    <td><small style="color: #64748b; font-family: monospace;">#{{ log.id }}</small></td>
+                    <td><small style="color: #cbd5e1; white-space: nowrap;"><i class="fa-solid fa-clock" style="color: #94a3b8; margin-right: 0.25rem;"></i> {{ log.data_hora }}</small></td>
+                    <td>
+                        <strong style="color: #f8fafc; display: block;">{{ log.usuario }}</strong>
+                        <span class="badge" style="background: rgba(255,255,255,0.06); font-size: 0.72rem; padding: 0.15rem 0.45rem;">{{ log.perfil }}</span>
+                    </td>
+                    <td>
+                        <div style="font-family: monospace; font-size: 0.8rem; color: #38bdf8;">
+                            <i class="fa-solid fa-network-wired" style="color: #60a5fa; margin-right: 0.3rem;"></i> {{ log.ip_origem or '127.0.0.1' }}
+                        </div>
+                        {% if log.hostname %}
+                            <small style="color: #94a3b8; font-size: 0.72rem; display: block; overflow: hidden; text-overflow: ellipsis; max-width: 150px;" title="{{ log.hostname }}">{{ log.hostname }}</small>
                         {% endif %}
-                        {% if log.detalhes_depois %}
-                            {{ log.detalhes_depois }}
+                    </td>
+                    <td>
+                        {% if 'EXCLUIR' in log.acao or 'RESET' in log.acao or 'FALHA' in log.acao %}
+                            <span class="badge" style="background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4);">{{ log.acao }}</span>
+                        {% elif 'CRIAR' in log.acao or 'SUCESSO' in log.acao or 'APROVAR' in log.acao %}
+                            <span class="badge" style="background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.4);">{{ log.acao }}</span>
+                        {% elif 'EDITAR' in log.acao or 'TRANSFERIR' in log.acao %}
+                            <span class="badge" style="background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4);">{{ log.acao }}</span>
+                        {% elif 'BACKUP' in log.acao or 'RESTAURAR' in log.acao %}
+                            <span class="badge" style="background: rgba(139, 92, 246, 0.2); color: #c084fc; border: 1px solid rgba(139, 92, 246, 0.4);">{{ log.acao }}</span>
+                        {% else %}
+                            <span class="badge" style="background: rgba(59, 130, 246, 0.2); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.4);">{{ log.acao }}</span>
                         {% endif %}
-                    </small>
-                </td>
-            </tr>
-            {% else %}
-            <tr>
-                <td colspan="8" style="text-align: center; color: #94a3b8; padding: 2rem;">
-                    Nenhum log de auditoria registrado até o momento.
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+                    </td>
+                    <td>
+                        {% if log.tabela_afetada %}
+                            <code style="background: rgba(15, 23, 42, 0.6); padding: 0.15rem 0.35rem; border-radius: 0.3rem; color: #a5b4fc; font-size: 0.78rem;">{{ log.tabela_afetada }}{% if log.registro_id %} #{{ log.registro_id }}{% endif %}</code>
+                        {% else %}
+                            <span style="color: #64748b;">-</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div style="display: flex; flex-direction: column; gap: 0.35rem; font-size: 0.83rem;">
+                            {% if log.justificativa %}
+                                <div style="color: #fbbf24; background: rgba(245, 158, 11, 0.1); padding: 0.25rem 0.5rem; border-radius: 0.3rem; border-left: 3px solid #f59e0b;">
+                                    <strong>Justificativa:</strong> {{ log.justificativa }}
+                                </div>
+                            {% endif %}
+                            {% if log.detalhes_antes %}
+                                <div style="color: #fca5a5; background: rgba(239, 68, 68, 0.08); padding: 0.25rem 0.5rem; border-radius: 0.3rem; border-left: 3px solid #ef4444;">
+                                    <strong>Antes:</strong> {{ log.detalhes_antes }}
+                                </div>
+                            {% endif %}
+                            {% if log.detalhes_depois %}
+                                <div style="color: #86efac; background: rgba(16, 185, 129, 0.08); padding: 0.25rem 0.5rem; border-radius: 0.3rem; border-left: 3px solid #10b981;">
+                                    <strong>Depois:</strong> {{ log.detalhes_depois }}
+                                </div>
+                            {% endif %}
+                            {% if not log.justificativa and not log.detalhes_antes and not log.detalhes_depois %}
+                                <span style="color: #64748b; font-style: italic;">Sem observações adicionais.</span>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="7" style="text-align: center; color: #94a3b8; padding: 2.5rem;">
+                        <i class="fa-solid fa-shield" style="font-size: 2rem; margin-bottom: 0.5rem; display: block; opacity: 0.3;"></i>
+                        Nenhum registro de auditoria corresponde aos filtros selecionados.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 </div>
 {% endblock %}

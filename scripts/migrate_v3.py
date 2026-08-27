@@ -197,9 +197,21 @@ def apply_migrations(db_path):
         detalhes_antes TEXT,
         detalhes_depois TEXT,
         justificativa TEXT,
+        ip_origem TEXT,
+        hostname TEXT,
         data_hora DATETIME DEFAULT CURRENT_TIMESTAMP
     );
     """)
+
+    # Garantir colunas novas caso a tabela já exista
+    try:
+        cols = [row[1] for row in cursor.execute("PRAGMA table_info(auditoria_logs)").fetchall()]
+        if "ip_origem" not in cols:
+            cursor.execute("ALTER TABLE auditoria_logs ADD COLUMN ip_origem TEXT;")
+        if "hostname" not in cols:
+            cursor.execute("ALTER TABLE auditoria_logs ADD COLUMN hostname TEXT;")
+    except Exception:
+        pass
 
     conn.commit()
     conn.close()

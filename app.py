@@ -90,9 +90,13 @@ def init_db_performance_indexes():
     except Exception as e:
         print(f"[WARN] Erro ao inicializar indices: {e}")
 
-init_db_performance_indexes()
+try:
+    from scripts.backup_manager import iniciar_agendador_backups
+    iniciar_agendador_backups()
+except Exception as e:
+    print(f"[BACKUP AGENDADOR AVISO]: {e}")
 
-def with_db_retry(max_retries=5, delay=0.5):
+def with_db_retry(max_retries=5, delay=0.4):
     def decorator(f):
         @wraps(f)
         def wrapper(*args, **kwargs):
@@ -101,11 +105,17 @@ def with_db_retry(max_retries=5, delay=0.5):
                 try:
                     return f(*args, **kwargs)
                 except sqlite3.OperationalError as e:
-                    if "locked" in str(e).lower() or "busy" in str(e).lower():
+                    err_msg = str(e).lower()
+                    if "locked" in err_msg or "busy" in err_msg or "io error" in err_msg or "disk" in err_msg:
                         last_err = e
+                        _DB_SETTINGS["last_check"] = 0
                         time.sleep(delay * (attempt + 1))
                     else:
                         raise e
+                except Exception as e:
+                    last_err = e
+                    _DB_SETTINGS["last_check"] = 0
+                    time.sleep(delay * (attempt + 1))
             raise last_err
         return wrapper
     return decorator
@@ -367,6 +377,13 @@ def system_shutdown():
     user_setor = user.get("setor", "SISTEMA")
     log_auditoria(user_name, user_setor, "SHUTDOWN_SERVIDOR", justificativa="Encerramento manual do servidor via interface")
     
+    # Gera backup seguro pré-encerramento
+    try:
+        from scripts.backup_manager import criar_backup
+        criar_backup(tipo="SHUTDOWN")
+    except Exception:
+        pass
+
     def kill_process():
         time.sleep(0.3)
         try:
@@ -497,13 +514,17 @@ def agentes_editar(agente_id):
             conn.close()
             return redirect(url_for("agentes"))
 
+        old_agente = conn.execute("SELECT * FROM agentes_gcm WHERE id = ?", (agente_id,)).fetchone()
+        antes_txt = f"{old_agente['nome_completo']} (Mat: {old_agente['matricula']}) | {old_agente['categoria']} | {old_agente['situacao']}" if old_agente else None
+        depois_txt = f"{nome} (Mat: {matricula}) | {categoria} | {situacao}"
+
         conn.execute("""
             UPDATE agentes_gcm 
             SET nome_completo = ?, matricula = ?, categoria = ?, unidade_setor = ?, situacao = ?
             WHERE id = ?
         """, (nome, matricula, categoria, unidade, situacao, agente_id))
         conn.commit()
-        log_auditoria(user_name, session["user"]["setor"], "EDITAR_AGENTE", "agentes_gcm", agente_id, depois=f"{nome} ({matricula}) - {situacao}")
+        log_auditoria(user_name, session["user"]["setor"], "EDITAR_AGENTE", "agentes_gcm", agente_id, antes=antes_txt, depois=depois_txt)
         flash(f"Servidor '{nome}' atualizado com sucesso!", "success")
     except Exception as e:
         flash(f"Erro ao atualizar servidor: {e}", "danger")
@@ -658,6 +679,13 @@ def taloes_editar(talao_id):
 
     conn = get_db_connection()
     try:
+        old_talao = conn.execute("SELECT t.*, a.nome_completo as agente_nome FROM taloes t LEFT JOIN agentes_gcm a ON t.agente_gcm_id = a.id WHERE t.id = ?", (talao_id,)).fetchone()
+        antes_txt = f"Recibo: {old_talao['numero_recibo'] or 'S/N'} | Data: {old_talao['data_entrega']} | Resp: {old_talao['agente_nome']} | Situação: {old_talao['situacao']}" if old_talao else None
+        
+        new_agente = conn.execute("SELECT nome_completo FROM agentes_gcm WHERE id = ?", (agente_id,)).fetchone()
+        new_agente_nome = new_agente['nome_completo'] if new_agente else f"ID {agente_id}"
+        depois_txt = f"Recibo: {num_recibo or 'S/N'} | Data: {data_entrega} | Resp: {new_agente_nome} | Situação: {situacao}"
+
         conn.execute("""
             UPDATE taloes 
             SET numero_recibo = ?, data_entrega = ?, agente_gcm_id = ?, situacao = ?
@@ -670,7 +698,7 @@ def taloes_editar(talao_id):
             WHERE talao_id = ? AND (data_ait IS NULL OR data_ait = '')
         """, (agente_id, talao_id))
         conn.commit()
-        log_auditoria(user_name, session["user"]["setor"], "EDITAR_TALAO", "taloes", talao_id, depois=f"Recibo: {num_recibo}, Data: {data_entrega}, Agente ID: {agente_id}, Situacao: {situacao}")
+        log_auditoria(user_name, session["user"]["setor"], "EDITAR_TALAO", "taloes", talao_id, antes=antes_txt, depois=depois_txt)
         flash(f"Talão #{talao_id} atualizado com sucesso!", "success")
     except Exception as e:
         flash(f"Erro ao atualizar talão: {e}", "danger")
@@ -751,13 +779,16 @@ def cadastro(ait_id=None):
                     conn.close()
                     return redirect(url_for("cadastro", ait_id=existing["id"]))
 
+                antes_txt = f"AIT {existing['numero_ait']} | Placa: {existing['placa'] or 'S/P'} | Data: {existing['data_ait']} | Agente: {existing['agente']} | Status: {existing['status']}"
+                depois_txt = f"AIT {numero_ait} | Placa: {placa or 'S/P'} | Data: {data_ait} | Agente: {agente_mat} | Status: {status}"
+
                 conn.execute("""
                 UPDATE ait
                 SET data_ait=?, agente=?, status=?, observacao=?, data_digitacao=?, placa=?, atualizado_por=?, agente_gcm_id=COALESCE(?, agente_gcm_id)
                 WHERE id=?
                 """, (data_ait, agente_mat, status, observacao, data_digitacao, placa, user_name, agente_gcm_id, existing["id"]))
                 conn.commit()
-                log_auditoria(user_name, user_setor, "EDITAR_AIT", "ait", existing["id"], depois=f"AIT {numero_ait}")
+                log_auditoria(user_name, user_setor, "EDITAR_AIT", "ait", existing["id"], antes=antes_txt, depois=depois_txt)
                 flash(f"AIT #{existing['id']} salvo com sucesso!", "success")
                 conn.close()
                 return redirect(url_for("cadastro", ait_id=existing["id"]))
@@ -770,7 +801,7 @@ def cadastro(ait_id=None):
                 """, (numero_ait, data_ait, agente_mat, status, observacao, data_digitacao, placa, user_name, now_str, agente_gcm_id))
                 new_id = cursor.lastrowid
                 conn.commit()
-                log_auditoria(user_name, user_setor, "CRIAR_AIT", "ait", new_id, depois=f"AIT {numero_ait}")
+                log_auditoria(user_name, user_setor, "CRIAR_AIT", "ait", new_id, depois=f"AIT {numero_ait} | Placa: {placa or 'S/P'} | Data: {data_ait} | Agente: {agente_mat}")
                 flash(f"✓ AIT {numero_ait} recebido com sucesso!", "success")
                 conn.close()
                 return redirect(url_for("cadastro", last_agente=agente_mat, last_data=data_ait, last_dig=data_digitacao))
@@ -1136,10 +1167,46 @@ def dct_aprovar_lote():
 @login_required
 @role_required("dct", "admin")
 def auditoria():
+    usuario_filtro = request.args.get("usuario", "").strip()
+    acao_filtro = request.args.get("acao", "").strip()
+    data_inicial = request.args.get("data_inicial", "").strip()
+    data_final = request.args.get("data_final", "").strip()
+    busca = request.args.get("busca", "").strip()
+
+    where_clauses = ["1=1"]
+    params = []
+
+    if usuario_filtro:
+        where_clauses.append("usuario = ?")
+        params.append(usuario_filtro)
+    if acao_filtro:
+        where_clauses.append("acao = ?")
+        params.append(acao_filtro)
+    if data_inicial and data_final:
+        where_clauses.append("DATE(data_hora) BETWEEN ? AND ?")
+        params.extend([data_inicial, data_final])
+    elif data_inicial:
+        where_clauses.append("DATE(data_hora) >= ?")
+        params.append(data_inicial)
+    elif data_final:
+        where_clauses.append("DATE(data_hora) <= ?")
+        params.append(data_final)
+
+    if busca:
+        where_clauses.append("(usuario LIKE ? OR acao LIKE ? OR tabela_afetada LIKE ? OR justificativa LIKE ? OR detalhes_antes LIKE ? OR detalhes_depois LIKE ? OR ip_origem LIKE ? OR hostname LIKE ?)")
+        b_wild = f"%{busca}%"
+        params.extend([b_wild] * 8)
+
+    where_sql = " AND ".join(where_clauses)
+    sql = f"SELECT * FROM auditoria_logs WHERE {where_sql} ORDER BY id DESC LIMIT 500"
+
     conn = get_db_connection()
-    logs = conn.execute("SELECT * FROM auditoria_logs ORDER BY id DESC LIMIT 200").fetchall()
+    logs = conn.execute(sql, params).fetchall()
+    usuarios_disponiveis = [r[0] for r in conn.execute("SELECT DISTINCT usuario FROM auditoria_logs WHERE usuario IS NOT NULL AND usuario != '' ORDER BY usuario ASC").fetchall()]
+    acoes_disponiveis = [r[0] for r in conn.execute("SELECT DISTINCT acao FROM auditoria_logs WHERE acao IS NOT NULL AND acao != '' ORDER BY acao ASC").fetchall()]
     conn.close()
-    return render_template("auditoria.html", logs=logs)
+
+    return render_template("auditoria.html", logs=logs, usuarios_disponiveis=usuarios_disponiveis, acoes_disponiveis=acoes_disponiveis)
 
 # --- Usuários (Admin) ---
 @app.route("/usuarios")
@@ -1174,7 +1241,7 @@ def usuarios_criar():
         VALUES (?, ?, ?, ?, ?)
         """, (username, nome_completo, senha_hash, setor, vinculo))
         conn.commit()
-        log_auditoria(session["user"]["username"], "admin", "CRIAR_USUARIO", "usuarios", depois=f"{username} ({setor})")
+        log_auditoria(session["user"]["username"], "admin", "CRIAR_USUARIO", "usuarios", depois=f"{username} ({setor}) - {nome_completo}")
         flash(f"Usuário '{username}' cadastrado com sucesso!", "success")
     except sqlite3.IntegrityError:
         flash(f"Erro: O usuário '{username}' já existe.", "danger")
@@ -1201,6 +1268,10 @@ def usuarios_editar(user_id):
 
     conn = get_db_connection()
     try:
+        old_user = conn.execute("SELECT * FROM usuarios WHERE id = ?", (user_id,)).fetchone()
+        antes_txt = f"{old_user['nome_completo']} ({old_user['setor']}) - Ativo: {old_user['ativo']}" if old_user else None
+        depois_txt = f"{nome_completo} ({setor}) - Ativo: {ativo}" + (" [Senha alterada]" if nova_senha else "")
+
         if nova_senha:
             senha_hash = generate_password_hash(nova_senha)
             conn.execute("""
@@ -1215,7 +1286,7 @@ def usuarios_editar(user_id):
                 WHERE id = ?
             """, (nome_completo, setor, vinculo, ativo, user_id))
         conn.commit()
-        log_auditoria(user_name, "admin", "EDITAR_USUARIO", "usuarios", user_id, depois=f"{nome_completo} ({setor}) - Ativo: {ativo}")
+        log_auditoria(user_name, "admin", "EDITAR_USUARIO", "usuarios", user_id, antes=antes_txt, depois=depois_txt)
         flash("Usuário atualizado com sucesso!", "success")
     except Exception as e:
         flash(f"Erro ao atualizar usuário: {e}", "danger")
@@ -1283,7 +1354,7 @@ def ait_excluir(ait_id):
     return redirect(request.referrer or url_for("consultas"))
 
 # --- Backups (Admin) ---
-from scripts.backup_manager import criar_backup, listar_backups, get_base_db_path, get_backup_dir
+from scripts.backup_manager import criar_backup, restaurar_backup, listar_backups, get_base_db_path, get_backup_dir
 from flask import send_from_directory
 
 @app.route("/backups")
@@ -1298,12 +1369,31 @@ def backups():
 @login_required
 @role_required("admin")
 def backups_criar():
-    ok, filename_or_err, path, size_mb = criar_backup()
+    ok, filename_or_err, path, size_mb = criar_backup(tipo="MANUAL")
     if ok:
         log_auditoria(session["user"]["username"], "admin", "CRIAR_BACKUP", "sistema", depois=f"{filename_or_err} ({size_mb} MB)")
-        flash(f"Backup '{filename_or_err}' ({size_mb} MB) criado com sucesso!", "success")
+        flash(f"Backup manual '{filename_or_err}' ({size_mb} MB) criado com sucesso!", "success")
     else:
         flash(f"Erro ao criar backup: {filename_or_err}", "danger")
+    return redirect(url_for("backups"))
+
+@app.route("/backups/restaurar/<filename>", methods=["POST"])
+@login_required
+@role_required("admin")
+@with_db_retry()
+def backups_restaurar(filename):
+    confirmacao = request.form.get("confirmacao", "").strip().upper()
+    if confirmacao != "RESTAURAR":
+        flash("Ação cancelada: você deve digitar exatamente a palavra 'RESTAURAR' para confirmar a recuperação.", "warning")
+        return redirect(url_for("backups"))
+
+    user_name = session["user"]["username"]
+    ok, msg = restaurar_backup(filename)
+    if ok:
+        log_auditoria(user_name, "admin", "RESTAURAR_BACKUP", "sistema", justificativa=f"Restauração executada a partir de {filename}", depois=msg)
+        flash(msg, "success")
+    else:
+        flash(msg, "danger")
     return redirect(url_for("backups"))
 
 @app.route("/backups/download/<filename>")
@@ -1328,7 +1418,7 @@ def backups_resetar_banco():
     user_name = session["user"]["username"]
     try:
         # Gera cópia de segurança antes do reset
-        criar_backup()
+        criar_backup(tipo="PRE_RESET")
         
         # Executa limpeza de todas as tabelas operacionais e servidores
         clean_database()

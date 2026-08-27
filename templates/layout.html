@@ -368,21 +368,32 @@
                     const submitBtns = document.querySelectorAll('button[type="submit"]');
 
                     if (data.status === 'online') {
-                        if (badge) badge.style.borderColor = 'rgba(16, 185, 129, 0.3)';
-                        if (dot) { dot.style.backgroundColor = '#34d399'; dot.style.boxShadow = '0 0 8px #34d399'; }
-                        if (text) {
-                            if (data.usando_rede) {
-                                text.textContent = `Servidor Online (G:\\ ${data.rede_g_latencia_ms || 1.7}ms)`;
+                        if (data.usando_rede) {
+                            const lat = data.rede_g_latencia_ms || 1.8;
+                            if (lat < 25) {
+                                if (badge) { badge.style.borderColor = 'rgba(16, 185, 129, 0.3)'; badge.style.background = 'rgba(16, 185, 129, 0.1)'; }
+                                if (dot) { dot.style.backgroundColor = '#34d399'; dot.style.boxShadow = '0 0 8px #34d399'; }
+                                if (text) { text.textContent = `Rede G: Conectada (${lat}ms)`; text.style.color = '#34d399'; }
+                            } else if (lat < 150) {
+                                if (badge) { badge.style.borderColor = 'rgba(245, 158, 11, 0.4)'; badge.style.background = 'rgba(245, 158, 11, 0.1)'; }
+                                if (dot) { dot.style.backgroundColor = '#f59e0b'; dot.style.boxShadow = '0 0 8px #f59e0b'; }
+                                if (text) { text.textContent = `Rede G: Lenta (${lat}ms)`; text.style.color = '#fbbf24'; }
                             } else {
-                                text.textContent = data.modo === 'LOCAL' ? 'Servidor Online (Local Forçado)' : 'Servidor Online (Base Local)';
+                                if (badge) { badge.style.borderColor = 'rgba(249, 115, 22, 0.4)'; badge.style.background = 'rgba(249, 115, 22, 0.1)'; }
+                                if (dot) { dot.style.backgroundColor = '#f97316'; dot.style.boxShadow = '0 0 8px #f97316'; }
+                                if (text) { text.textContent = `Rede G: Instável (${lat}ms)`; text.style.color = '#fb923c'; }
                             }
+                        } else {
+                            if (badge) { badge.style.borderColor = 'rgba(59, 130, 246, 0.3)'; badge.style.background = 'rgba(59, 130, 246, 0.1)'; }
+                            if (dot) { dot.style.backgroundColor = '#60a5fa'; dot.style.boxShadow = '0 0 8px #60a5fa'; }
+                            if (text) { text.textContent = data.modo === 'LOCAL' ? 'Base Local (Forçada)' : 'Base Local Ativa'; text.style.color = '#60a5fa'; }
                         }
                         if (banner) banner.style.display = 'none';
                         submitBtns.forEach(btn => { if (!btn.dataset.locked) btn.disabled = false; });
                     } else {
-                        if (badge) badge.style.borderColor = 'rgba(239, 68, 68, 0.5)';
+                        if (badge) { badge.style.borderColor = 'rgba(239, 68, 68, 0.5)'; badge.style.background = 'rgba(239, 68, 68, 0.1)'; }
                         if (dot) { dot.style.backgroundColor = '#ef4444'; dot.style.boxShadow = '0 0 8px #ef4444'; }
-                        if (text) text.textContent = 'Servidor Offline / Rede Queda';
+                        if (text) { text.textContent = 'Servidor Offline / Rede Queda'; text.style.color = '#f87171'; }
                         if (banner) banner.style.display = 'block';
                         submitBtns.forEach(btn => { btn.disabled = true; });
                     }
