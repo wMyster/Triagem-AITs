@@ -1,6 +1,11 @@
 import sqlite3
 import os
 import sys
+
+base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if base_dir not in sys.path:
+    sys.path.insert(0, base_dir)
+
 from werkzeug.security import generate_password_hash
 
 def clean_database():
@@ -48,6 +53,19 @@ def clean_database():
                 VALUES (?, ?, ?, ?, ?, ?, 1)
                 """, (username, nome, mat, senha_hash, vinc, setor))
                 
+            # Re-inserir matrículas oficiais de AFTS e GCM
+            try:
+                from scripts.import_matriculas import ler_matriculas_excel
+                base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+                afts_l = ler_matriculas_excel(os.path.join(base_dir, "MATRICULAS AFTS.xlsx"))
+                gcm_l = ler_matriculas_excel(os.path.join(base_dir, "MATRICULAS GCM.xlsx"))
+                for m in afts_l:
+                    cursor.execute("INSERT OR IGNORE INTO agentes_gcm (nome_completo, matricula, categoria, situacao, unidade_setor, criado_por) VALUES (?, ?, 'AGENTE', 'ATIVO', 'Fiscalização de Trânsito (AFTS)', 'IMPORTAÇÃO_EXCEL')", (f"Agente Mat. {m}", m))
+                for m in gcm_l:
+                    cursor.execute("INSERT OR IGNORE INTO agentes_gcm (nome_completo, matricula, categoria, situacao, unidade_setor, criado_por) VALUES (?, ?, 'GCM', 'ATIVO', 'Guarda Civil Municipal (GCM)', 'IMPORTAÇÃO_EXCEL')", (f"GCM Mat. {m}", m))
+            except Exception as e:
+                print(f" [AVISO MATRÍCULAS]: {e}")
+
             conn.commit()
             
             # Executar VACUUM para otimizar o tamanho do arquivo

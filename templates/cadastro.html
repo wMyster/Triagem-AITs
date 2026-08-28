@@ -51,17 +51,29 @@
                 <input type="date" id="data_ait" name="data_ait" value="{{ record.data_ait }}" required {% if is_locked %}readonly style="opacity: 0.6;"{% endif %}>
             </div>
 
-            <!-- Agente -->
+            <!-- Agente / Matrícula / PM -->
             <div class="form-group">
-                <label for="agente">Agente / Servidor Responsável *</label>
-                <select id="agente" name="agente" required {% if is_locked %}disabled style="opacity: 0.6;"{% endif %}>
-                    <option value="">-- Selecione o Agente / GCM --</option>
+                <label for="agente">
+                    Agente / Matrícula Responsável *
+                    <span style="font-size: 0.75rem; font-weight: normal; color: #94a3b8;">(Digite a matrícula ou escolha na lista. Aceita PM / Manual)</span>
+                </label>
+                <div style="position: relative;">
+                    <input type="text" id="agente" name="agente" list="lista_agentes" 
+                           value="{{ record.agente or request.args.get('last_agente', '') }}" 
+                           placeholder="Digite a matrícula (ex: 5241, 25814 ou PM-12345)" 
+                           autocomplete="off" required 
+                           style="width: 100%; padding-right: 2.5rem;"
+                           {% if is_locked %}readonly style="opacity: 0.6;"{% endif %}>
+                    <i class="fa-solid fa-id-badge" style="position: absolute; right: 1rem; top: 50%; transform: translateY(-50%); color: #64748b; pointer-events: none;"></i>
+                </div>
+                <datalist id="lista_agentes">
                     {% for a in agentes %}
-                        <option value="{{ a.matricula }}" {% if record.agente == a.matricula or (request.args.get('last_agente') == a.matricula) %}selected{% endif %}>
-                            [{{ a.matricula }}] {{ a.nome_completo }}
-                        </option>
+                        <option value="{{ a.matricula }}">{{ a.nome_completo }} - {{ a.categoria }}{% if a.unidade_setor %} ({{ a.unidade_setor }}){% endif %}</option>
                     {% endfor %}
-                </select>
+                </datalist>
+                <div id="agente-feedback" style="font-size: 0.78rem; margin-top: 0.35rem; min-height: 1.2rem; display: flex; align-items: center; gap: 0.4rem;">
+                    <!-- Preenchido dinamicamente via JavaScript -->
+                </div>
             </div>
 
             <!-- Status -->
@@ -170,6 +182,51 @@
         const numInput = document.getElementById("numero_ait");
         const dupWarning = document.getElementById("dup-warning");
         const currentId = "{{ record.id }}";
+        const agenteInput = document.getElementById("agente");
+        const agenteFeedback = document.getElementById("agente-feedback");
+
+        // Dicionário de agentes cadastrados para feedback instantâneo
+        const agentesMap = {
+            {% for a in agentes %}
+            "{{ a.matricula }}": { nome: "{{ a.nome_completo }}", cat: "{{ a.categoria }}", unidade: "{{ a.unidade_setor or '' }}" },
+            {% endfor %}
+        };
+
+        function atualizarFeedbackAgente() {
+            if (!agenteInput || !agenteFeedback) return;
+            const val = agenteInput.value.trim();
+            if (!val) {
+                agenteFeedback.innerHTML = '<span style="color: #64748b;"><i class="fa-solid fa-circle-info"></i> Digite a matrícula ou selecione na lista. Aceita PM e preenchimento manual.</span>';
+                agenteInput.style.borderColor = "";
+                return;
+            }
+
+            if (agentesMap[val]) {
+                const ag = agentesMap[val];
+                const badgeColor = ag.cat === 'AGENTE' ? '#38bdf8' : '#34d399';
+                agenteFeedback.innerHTML = `
+                    <span style="color: #34d399; font-weight: 600; display: inline-flex; align-items: center; gap: 0.35rem;">
+                        <i class="fa-solid fa-circle-check"></i> ${ag.nome}
+                        <span style="font-size: 0.7rem; padding: 0.1rem 0.4rem; background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 4px; color: ${badgeColor};">${ag.cat}</span>
+                    </span>
+                `;
+                agenteInput.style.borderColor = "#10b981";
+            } else {
+                agenteFeedback.innerHTML = `
+                    <span style="color: #60a5fa; font-weight: 500; display: inline-flex; align-items: center; gap: 0.35rem;">
+                        <i class="fa-solid fa-pen"></i> Matrícula Manual / PM: <strong>${val}</strong>
+                        <span style="font-size: 0.7rem; padding: 0.1rem 0.4rem; background: rgba(59, 130, 246, 0.15); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 4px; color: #93c5fd;">POLÍCIA MILITAR / AVULSO</span>
+                    </span>
+                `;
+                agenteInput.style.borderColor = "#3b82f6";
+            }
+        }
+
+        if (agenteInput) {
+            agenteInput.addEventListener("input", atualizarFeedbackAgente);
+            agenteInput.addEventListener("change", atualizarFeedbackAgente);
+            atualizarFeedbackAgente();
+        }
 
         if (numInput && !numInput.readOnly) {
             numInput.focus();
@@ -177,35 +234,36 @@
         }
 
         // Check duplicate AIT via AJAX
-        numInput.addEventListener("blur", function() {
-            const val = this.value.trim();
-            if (val.length >= 4) {
-                fetch(`/api/check_ait_duplicada/${val}`)
-                    .then(res => res.json())
-                    .then(data => {
-                        if (data.exists && data.id != currentId) {
-                            dupWarning.textContent = `⚠️ AIT JÁ CADASTRADO NO CÓDIGO #${data.id}!`;
-                            numInput.style.borderColor = "#ef4444";
-                        } else {
-                            dupWarning.textContent = "";
-                            numInput.style.borderColor = "";
-                        }
-                    })
-                    .catch(err => console.error(err));
-            }
-        });
-
-        // Submit form when pressing Enter in numero_ait field if form is valid
-        numInput.addEventListener("keydown", function(e) {
-            if (e.key === "Enter") {
-                const agenteInput = document.getElementById("agente");
-                const dataInput = document.getElementById("data_ait");
-                if (numInput.value.trim() !== "" && agenteInput.value.trim() !== "" && dataInput.value !== "") {
-                    e.preventDefault();
-                    document.getElementById("ait-form").submit();
+        if (numInput) {
+            numInput.addEventListener("blur", function() {
+                const val = this.value.trim();
+                if (val.length >= 4) {
+                    fetch(`/api/check_ait_duplicada/${val}`)
+                        .then(res => res.json())
+                        .then(data => {
+                            if (data.exists && data.id != currentId) {
+                                dupWarning.textContent = `⚠️ AIT JÁ CADASTRADO NO CÓDIGO #${data.id}!`;
+                                numInput.style.borderColor = "#ef4444";
+                            } else {
+                                dupWarning.textContent = "";
+                                numInput.style.borderColor = "";
+                            }
+                        })
+                        .catch(err => console.error(err));
                 }
-            }
-        });
+            });
+
+            // Submit form when pressing Enter in numero_ait field if form is valid
+            numInput.addEventListener("keydown", function(e) {
+                if (e.key === "Enter") {
+                    const dataInput = document.getElementById("data_ait");
+                    if (numInput.value.trim() !== "" && agenteInput.value.trim() !== "" && dataInput.value !== "") {
+                        e.preventDefault();
+                        document.getElementById("ait-form").submit();
+                    }
+                }
+            });
+        }
 
         // Keyboard Shortcut: F2 to submit form
         document.addEventListener("keydown", function(e) {

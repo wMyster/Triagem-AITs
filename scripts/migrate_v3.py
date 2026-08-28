@@ -2,6 +2,11 @@ import sqlite3
 import os
 import sys
 import shutil
+
+base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if base_dir not in sys.path:
+    sys.path.insert(0, base_dir)
+
 from werkzeug.security import generate_password_hash
 
 def get_db_path():
@@ -97,6 +102,25 @@ def apply_migrations(db_path):
         criado_por TEXT
     );
     """)
+
+    # Importação automática de matrículas oficiais (AFTS e GCM)
+    try:
+        from scripts.import_matriculas import ler_matriculas_excel
+        base_d = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        afts_l = ler_matriculas_excel(os.path.join(base_d, "MATRICULAS AFTS.xlsx"))
+        gcm_l = ler_matriculas_excel(os.path.join(base_d, "MATRICULAS GCM.xlsx"))
+        for mat in afts_l:
+            cursor.execute("""
+            INSERT OR IGNORE INTO agentes_gcm (nome_completo, matricula, categoria, situacao, unidade_setor, criado_por)
+            VALUES (?, ?, 'AGENTE', 'ATIVO', 'Fiscalização de Trânsito (AFTS)', 'IMPORTAÇÃO_EXCEL')
+            """, (f"Agente Mat. {mat}", mat))
+        for mat in gcm_l:
+            cursor.execute("""
+            INSERT OR IGNORE INTO agentes_gcm (nome_completo, matricula, categoria, situacao, unidade_setor, criado_por)
+            VALUES (?, ?, 'GCM', 'ATIVO', 'Guarda Civil Municipal (GCM)', 'IMPORTAÇÃO_EXCEL')
+            """, (f"GCM Mat. {mat}", mat))
+    except Exception as e:
+        print(f"[MIGRATE MATRICULAS AVISO]: {e}")
 
     # 3. Tabela taloes
     cursor.execute("""

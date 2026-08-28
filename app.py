@@ -865,7 +865,7 @@ def cadastro(ait_id=None):
             "status": "DCT PROCESSAR", "observacao": "", "data_digitacao": last_dig
         }
 
-    agentes_list = conn.execute("SELECT id, nome_completo, matricula FROM agentes_gcm ORDER BY nome_completo ASC").fetchall()
+    agentes_list = conn.execute("SELECT id, nome_completo, matricula, categoria, unidade_setor FROM agentes_gcm ORDER BY categoria ASC, CAST(matricula AS INTEGER) ASC, matricula ASC").fetchall()
     conn.close()
     return render_template("cadastro.html", record=record, prev_id=prev_id, next_id=next_id, total_records=total_records, status_options=STATUS_OPTIONS, is_locked=is_locked, agentes=agentes_list)
 
@@ -1472,9 +1472,9 @@ def get_base_filter_and_params(query_type, request_args):
         if data_dig:
             return "data_digitacao = ?", [data_dig]
     elif query_type == "matricula":
-        agente = request_args.get("matricula", "")
+        agente = request_args.get("matricula", "").strip()
         if agente:
-            return "agente = ?", [agente]
+            return "(agente = ? OR agente_gcm_id IN (SELECT id FROM agentes_gcm WHERE matricula = ?))", [agente, agente]
     elif query_type == "geral":
         return "1=1", []
     return None, []
