@@ -775,6 +775,55 @@ def check_ait_duplicada(numero_ait):
         return jsonify({"exists": True, "id": rec["id"]})
     return jsonify({"exists": False})
 
+# --- Sincronização em Tempo Real ---
+@app.route("/api/sync/version")
+@login_required
+def api_sync_version():
+    try:
+        conn = get_db_connection()
+        # PRAGMA data_version retorna contador incremental modificado em commits
+        data_version = conn.execute("PRAGMA data_version;").fetchone()[0]
+        
+        # Último log de auditoria
+        last_log = conn.execute("""
+            SELECT id, usuario, acao, tabela_afetada, data_hora, detalhes_depois, justificativa 
+            FROM auditoria_logs 
+            ORDER BY id DESC LIMIT 1
+        """).fetchone()
+
+        # Contagens rápidas para atualizar contadores e navegação
+        total_aits = conn.execute("SELECT COUNT(*) FROM ait WHERE data_ait IS NOT NULL AND data_ait != ''").fetchone()[0]
+        total_pendentes_dct = conn.execute("SELECT COUNT(*) FROM ait WHERE status_conferencia = 'PENDENTE' AND (data_ait IS NOT NULL AND data_ait != '')").fetchone()[0]
+        total_agentes = conn.execute("SELECT COUNT(*) FROM agentes_gcm").fetchone()[0]
+        total_taloes = conn.execute("SELECT COUNT(*) FROM taloes").fetchone()[0]
+        
+        conn.close()
+
+        log_data = None
+        if last_log:
+            log_data = {
+                "id": last_log["id"],
+                "usuario": last_log["usuario"],
+                "acao": last_log["acao"],
+                "tabela": last_log["tabela_afetada"],
+                "data_hora": last_log["data_hora"],
+                "detalhes": last_log["detalhes_depois"] or last_log["justificativa"] or ""
+            }
+
+        return jsonify({
+            "status": "ok",
+            "data_version": data_version,
+            "last_log": log_data,
+            "counts": {
+                "total_aits": total_aits,
+                "pendentes_dct": total_pendentes_dct,
+                "total_agentes": total_agentes,
+                "total_taloes": total_taloes
+            }
+        })
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
 @app.route("/cadastro", methods=["GET", "POST"])
 @app.route("/cadastro/<int:ait_id>", methods=["GET", "POST"])
 @login_required
