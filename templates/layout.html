@@ -530,33 +530,11 @@
         }
         
         // ==========================================
-        // LiveSync: Sincronização em Tempo Real Multi-Usuários
+        // LiveSync: Sincronização em Tempo Real Silenciosa
         // ==========================================
         let _syncVersion = null;
         let _syncLastLogId = null;
         let _syncInitialCheck = true;
-
-        function showSyncToast(msg, icon = 'fa-arrows-rotate') {
-            let container = document.getElementById('sync-toast-container');
-            if (!container) {
-                container = document.createElement('div');
-                container.id = 'sync-toast-container';
-                container.style.cssText = 'position: fixed; top: 1.5rem; right: 1.5rem; z-index: 99999; display: flex; flex-direction: column; gap: 0.5rem; pointer-events: none;';
-                document.body.appendChild(container);
-            }
-
-            const toast = document.createElement('div');
-            toast.style.cssText = 'background: rgba(15, 23, 42, 0.95); border: 1px solid rgba(56, 189, 248, 0.4); border-left: 4px solid #38bdf8; color: #ffffff; padding: 0.75rem 1.25rem; border-radius: 0.5rem; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.5); backdrop-filter: blur(8px); display: flex; align-items: center; gap: 0.75rem; font-size: 0.88rem; animation: slideInRight 0.3s ease; pointer-events: auto;';
-            toast.innerHTML = `<i class="fa-solid ${icon}" style="color: #38bdf8; font-size: 1.1rem;"></i> <span>${msg}</span>`;
-            container.appendChild(toast);
-
-            setTimeout(() => {
-                toast.style.opacity = '0';
-                toast.style.transform = 'translateX(20px)';
-                toast.style.transition = 'all 0.4s ease';
-                setTimeout(() => toast.remove(), 400);
-            }, 3500);
-        }
 
         function checkRealtimeSync() {
             {% if session.get('user') %}
@@ -578,20 +556,10 @@
                         return;
                     }
 
-                    // Se houve alteração no banco
+                    // Se houve alteração no banco por qualquer operador
                     if ((_syncVersion !== null && curVer !== _syncVersion) || (_syncLastLogId !== null && curLogId !== _syncLastLogId)) {
                         _syncVersion = curVer;
                         _syncLastLogId = curLogId;
-
-                        const log = data.last_log;
-                        let msg = "Base de dados atualizada na rede!";
-                        if (log && log.acao) {
-                            const acaoTraduzida = log.acao.replace(/_/g, ' ').toLowerCase();
-                            msg = `Atualização na rede: <strong>${log.usuario}</strong> (${acaoTraduzida})`;
-                        }
-
-                        // Mostra notificação discreta
-                        showSyncToast(msg, 'fa-bolt');
 
                         // Atualiza contadores do Cadastro se estiver na página /cadastro
                         const recTotalSpan = document.querySelector('.record-indicator strong:last-child');
@@ -604,14 +572,14 @@
                         const isTyping = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA' || activeEl.tagName === 'SELECT');
                         const isModalOpen = document.querySelector('.modal-overlay[style*="display: flex"], .modal-overlay[style*="display: block"]');
 
-                        // Se estiver em uma tela de listagem/conferência e não estiver digitando nem com modal aberto, recarrega suavemente
+                        // Se estiver em uma tela de listagem/conferência e não estiver digitando nem com modal aberto, atualiza a tela suavemente
                         const pathname = window.location.pathname;
                         const isListPage = pathname === '/' || pathname.includes('/dct_conferencia') || pathname.includes('/agentes') || pathname.includes('/taloes') || pathname.includes('/usuarios') || pathname.includes('/auditoria') || pathname.includes('/faltantes');
 
                         if (isListPage && !isTyping && !isModalOpen) {
                             setTimeout(() => {
                                 window.location.reload();
-                            }, 600);
+                            }, 500);
                         }
                     }
                 })
