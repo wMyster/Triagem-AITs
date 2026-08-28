@@ -377,14 +377,10 @@
                     if (data.status === 'online') {
                         if (data.usando_rede) {
                             const lat = data.rede_g_latencia_ms || 1.8;
-                            if (lat < 25) {
+                            if (lat <= 300) {
                                 if (badge) { badge.style.borderColor = 'rgba(16, 185, 129, 0.3)'; badge.style.background = 'rgba(16, 185, 129, 0.1)'; }
                                 if (dot) { dot.style.backgroundColor = '#34d399'; dot.style.boxShadow = '0 0 8px #34d399'; }
                                 if (text) { text.textContent = `Rede G: Conectada (${lat}ms)`; text.style.color = '#34d399'; }
-                            } else if (lat < 150) {
-                                if (badge) { badge.style.borderColor = 'rgba(245, 158, 11, 0.4)'; badge.style.background = 'rgba(245, 158, 11, 0.1)'; }
-                                if (dot) { dot.style.backgroundColor = '#f59e0b'; dot.style.boxShadow = '0 0 8px #f59e0b'; }
-                                if (text) { text.textContent = `Rede G: Lenta (${lat}ms)`; text.style.color = '#fbbf24'; }
                             } else {
                                 if (badge) { badge.style.borderColor = 'rgba(249, 115, 22, 0.4)'; badge.style.background = 'rgba(249, 115, 22, 0.1)'; }
                                 if (dot) { dot.style.backgroundColor = '#f97316'; dot.style.boxShadow = '0 0 8px #f97316'; }
@@ -434,8 +430,14 @@
                     if (path) path.textContent = data.caminho_ativo || 'Não identificado';
                     if (lat) {
                         if (data.rede_g_disponivel) {
-                            lat.textContent = `Disponível (${data.rede_g_latencia_ms}ms)`;
-                            lat.style.color = '#34d399';
+                            const latVal = data.rede_g_latencia_ms || 0;
+                            if (latVal <= 300) {
+                                lat.textContent = `Disponível (${latVal}ms)`;
+                                lat.style.color = '#34d399';
+                            } else {
+                                lat.textContent = `Instável (${latVal}ms)`;
+                                lat.style.color = '#fb923c';
+                            }
                         } else {
                             lat.textContent = 'Indisponível (Drive G:\\ não acessível)';
                             lat.style.color = '#f87171';
@@ -473,8 +475,19 @@
                         fb.innerHTML = `<i class="fa-solid ${data.sucesso ? 'fa-circle-check' : 'fa-circle-exclamation'}"></i> ${data.mensagem}`;
                     }
                     if (lat) {
-                        lat.textContent = data.sucesso ? `Disponível (${data.latencia_ms}ms)` : 'Indisponível';
-                        lat.style.color = data.sucesso ? '#34d399' : '#f87171';
+                        if (data.sucesso) {
+                            const latVal = data.latencia_ms || 0;
+                            if (latVal <= 300) {
+                                lat.textContent = `Disponível (${latVal}ms)`;
+                                lat.style.color = '#34d399';
+                            } else {
+                                lat.textContent = `Instável (${latVal}ms)`;
+                                lat.style.color = '#fb923c';
+                            }
+                        } else {
+                            lat.textContent = 'Indisponível';
+                            lat.style.color = '#f87171';
+                        }
                     }
                 })
                 .catch(err => {
