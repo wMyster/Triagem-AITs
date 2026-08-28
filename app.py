@@ -385,6 +385,31 @@ def system_shutdown():
         pass
 
     def kill_process():
+        # Fecha a guia ativa do navegador se a janela em foco for o navegador
+        try:
+            import ctypes
+            user32 = ctypes.windll.user32
+            hwnd = user32.GetForegroundWindow()
+            if hwnd:
+                length = user32.GetWindowTextLengthW(hwnd)
+                title = ""
+                if length > 0:
+                    buf = ctypes.create_unicode_buffer(length + 1)
+                    user32.GetWindowTextW(hwnd, buf, length + 1)
+                    title = buf.value.lower()
+                
+                # Proteção: NUNCA envia comando se a janela em foco for a IDE, editor ou terminal
+                if not any(k in title for k in ["antigravity", "visual studio", "vscode", "terminal", "powershell", "cmd", "python"]):
+                    VK_CONTROL = 0x11
+                    VK_W = 0x57
+                    KEYEVENTF_KEYUP = 0x0002
+                    user32.keybd_event(VK_CONTROL, 0, 0, 0)
+                    user32.keybd_event(VK_W, 0, 0, 0)
+                    user32.keybd_event(VK_W, 0, KEYEVENTF_KEYUP, 0)
+                    user32.keybd_event(VK_CONTROL, 0, KEYEVENTF_KEYUP, 0)
+        except Exception:
+            pass
+
         time.sleep(0.3)
         # Finaliza o processo do servidor
         try:
