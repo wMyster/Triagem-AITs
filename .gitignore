@@ -57,5 +57,8 @@ ehthumbs.db
 cloudflared.exe
 dist/cloudflared.exe
 config_tunel.json
+*.yml
+*.yaml
+
 
 

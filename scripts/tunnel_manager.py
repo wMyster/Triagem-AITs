@@ -60,10 +60,21 @@ def obter_config_tunel():
 def salvar_config_tunel(modo="rapido", token="", url_fixa=""):
     """Salva as configurações de modo, token e url fixa do túnel."""
     caminho = obter_caminho_config()
+    
+    token_limpo = token.strip() if token else ""
+    # Se o usuário colou o comando inteiro da Cloudflare, extrai o token JWT (eyJh...)
+    match = re.search(r'(eyJh[a-zA-Z0-9_\-\.]+)', token_limpo)
+    if match:
+        token_limpo = match.group(1)
+
+    url_limpa = url_fixa.strip() if url_fixa else ""
+    if url_limpa and not url_limpa.startswith("http://") and not url_limpa.startswith("https://"):
+        url_limpa = "https://" + url_limpa
+
     config = {
         "modo": "token_fixo" if modo == "token_fixo" else "rapido",
-        "token": token.strip() if token else "",
-        "url_fixa": url_fixa.strip() if url_fixa else ""
+        "token": token_limpo,
+        "url_fixa": url_limpa
     }
     try:
         with open(caminho, "w", encoding="utf-8") as f:
@@ -71,6 +82,7 @@ def salvar_config_tunel(modo="rapido", token="", url_fixa=""):
         return {"sucesso": True, "config": config}
     except Exception as e:
         return {"sucesso": False, "mensagem": f"Erro ao salvar configuração: {e}"}
+
 
 
 def obter_caminho_cloudflared():
