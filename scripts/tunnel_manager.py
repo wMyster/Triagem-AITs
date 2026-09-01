@@ -12,9 +12,11 @@ import random
 import socket
 import threading
 import subprocess
+import shutil
 import atexit
 import time
 import logging
+
 
 logger = logging.getLogger("tunnel_manager")
 
@@ -45,7 +47,7 @@ def obter_config_tunel():
     """Carrega as configurações salvas do túnel."""
     caminho = obter_caminho_config()
     default_config = {
-        "provedor": "localtunnel",  # "localtunnel" ou "cloudflare"
+        "provedor": "cloudflare",  # Motor nativo portátil integrado (Zero dependências)
         "subdominio": "triagem-ait-caragua",
         "pin_padrao": ""
     }
@@ -57,6 +59,7 @@ def obter_config_tunel():
         except Exception:
             pass
     return default_config
+
 
 
 def salvar_config_tunel(provedor="localtunnel", subdominio="triagem-ait-caragua", pin_padrao=""):
@@ -223,7 +226,7 @@ def iniciar_tunel(porta=5000):
         _tunnel_error = None
 
         config = obter_config_tunel()
-        provedor = config.get("provedor", "localtunnel")
+        provedor = config.get("provedor", "cloudflare")
         subdominio = config.get("subdominio", "triagem-ait-caragua")
 
         try:
@@ -231,11 +234,13 @@ def iniciar_tunel(porta=5000):
             if sys.platform == "win32":
                 creation_flags = subprocess.CREATE_NO_WINDOW
 
-            if provedor == "localtunnel":
-                # Inicia localtunnel via npx
+            if provedor == "localtunnel" and shutil.which("npx"):
                 cmd = ["npx", "-y", "localtunnel", "--port", str(porta), "--subdomain", subdominio]
             else:
+                provedor = "cloudflare"
                 caminho_cf = obter_caminho_cloudflared()
+                if not os.path.exists(caminho_cf):
+                    raise FileNotFoundError(f"Arquivo cloudflared.exe não encontrado em {caminho_cf}")
                 cmd = [caminho_cf, "tunnel", "--url", f"http://127.0.0.1:{porta}", "--no-autoupdate"]
 
             _tunnel_process = subprocess.Popen(
@@ -246,6 +251,7 @@ def iniciar_tunel(porta=5000):
                 bufsize=1,
                 creationflags=creation_flags
             )
+
 
             t = threading.Thread(target=_monitor_tunnel_output, args=(_tunnel_process, provedor, subdominio), daemon=True)
             t.start()

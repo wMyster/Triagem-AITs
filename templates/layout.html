@@ -356,14 +356,14 @@
                     <span id="tunel-status-tag" class="badge" style="background: rgba(148, 163, 184, 0.2); color: #94a3b8;">Desconectado</span>
                 </div>
 
-                <!-- Link Seguro Fixo -->
+                <!-- Link Seguro de Internet -->
                 <div style="margin-bottom: 0.9rem;">
                     <label style="display: block; font-size: 0.82rem; color: #a855f7; font-weight: 600; margin-bottom: 0.3rem;">
-                        <i class="fa-solid fa-link"></i> Link Fixo Permanente (Para os Favoritos do Chrome da DCT):
+                        <i class="fa-solid fa-shield-halved"></i> Link Seguro de Internet (Para o Google Chrome da DCT):
                     </label>
                     <div style="display: flex; gap: 0.5rem; align-items: center;">
-                        <input type="text" id="tunel-url-input" readonly value="Carregando link..." style="flex: 1; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.15); border-radius: 0.4rem; padding: 0.55rem 0.75rem; font-family: monospace; font-size: 0.85rem; color: #f8fafc;">
-                        <button type="button" id="btn-copiar-tunel" class="btn btn-secondary" onclick="copiarTextoDoInput('tunel-url-input', 'btn-copiar-tunel')" style="padding: 0.55rem 0.85rem; white-space: nowrap;">
+                        <input type="text" id="tunel-url-input" readonly value="Túnel inativo. Clique em 'Iniciar Acesso DCT' abaixo." style="flex: 1; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.15); border-radius: 0.4rem; padding: 0.55rem 0.75rem; font-family: monospace; font-size: 0.85rem; color: #f8fafc;">
+                        <button type="button" id="btn-copiar-tunel" class="btn btn-secondary" onclick="copiarTextoDoInput('tunel-url-input', 'btn-copiar-tunel')" disabled style="padding: 0.55rem 0.85rem; white-space: nowrap;">
                             <i class="fa-solid fa-copy"></i> Copiar Link
                         </button>
                     </div>
@@ -383,21 +383,8 @@
                 </div>
             </div>
 
-            <!-- Personalização de Subdomínio Fixo (Opcional) -->
-            <div style="background: rgba(15, 23, 42, 0.45); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 0.6rem; padding: 0.75rem 1rem; margin-bottom: 1.2rem;">
-                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
-                    <span style="font-size: 0.8rem; color: #cbd5e1;">Nome do Subdomínio Fixo:</span>
-                    <div style="display: flex; gap: 0.4rem; align-items: center;">
-                        <input type="text" id="cfg_subdominio" placeholder="triagem-ait-caragua" style="background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.15); border-radius: 0.35rem; padding: 0.35rem 0.6rem; color: #ffffff; font-size: 0.8rem; font-family: monospace; width: 190px;">
-                        <span style="font-size: 0.8rem; color: #94a3b8;">.loca.lt</span>
-                        <button type="button" class="btn btn-secondary" onclick="salvarSubdominioTunel()" style="padding: 0.35rem 0.65rem; font-size: 0.78rem;">
-                            <i class="fa-solid fa-floppy-disk"></i> Salvar
-                        </button>
-                    </div>
-                </div>
-            </div>
-
             <!-- Feedback -->
+
             <div id="tunel-feedback-msg" style="display: none; padding: 0.6rem 0.85rem; border-radius: 0.45rem; font-size: 0.85rem; margin-bottom: 1.25rem;"></div>
 
             <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
@@ -855,9 +842,9 @@
                             tag.style.color = '#94a3b8';
                         }
                         if (urlInput) {
-                            urlInput.value = data.url || `https://${data.subdominio || 'triagem-ait-caragua'}.loca.lt`;
+                            urlInput.value = data.url || 'Túnel inativo. Clique em "Iniciar Acesso DCT" abaixo.';
                         }
-                        if (btnCopiar) btnCopiar.disabled = false;
+                        if (btnCopiar) btnCopiar.disabled = !data.url;
                         if (btnIniciar) {
                             btnIniciar.style.display = 'inline-flex';
                             btnIniciar.innerHTML = '<i class="fa-solid fa-play"></i> Iniciar Acesso DCT';
@@ -866,6 +853,7 @@
                         if (btnParar) btnParar.style.display = 'none';
                         if (navBadge) navBadge.style.display = 'none';
                     }
+
                 })
                 .catch(() => {});
         }
