@@ -1,12 +1,14 @@
 """
-Módulo de Gerenciamento de Conectividade Externa e Túnel Seguro (Cloudflare Quick Tunnel)
-Permite que o setor DCT / Terceirizada acerte a aplicação em tempo real mesmo em redes separadas
+Módulo de Gerenciamento de Conectividade Externa e Túnel Seguro (Cloudflare Tunnel)
+Suporta tanto o Modo Rápido (TryCloudflare) quanto o Modo Fixo Permanente com Token (Cloudflare Zero Trust).
+Permite que o setor DCT / Terceirizada acesse a aplicação em tempo real mesmo em redes separadas
 sem necessidade de privilégios de Administrador do Windows.
 """
 
 import os
 import sys
 import re
+import json
 import socket
 import threading
 import subprocess
@@ -25,19 +27,59 @@ _tunnel_start_time = None
 _lock = threading.Lock()
 
 
+def obter_caminho_base():
+    """Retorna o diretório base da aplicação (compatível com PyInstaller)."""
+    if getattr(sys, 'frozen', False):
+        return os.path.dirname(sys.executable)
+    return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+def obter_caminho_config():
+    """Retorna o caminho do arquivo de configuração do túnel."""
+    return os.path.join(obter_caminho_base(), "config_tunel.json")
+
+
+def obter_config_tunel():
+    """Carrega as configurações salvas do túnel."""
+    caminho = obter_caminho_config()
+    default_config = {
+        "modo": "rapido",  # "rapido" ou "token_fixo"
+        "token": "",
+        "url_fixa": ""
+    }
+    if os.path.exists(caminho):
+        try:
+            with open(caminho, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                return {**default_config, **data}
+        except Exception:
+            pass
+    return default_config
+
+
+def salvar_config_tunel(modo="rapido", token="", url_fixa=""):
+    """Salva as configurações de modo, token e url fixa do túnel."""
+    caminho = obter_caminho_config()
+    config = {
+        "modo": "token_fixo" if modo == "token_fixo" else "rapido",
+        "token": token.strip() if token else "",
+        "url_fixa": url_fixa.strip() if url_fixa else ""
+    }
+    try:
+        with open(caminho, "w", encoding="utf-8") as f:
+            json.dump(config, f, indent=2, ensure_ascii=False)
+        return {"sucesso": True, "config": config}
+    except Exception as e:
+        return {"sucesso": False, "mensagem": f"Erro ao salvar configuração: {e}"}
+
+
 def obter_caminho_cloudflared():
     """Retorna o caminho do executável portátil cloudflared.exe."""
-    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    # Se estiver rodando empacotado no PyInstaller
-    if getattr(sys, 'frozen', False):
-        base_dir = os.path.dirname(sys.executable)
-
-    # 1. Tenta na raiz do projeto / executável
+    base_dir = obter_caminho_base()
     caminho = os.path.join(base_dir, "cloudflared.exe")
     if os.path.exists(caminho):
         return caminho
 
-    # 2. Tenta na pasta scripts
     caminho_scripts = os.path.join(base_dir, "scripts", "cloudflared.exe")
     if os.path.exists(caminho_scripts):
         return caminho_scripts
@@ -50,7 +92,6 @@ def obter_ip_local():
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         s.settimeout(0.5)
-        # Não precisa enviar dados reais, apenas conecta para descobrir a interface padrão
         s.connect(('8.8.8.8', 80))
         ip = s.getsockname()[0]
         s.close()
@@ -62,7 +103,7 @@ def obter_ip_local():
             return "127.0.0.1"
 
 
-def _monitor_tunnel_output(proc):
+def _monitor_tunnel_output(proc, modo="rapido", url_fixa=""):
     global _tunnel_url, _tunnel_status, _tunnel_error, _tunnel_start_time
     url_found = False
 
@@ -71,15 +112,25 @@ def _monitor_tunnel_output(proc):
             if not line:
                 break
             line_str = line.strip()
-            # Procura a URL do TryCloudflare
-            match = re.search(r'https://[a-zA-Z0-9-]+\.trycloudflare\.com', line_str)
-            if match and not url_found:
-                with _lock:
-                    _tunnel_url = match.group(0)
-                    _tunnel_status = "ativo"
-                    _tunnel_start_time = time.time()
-                    url_found = True
-                logger.info(f"[TÚNEL ATIVO] URL pública para DCT: {_tunnel_url}")
+
+            if modo == "rapido":
+                match = re.search(r'https://[a-zA-Z0-9-]+\.trycloudflare\.com', line_str)
+                if match and not url_found:
+                    with _lock:
+                        _tunnel_url = match.group(0)
+                        _tunnel_status = "ativo"
+                        _tunnel_start_time = time.time()
+                        url_found = True
+                    logger.info(f"[TÚNEL ATIVO] URL pública para DCT: {_tunnel_url}")
+            else:
+                # Modo Token Fixo: Detecta quando a conexão é estabelecida
+                if ("Registered tunnel connection" in line_str or "Connection established" in line_str or "Connected to" in line_str) and not url_found:
+                    with _lock:
+                        _tunnel_url = url_fixa if url_fixa else "Túnel Conectado (Domínio Fixo Cloudflare)"
+                        _tunnel_status = "ativo"
+                        _tunnel_start_time = time.time()
+                        url_found = True
+                    logger.info(f"[TÚNEL FIXO ATIVO] Conectado via Token! URL: {_tunnel_url}")
 
         proc.stdout.close()
         proc.wait()
@@ -116,7 +167,7 @@ def baixar_cloudflared_se_necessario():
 
 
 def iniciar_tunel(porta=5000):
-    """Inicia o túnel seguro da Cloudflare em segundo plano."""
+    """Inicia o túnel seguro da Cloudflare em segundo plano (Modo Rápido ou Token Fixo)."""
     global _tunnel_process, _tunnel_url, _tunnel_status, _tunnel_error, _tunnel_start_time
 
     with _lock:
@@ -142,18 +193,30 @@ def iniciar_tunel(porta=5000):
         _tunnel_url = None
         _tunnel_error = None
 
+        config = obter_config_tunel()
+        modo = config.get("modo", "rapido")
+        token = config.get("token", "").strip()
+        url_fixa = config.get("url_fixa", "").strip()
+
         try:
-            # Inicia subprocesso sem janela visível (CREATE_NO_WINDOW)
             creation_flags = 0
             if sys.platform == "win32":
                 creation_flags = subprocess.CREATE_NO_WINDOW
 
-            cmd = [
-                caminho_exe,
-                "tunnel",
-                "--url", f"http://127.0.0.1:{porta}",
-                "--no-autoupdate"
-            ]
+            if modo == "token_fixo" and token:
+                cmd = [
+                    caminho_exe,
+                    "tunnel",
+                    "run",
+                    "--token", token
+                ]
+            else:
+                cmd = [
+                    caminho_exe,
+                    "tunnel",
+                    "--url", f"http://127.0.0.1:{porta}",
+                    "--no-autoupdate"
+                ]
 
             _tunnel_process = subprocess.Popen(
                 cmd,
@@ -164,8 +227,7 @@ def iniciar_tunel(porta=5000):
                 creationflags=creation_flags
             )
 
-            # Thread para ler os logs e capturar a URL
-            t = threading.Thread(target=_monitor_tunnel_output, args=(_tunnel_process,), daemon=True)
+            t = threading.Thread(target=_monitor_tunnel_output, args=(_tunnel_process, modo, url_fixa), daemon=True)
             t.start()
 
         except Exception as e:
@@ -177,7 +239,7 @@ def iniciar_tunel(porta=5000):
                 "mensagem": f"Falha ao iniciar processo: {e}"
             }
 
-    # Aguarda até 12 segundos para a URL ser gerada
+    # Aguarda até 12 segundos para a inicialização
     start_wait = time.time()
     while time.time() - start_wait < 12:
         with _lock:
@@ -186,6 +248,7 @@ def iniciar_tunel(porta=5000):
                     "sucesso": True,
                     "status": "ativo",
                     "url": _tunnel_url,
+                    "modo": modo,
                     "ip_local": f"http://{obter_ip_local()}:{porta}"
                 }
             if _tunnel_status == "erro":
@@ -199,7 +262,7 @@ def iniciar_tunel(porta=5000):
     return {
         "sucesso": True,
         "status": "conectando",
-        "url": _tunnel_url,
+        "url": _tunnel_url or (url_fixa if modo == "token_fixo" else None),
         "mensagem": "Túnel está sendo inicializado. Aguarde alguns instantes."
     }
 
@@ -232,16 +295,20 @@ def parar_tunel():
 
 
 def status_tunel():
-    """Retorna o estado atual do túnel e o link de acesso local/remoto."""
+    """Retorna o estado atual do túnel, links de acesso e configurações salvas."""
     with _lock:
         ip_local = obter_ip_local()
         uptime_segundos = int(time.time() - _tunnel_start_time) if _tunnel_start_time and _tunnel_status == "ativo" else 0
+        config = obter_config_tunel()
         return {
             "status": _tunnel_status,
-            "url": _tunnel_url,
+            "url": _tunnel_url or (config.get("url_fixa") if _tunnel_status == "ativo" and config.get("modo") == "token_fixo" else None),
             "ip_local": f"http://{ip_local}:5000",
             "uptime_segundos": uptime_segundos,
-            "erro": _tunnel_error
+            "erro": _tunnel_error,
+            "modo": config.get("modo", "rapido"),
+            "tem_token": bool(config.get("token")),
+            "url_fixa": config.get("url_fixa", "")
         }
 
 

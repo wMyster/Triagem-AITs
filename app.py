@@ -9,7 +9,7 @@ from functools import wraps
 from datetime import datetime, date
 from werkzeug.security import generate_password_hash, check_password_hash
 from audit import log_auditoria
-from scripts.tunnel_manager import iniciar_tunel, parar_tunel, status_tunel, obter_ip_local
+from scripts.tunnel_manager import iniciar_tunel, parar_tunel, status_tunel, obter_ip_local, obter_config_tunel, salvar_config_tunel
 
 _DB_SETTINGS = {
     "mode": "AUTO",  # "AUTO", "REDE_G", "LOCAL"
@@ -850,6 +850,21 @@ def api_tunel_parar():
     res = parar_tunel()
     log_auditoria(user.get("username", "SISTEMA"), user.get("setor", "SISTEMA"), "PARAR_TUNEL_DCT", 
                   justificativa="Túnel remoto da DCT encerrado")
+    return jsonify(res)
+
+@app.route("/api/tunel/config", methods=["GET"])
+def api_tunel_get_config():
+    """Retorna a configuração salva do túnel (modo, token, url_fixa)."""
+    return jsonify(obter_config_tunel())
+
+@app.route("/api/tunel/config", methods=["POST"])
+def api_tunel_save_config():
+    """Salva as preferências de modo (rápido vs token fixo) e credenciais do túnel."""
+    data = request.get_json(silent=True) or {}
+    modo = data.get("modo", "rapido")
+    token = data.get("token", "")
+    url_fixa = data.get("url_fixa", "")
+    res = salvar_config_tunel(modo=modo, token=token, url_fixa=url_fixa)
     return jsonify(res)
 
 @app.route("/cadastro", methods=["GET", "POST"])

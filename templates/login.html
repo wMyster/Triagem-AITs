@@ -460,25 +460,35 @@
 
     <!-- Modal de Conexão e Acesso Remoto DCT / Terceirizada -->
     <div id="modal-tunel-dct" class="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(15, 23, 42, 0.88); backdrop-filter: blur(8px); z-index: 9999; align-items: center; justify-content: center;">
-        <div style="background: rgba(30, 41, 59, 0.98); border: 1px solid rgba(168, 85, 247, 0.4); border-radius: 1rem; width: 92%; max-width: 600px; padding: 1.75rem; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7); color: #ffffff;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; border-bottom: 1px solid rgba(255, 255, 255, 0.1); padding-bottom: 0.75rem;">
+        <div style="background: rgba(30, 41, 59, 0.98); border: 1px solid rgba(168, 85, 247, 0.4); border-radius: 1rem; width: 92%; max-width: 620px; padding: 1.75rem; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7); color: #ffffff; max-height: 90vh; overflow-y: auto;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; border-bottom: 1px solid rgba(255, 255, 255, 0.1); padding-bottom: 0.75rem;">
                 <h3 style="margin: 0; font-size: 1.2rem; color: #c084fc; display: flex; align-items: center; gap: 0.5rem;">
                     <i class="fa-solid fa-globe"></i> Acesso Remoto DCT / Terceirizada
                 </h3>
                 <i class="fa-solid fa-xmark" style="cursor: pointer; font-size: 1.2rem; color: #94a3b8;" onclick="fecharModalTunelDCT()"></i>
             </div>
 
+            <!-- Mode Selector Tabs -->
+            <div style="display: flex; gap: 0.5rem; margin-bottom: 1.2rem; background: rgba(15, 23, 42, 0.6); padding: 0.35rem; border-radius: 0.6rem; border: 1px solid rgba(255, 255, 255, 0.08);">
+                <button type="button" id="tab-modo-fixo" class="btn" onclick="selecionarModoTunelUI('token_fixo')" style="flex: 1; padding: 0.45rem 0.6rem; font-size: 0.82rem; font-weight: 600; border-radius: 0.45rem; background: #a855f7; color: #ffffff; border: none; transition: all 0.2s ease;">
+                    <i class="fa-solid fa-star" style="color: #fef08a; margin-right: 0.3rem;"></i> 1. Link Fixo (Token Cloudflare)
+                </button>
+                <button type="button" id="tab-modo-rapido" class="btn" onclick="selecionarModoTunelUI('rapido')" style="flex: 1; padding: 0.45rem 0.6rem; font-size: 0.82rem; font-weight: 600; border-radius: 0.45rem; background: transparent; color: #94a3b8; border: none; transition: all 0.2s ease;">
+                    <i class="fa-solid fa-bolt" style="color: #f59e0b; margin-right: 0.3rem;"></i> 2. Link Temporário (Modo Rápido)
+                </button>
+            </div>
+
             <!-- Status Card -->
-            <div style="background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 0.75rem; padding: 1.2rem; margin-bottom: 1.25rem;">
+            <div style="background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 0.75rem; padding: 1.1rem; margin-bottom: 1.2rem;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
-                    <span style="color: #94a3b8; font-size: 0.9rem;">Status do Acesso Remoto:</span>
+                    <span style="color: #94a3b8; font-size: 0.85rem;">Status do Acesso Remoto:</span>
                     <span id="tunel-status-tag" class="badge" style="background: rgba(148, 163, 184, 0.2); color: #94a3b8;">Desconectado</span>
                 </div>
 
-                <!-- Link Seguro Cloudflare -->
-                <div style="margin-bottom: 1rem;">
-                    <label style="display: block; font-size: 0.82rem; color: #a855f7; font-weight: 600; margin-bottom: 0.3rem;">
-                        <i class="fa-solid fa-shield-halved"></i> Link Seguro de Internet (Para computadores da Terceirizada / Outra Rede):
+                <!-- Link Ativo -->
+                <div style="margin-bottom: 0.85rem;">
+                    <label id="lbl-link-tipo" style="display: block; font-size: 0.82rem; color: #a855f7; font-weight: 600; margin-bottom: 0.3rem;">
+                        <i class="fa-solid fa-shield-halved"></i> Link Seguro de Internet (Para o Google Chrome da DCT):
                     </label>
                     <div style="display: flex; gap: 0.5rem; align-items: center;">
                         <input type="text" id="tunel-url-input" readonly value="Túnel inativo. Clique em 'Iniciar Acesso DCT' abaixo." style="flex: 1; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.15); border-radius: 0.4rem; padding: 0.55rem 0.75rem; font-family: monospace; font-size: 0.85rem; color: #f8fafc;">
@@ -502,12 +512,36 @@
                 </div>
             </div>
 
-            <!-- Instruções de Uso para o Operador -->
-            <div style="background: rgba(168, 85, 247, 0.08); border: 1px solid rgba(168, 85, 247, 0.25); border-radius: 0.6rem; padding: 0.85rem 1rem; margin-bottom: 1.25rem; font-size: 0.82rem; color: #e2e8f0; line-height: 1.45;">
-                <strong style="color: #c084fc; display: block; margin-bottom: 0.3rem;"><i class="fa-solid fa-circle-info"></i> Como a DCT acessa:</strong>
-                1. Clique em <strong>"Iniciar Acesso DCT"</strong> abaixo.<br>
-                2. Copie o <strong>Link Seguro</strong> e envie para o operador terceirizado da DCT.<br>
-                3. Ele abre o link no Google Chrome do computador dele, faz login com usuário <code>dct</code> e ambos trabalham em tempo real!
+            <!-- Painel de Configuração do Modo Fixo (Token Cloudflare Zero Trust) -->
+            <div id="painel-config-token" style="background: rgba(168, 85, 247, 0.06); border: 1px solid rgba(168, 85, 247, 0.25); border-radius: 0.75rem; padding: 1.1rem; margin-bottom: 1.2rem;">
+                <h4 style="margin: 0 0 0.75rem 0; font-size: 0.95rem; color: #c084fc; display: flex; align-items: center; gap: 0.4rem;">
+                    <i class="fa-solid fa-key"></i> Configuração do Link Fixo Permanente (Cloudflare Zero Trust)
+                </h4>
+                
+                <div class="form-group" style="margin-bottom: 0.75rem;">
+                    <label for="cfg_token" style="display: block; font-size: 0.8rem; color: #cbd5e1; margin-bottom: 0.25rem;">Token do Túnel Cloudflare (eyJhIjoi...):</label>
+                    <input type="password" id="cfg_token" placeholder="Cole aqui o Token do seu Túnel Cloudflare" style="width: 100%; background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(255,255,255,0.15); border-radius: 0.4rem; padding: 0.5rem 0.75rem; color: #ffffff; font-size: 0.82rem; font-family: monospace;">
+                </div>
+
+                <div class="form-group" style="margin-bottom: 0.85rem;">
+                    <label for="cfg_url_fixa" style="display: block; font-size: 0.8rem; color: #cbd5e1; margin-bottom: 0.25rem;">Domínio / URL Fixa configurada (ex: https://triagem-ait.seusite.com):</label>
+                    <input type="text" id="cfg_url_fixa" placeholder="https://triagem-ait.seusite.com" style="width: 100%; background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(255,255,255,0.15); border-radius: 0.4rem; padding: 0.5rem 0.75rem; color: #ffffff; font-size: 0.82rem; font-family: monospace;">
+                </div>
+
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+                    <a href="https://one.dash.cloudflare.com" target="_blank" style="color: #38bdf8; font-size: 0.78rem; text-decoration: none; display: flex; align-items: center; gap: 0.3rem;">
+                        <i class="fa-solid fa-arrow-up-right-from-square"></i> Abrir Painel Cloudflare Zero Trust (Grátis)
+                    </a>
+                    <button type="button" class="btn btn-secondary" onclick="salvarConfiguracaoTunel()" style="padding: 0.4rem 0.85rem; font-size: 0.82rem; background: rgba(168, 85, 247, 0.2); border: 1px solid rgba(168, 85, 247, 0.4); color: #e9d5ff;">
+                        <i class="fa-solid fa-floppy-disk"></i> Salvar Configuração Fixa
+                    </button>
+                </div>
+            </div>
+
+            <!-- Tutorial Rápido Explicativo -->
+            <div id="painel-info-rapido" style="display: none; background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.25); border-radius: 0.6rem; padding: 0.85rem 1rem; margin-bottom: 1.2rem; font-size: 0.82rem; color: #e2e8f0; line-height: 1.45;">
+                <strong style="color: #fbbf24; display: block; margin-bottom: 0.3rem;"><i class="fa-solid fa-bolt"></i> Modo Rápido (Link Temporário):</strong>
+                Gera um link seguro na hora sem precisar de cadastro. A cada reinicialização do servidor, um novo link é gerado.
             </div>
 
             <div id="tunel-feedback-msg" style="display: none; padding: 0.6rem 0.85rem; border-radius: 0.45rem; font-size: 0.85rem; margin-bottom: 1.25rem;"></div>
@@ -525,6 +559,7 @@
             </div>
         </div>
     </div>
+
 
     <script>
         function shutdownSystem() {
@@ -750,6 +785,8 @@
         // ==========================================
         // Funções de Gerenciamento do Acesso DCT / Túnel Cloudflare
         // ==========================================
+        let _tunelModoSelecionado = 'token_fixo';
+
         function copiarTextoDoInput(inputId, btnId) {
             const input = document.getElementById(inputId);
             if (!input || !input.value) return;
@@ -770,10 +807,82 @@
             });
         }
 
+        function selecionarModoTunelUI(modo) {
+            _tunelModoSelecionado = modo;
+            const tabFixo = document.getElementById('tab-modo-fixo');
+            const tabRapido = document.getElementById('tab-modo-rapido');
+            const painelToken = document.getElementById('painel-config-token');
+            const painelRapido = document.getElementById('painel-info-rapido');
+            const lblLink = document.getElementById('lbl-link-tipo');
+
+            if (modo === 'token_fixo') {
+                if (tabFixo) { tabFixo.style.background = '#a855f7'; tabFixo.style.color = '#ffffff'; }
+                if (tabRapido) { tabRapido.style.background = 'transparent'; tabRapido.style.color = '#94a3b8'; }
+                if (painelToken) painelToken.style.display = 'block';
+                if (painelRapido) painelRapido.style.display = 'none';
+                if (lblLink) lblLink.innerHTML = '<i class="fa-solid fa-shield-halved"></i> Link Fixo e Permanente (Salvar nos Favoritos da DCT):';
+            } else {
+                if (tabRapido) { tabRapido.style.background = '#f59e0b'; tabRapido.style.color = '#ffffff'; }
+                if (tabFixo) { tabFixo.style.background = 'transparent'; tabFixo.style.color = '#94a3b8'; }
+                if (painelToken) painelToken.style.display = 'none';
+                if (painelRapido) painelRapido.style.display = 'block';
+                if (lblLink) lblLink.innerHTML = '<i class="fa-solid fa-shield-halved"></i> Link Temporário na Internet (Modo Rápido):';
+            }
+        }
+
+        function carregarConfiguracaoTunel() {
+            fetch('/api/tunel/config')
+                .then(res => res.json())
+                .then(cfg => {
+                    const inpToken = document.getElementById('cfg_token');
+                    const inpUrl = document.getElementById('cfg_url_fixa');
+                    if (inpToken && cfg.token) inpToken.value = cfg.token;
+                    if (inpUrl && cfg.url_fixa) inpUrl.value = cfg.url_fixa;
+                    selecionarModoTunelUI(cfg.modo || 'token_fixo');
+                })
+                .catch(() => {});
+        }
+
+        function salvarConfiguracaoTunel() {
+            const token = document.getElementById('cfg_token')?.value || '';
+            const url_fixa = document.getElementById('cfg_url_fixa')?.value || '';
+            const fb = document.getElementById('tunel-feedback-msg');
+
+            fetch('/api/tunel/config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    modo: _tunelModoSelecionado,
+                    token: token,
+                    url_fixa: url_fixa
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.sucesso) {
+                    if (fb) {
+                        fb.style.display = 'block';
+                        fb.className = 'alert alert-success';
+                        fb.innerHTML = '<i class="fa-solid fa-circle-check"></i> Configuração do Link Fixo salva com sucesso!';
+                        setTimeout(() => { fb.style.display = 'none'; }, 4000);
+                    }
+                    atualizarStatusTunelDCT();
+                } else {
+                    if (fb) {
+                        fb.style.display = 'block';
+                        fb.className = 'alert alert-danger';
+                        fb.innerHTML = `<i class="fa-solid fa-circle-exclamation"></i> ${data.mensagem}`;
+                    }
+                }
+            })
+            .catch(() => {});
+        }
+
         function abrirModalTunelDCT() {
             const m = document.getElementById('modal-tunel-dct');
             if (!m) return;
             m.style.display = 'flex';
+            carregarConfiguracaoTunel();
             atualizarStatusTunelDCT();
         }
 
@@ -799,7 +908,7 @@
 
                     if (data.status === 'ativo' && data.url) {
                         if (tag) {
-                            tag.textContent = 'Ativo (Online)';
+                            tag.textContent = data.modo === 'token_fixo' ? 'Ativo (Link Fixo)' : 'Ativo (Online)';
                             tag.style.background = 'rgba(16, 185, 129, 0.2)';
                             tag.style.color = '#34d399';
                         }
@@ -807,7 +916,7 @@
                         if (btnCopiar) btnCopiar.disabled = false;
                         if (btnIniciar) btnIniciar.style.display = 'none';
                         if (btnParar) btnParar.style.display = 'inline-flex';
-                        if (loginTag) loginTag.textContent = 'Acesso DCT: Ativo';
+                        if (loginTag) loginTag.textContent = data.modo === 'token_fixo' ? 'Acesso DCT: Fixo Ativo' : 'Acesso DCT: Ativo';
                         if (loginBadge) {
                             loginBadge.style.background = 'rgba(16, 185, 129, 0.15)';
                             loginBadge.style.borderColor = 'rgba(16, 185, 129, 0.4)';
@@ -819,7 +928,7 @@
                             tag.style.background = 'rgba(245, 158, 11, 0.2)';
                             tag.style.color = '#fbbf24';
                         }
-                        if (urlInput) urlInput.value = 'Gerando link seguro na Cloudflare...';
+                        if (urlInput) urlInput.value = 'Conectando túnel seguro da Cloudflare...';
                         if (btnCopiar) btnCopiar.disabled = true;
                         if (btnIniciar) {
                             btnIniciar.style.display = 'inline-flex';
@@ -834,8 +943,14 @@
                             tag.style.background = 'rgba(148, 163, 184, 0.2)';
                             tag.style.color = '#94a3b8';
                         }
-                        if (urlInput) urlInput.value = 'Túnel inativo. Clique em "Iniciar Acesso DCT" abaixo.';
-                        if (btnCopiar) btnCopiar.disabled = true;
+                        if (urlInput) {
+                            if (data.modo === 'token_fixo' && data.url_fixa) {
+                                urlInput.value = `Link Fixo: ${data.url_fixa} (Clique em Iniciar abaixo para conectar)`;
+                            } else {
+                                urlInput.value = 'Túnel inativo. Clique em "Iniciar Acesso DCT" abaixo.';
+                            }
+                        }
+                        if (btnCopiar) btnCopiar.disabled = (data.modo !== 'token_fixo' || !data.url_fixa);
                         if (btnIniciar) {
                             btnIniciar.style.display = 'inline-flex';
                             btnIniciar.innerHTML = '<i class="fa-solid fa-play"></i> Iniciar Acesso DCT';
@@ -862,28 +977,38 @@
             }
             if (fb) fb.style.display = 'none';
 
-            fetch('/api/tunel/iniciar', { method: 'POST' })
-                .then(res => res.json())
-                .then(data => {
-                    if (data.sucesso) {
-                        atualizarStatusTunelDCT();
-                        if (fb) {
-                            fb.style.display = 'block';
-                            fb.className = 'alert alert-success';
-                            fb.innerHTML = '<i class="fa-solid fa-circle-check"></i> Acesso DCT ativado! Copie o link acima e envie para o operador terceirizado.';
-                        }
-                    } else {
-                        if (fb) {
-                            fb.style.display = 'block';
-                            fb.className = 'alert alert-danger';
-                            fb.innerHTML = `<i class="fa-solid fa-circle-exclamation"></i> ${data.mensagem || 'Falha ao iniciar túnel.'}`;
-                        }
-                        atualizarStatusTunelDCT();
-                    }
-                })
-                .catch(() => {
+            // Salva o modo selecionado antes de iniciar
+            const token = document.getElementById('cfg_token')?.value || '';
+            const url_fixa = document.getElementById('cfg_url_fixa')?.value || '';
+
+            fetch('/api/tunel/config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ modo: _tunelModoSelecionado, token: token, url_fixa: url_fixa })
+            }).then(() => {
+                return fetch('/api/tunel/iniciar', { method: 'POST' });
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.sucesso) {
                     atualizarStatusTunelDCT();
-                });
+                    if (fb) {
+                        fb.style.display = 'block';
+                        fb.className = 'alert alert-success';
+                        fb.innerHTML = '<i class="fa-solid fa-circle-check"></i> Acesso DCT ativado! O operador terceirizado já pode acessar o sistema.';
+                    }
+                } else {
+                    if (fb) {
+                        fb.style.display = 'block';
+                        fb.className = 'alert alert-danger';
+                        fb.innerHTML = `<i class="fa-solid fa-circle-exclamation"></i> ${data.mensagem || 'Falha ao iniciar túnel.'}`;
+                    }
+                    atualizarStatusTunelDCT();
+                }
+            })
+            .catch(() => {
+                atualizarStatusTunelDCT();
+            });
         }
 
         function pararTunelDCT() {
