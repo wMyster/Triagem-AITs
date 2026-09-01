@@ -70,10 +70,11 @@ except Exception as e:
 
 # Import Flask app
 from app import app
+from scripts.tunnel_manager import obter_ip_local
 
 def run_flask():
-    """Run Flask server in background thread without debug reloader."""
-    app.run(host="127.0.0.1", port=5000, debug=False, use_reloader=False)
+    """Run Flask server in background thread accepting local and network connections."""
+    app.run(host="0.0.0.0", port=5000, debug=False, use_reloader=False)
 
 def get_resources_path():
     """Get absolute path to resources for dev and PyInstaller (_MEIPASS)."""
@@ -108,13 +109,19 @@ def on_open_action(icon, item):
 
 def on_exit_action(icon, item):
     """Shutdown tray icon and exit application process."""
+    try:
+        from scripts.tunnel_manager import parar_tunel
+        parar_tunel()
+    except Exception:
+        pass
     icon.stop()
     os._exit(0)
 
 def notify_started(icon):
     time.sleep(1.5)
     try:
-        icon.notify("O servidor Triagem AIT está em execução na barra de tarefas (próximo ao relógio).", "Triagem AIT")
+        ip = obter_ip_local()
+        icon.notify(f"Triagem AIT ativo!\nIP Local: http://{ip}:5000\nAcesso DCT disponível.", "Triagem AIT")
     except Exception:
         pass
 
@@ -132,8 +139,10 @@ def main():
     
     # 3. Setup and run Windows System Tray Icon
     icon_image = get_icon_image()
+    ip_local = obter_ip_local()
     menu = (
         item('Abrir Triagem AIT', on_open_action, default=True),
+        item(f'IP Rede Local: http://{ip_local}:5000', lambda i, it: None, enabled=False),
         item('Status: Servidor Online (Porta 5000)', lambda i, it: None, enabled=False),
         item('---', None),
         item('Sair do Sistema', on_exit_action)
@@ -142,7 +151,7 @@ def main():
     tray_icon = pystray.Icon(
         "triagem_ait",
         icon_image,
-        "Triagem AIT — Servidor Ativo (127.0.0.1:5000)",
+        f"Triagem AIT — Ativo (http://{ip_local}:5000)",
         menu
     )
     
@@ -151,3 +160,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

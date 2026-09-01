@@ -9,6 +9,7 @@ from functools import wraps
 from datetime import datetime, date
 from werkzeug.security import generate_password_hash, check_password_hash
 from audit import log_auditoria
+from scripts.tunnel_manager import iniciar_tunel, parar_tunel, status_tunel, obter_ip_local
 
 _DB_SETTINGS = {
     "mode": "AUTO",  # "AUTO", "REDE_G", "LOCAL"
@@ -381,6 +382,12 @@ def system_shutdown():
     try:
         from scripts.backup_manager import criar_backup
         criar_backup(tipo="SHUTDOWN")
+    except Exception:
+        pass
+
+    # Encerra túnel ativo se houver
+    try:
+        parar_tunel()
     except Exception:
         pass
 
@@ -820,6 +827,30 @@ def api_sync_version():
         })
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
+
+@app.route("/api/tunel/status", methods=["GET"])
+def api_tunel_status():
+    """Retorna o status atual do túnel seguro e o link de acesso da DCT."""
+    return jsonify(status_tunel())
+
+@app.route("/api/tunel/iniciar", methods=["POST"])
+def api_tunel_iniciar():
+    """Inicia o túnel seguro da Cloudflare para permitir acesso da DCT."""
+    user = session.get("user", {})
+    res = iniciar_tunel(porta=5000)
+    if res.get("sucesso"):
+        log_auditoria(user.get("username", "SISTEMA"), user.get("setor", "SISTEMA"), "INICIAR_TUNEL_DCT", 
+                      justificativa=f"Túnel remoto ativado: {res.get('url', 'conectando')}")
+    return jsonify(res)
+
+@app.route("/api/tunel/parar", methods=["POST"])
+def api_tunel_parar():
+    """Encerra o túnel seguro da Cloudflare."""
+    user = session.get("user", {})
+    res = parar_tunel()
+    log_auditoria(user.get("username", "SISTEMA"), user.get("setor", "SISTEMA"), "PARAR_TUNEL_DCT", 
+                  justificativa="Túnel remoto da DCT encerrado")
+    return jsonify(res)
 
 @app.route("/cadastro", methods=["GET", "POST"])
 @app.route("/cadastro/<int:ait_id>", methods=["GET", "POST"])

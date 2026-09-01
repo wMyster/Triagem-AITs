@@ -77,3 +77,14 @@ if os.path.exists(src_db):
         print(f"[ERROR] Não foi possível copiar o banco de dados: {e}")
 else:
     print(f"\n[WARNING] Banco de dados original não encontrado em '{src_db}'.\n")
+
+# Sincronização automática do cloudflared.exe
+src_cf = os.path.join(spec_dir, 'cloudflared.exe')
+dst_cf = os.path.join(dist_dir, 'cloudflared.exe')
+if os.path.exists(src_cf):
+    try:
+        shutil.copy2(src_cf, dst_cf)
+        print(f"[INFO] cloudflared.exe sincronizado para dist!\n")
+    except Exception as e:
+        print(f"[ERROR] Não foi possível copiar cloudflared.exe: {e}")
+
