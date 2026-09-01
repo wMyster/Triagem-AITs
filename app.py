@@ -9,7 +9,21 @@ from functools import wraps
 from datetime import datetime, date
 from werkzeug.security import generate_password_hash, check_password_hash
 from audit import log_auditoria
-from scripts.tunnel_manager import iniciar_tunel, parar_tunel, status_tunel, obter_ip_local, obter_config_tunel, salvar_config_tunel
+from scripts.tunnel_manager import (
+    iniciar_tunel, parar_tunel, status_tunel, obter_ip_local,
+    obter_config_tunel, salvar_config_tunel, gerar_novo_pin,
+    obter_pin_atual, definir_pin, validar_pin
+)
+
+def is_remote_request():
+    """Verifica se a requisição está vindo por túnel externo ou IP remoto."""
+    host = request.headers.get("Host", "").lower()
+    if "loca.lt" in host or "trycloudflare.com" in host or "ngrok" in host:
+        return True
+    remote_addr = request.remote_addr or ""
+    if remote_addr and remote_addr not in ["127.0.0.1", "::1", "localhost"] and not remote_addr.startswith("127."):
+        return True
+    return False
 
 _DB_SETTINGS = {
     "mode": "AUTO",  # "AUTO", "REDE_G", "LOCAL"
@@ -196,6 +210,21 @@ def inject_globals():
 
 @app.before_request
 def update_last_seen():
+    # Trava de segurança para acessos remotos externos
+    if is_remote_request():
+        endpoint = request.endpoint or ""
+        # Se for rota que não seja static, login, logout, rotas de tunel ou rotas do módulo DCT
+        allowed_remote_prefixes = [
+            "static", "login", "logout", "api_tunel", "dct", "conferir",
+            "divergencia", "resolver", "reabrir", "aprovar_lote", "fechar_remessa",
+            "exportar_remessa_excel", "quem_esta_logado", "api_dados_tempo_real"
+        ]
+        is_allowed = any(endpoint.startswith(p) for p in allowed_remote_prefixes) or endpoint in ["index", "dct_alias"]
+        if not is_allowed and "user" in session:
+            flash("Acesso Remoto Restrito: Seu acesso externo está limitado exclusivamente ao Módulo DCT.", "warning")
+            return redirect(url_for("dct_conferencia"))
+
+
     if "user" in session:
         now_ts = time.time()
         last_update = session.get("_last_seen_ts", 0)
@@ -209,6 +238,7 @@ def update_last_seen():
                 conn.close()
             except Exception:
                 pass
+
 
 @app.route("/quem_esta_logado")
 @login_required
@@ -333,13 +363,28 @@ def api_rede_testar():
 # --- Authentication Routes ---
 @app.route("/login", methods=["GET", "POST"])
 def login():
+    remote = is_remote_request()
+    pin_autorizado = session.get("pin_autorizado", False) if remote else True
+
     if request.method == "POST":
+        # Se for acesso remoto e o PIN ainda não foi validado, bloqueia
+        if remote and not pin_autorizado:
+            flash("Acesso bloqueado por PIN de segurança. Digite o PIN de 4 dígitos para continuar.", "danger")
+            return redirect(url_for("login"))
+
         username = request.form.get("username", "").strip()
         password = request.form.get("password", "").strip()
 
         conn = get_db_connection()
         user = conn.execute("SELECT * FROM usuarios WHERE username = ? AND ativo = 1", (username,)).fetchone()
         conn.close()
+
+        # Trava de segurança: acessos remotos são restritos exclusivamente ao setor DCT
+        if remote and user and user["setor"] != "dct":
+            log_auditoria(username, user["setor"] if user else "DESCONHECIDO", "LOGIN_BLOQUEADO_REMOTAMENTE", justificativa="Tentativa de login fora do módulo DCT via link remoto")
+            flash("Acesso Remoto Restrito: O link externo permite acesso exclusivo ao Módulo DCT.", "danger")
+            return redirect(url_for("login"))
+
 
         if user and check_password_hash(user["senha_hash"], password):
             session["user"] = {
@@ -355,13 +400,20 @@ def login():
             return redirect(url_for("index"))
         else:
             log_auditoria(username, "DESCONHECIDO", "LOGIN_FALHA", justificativa="Senha ou usuário incorreto")
+            flash("Usuário ou senha inválidos.", "danger")
+
     conn = get_db_connection()
     triagem_users = conn.execute("SELECT username, nome_completo FROM usuarios WHERE setor IN ('transporte', 'triagem', 'setor_publico') AND username NOT IN ('admin', 'transporte') AND ativo = 1 ORDER BY nome_completo ASC").fetchall()
     dct_users = conn.execute("SELECT username, nome_completo FROM usuarios WHERE setor = 'dct' AND ativo = 1 ORDER BY nome_completo ASC").fetchall()
     admin_users = conn.execute("SELECT username, nome_completo FROM usuarios WHERE setor = 'admin' AND ativo = 1 ORDER BY nome_completo ASC").fetchall()
     conn.close()
 
-    return render_template("login.html", triagem_users=triagem_users, dct_users=dct_users, admin_users=admin_users)
+    return render_template("login.html", 
+                           triagem_users=triagem_users, 
+                           dct_users=dct_users, 
+                           admin_users=admin_users,
+                           is_remote=remote,
+                           pin_autorizado=pin_autorizado)
 
 @app.route("/logout")
 def logout():
@@ -436,10 +488,20 @@ def system_shutdown():
     return jsonify({"status": "shutdown", "message": "Servidor encerrado com sucesso!"}), 200
 
 # --- Dashboard Principal ---
+@app.route("/dct")
+@login_required
+def dct_alias():
+    return redirect(url_for("dct_conferencia"))
+
 @app.route("/")
 @login_required
 def index():
+    if session.get("user", {}).get("setor") == "dct":
+        return redirect(url_for("dct_conferencia"))
+
     conn = get_db_connection()
+
+
     stats = {}
     kpis = {
         'digitados_hoje': 0,
@@ -830,41 +892,69 @@ def api_sync_version():
 
 @app.route("/api/tunel/status", methods=["GET"])
 def api_tunel_status():
-    """Retorna o status atual do túnel seguro e o link de acesso da DCT."""
-    return jsonify(status_tunel())
+    """Retorna o status atual do túnel seguro e o PIN da sessão."""
+    st = status_tunel()
+    # Se a requisição for remota e o PIN ainda não foi validado, esconde o PIN por segurança
+    if is_remote_request() and not session.get("pin_autorizado"):
+        st["pin"] = "****"
+    return jsonify(st)
 
 @app.route("/api/tunel/iniciar", methods=["POST"])
 def api_tunel_iniciar():
-    """Inicia o túnel seguro da Cloudflare para permitir acesso da DCT."""
+    """Inicia o túnel seguro para permitir acesso da DCT."""
     user = session.get("user", {})
     res = iniciar_tunel(porta=5000)
     if res.get("sucesso"):
         log_auditoria(user.get("username", "SISTEMA"), user.get("setor", "SISTEMA"), "INICIAR_TUNEL_DCT", 
-                      justificativa=f"Túnel remoto ativado: {res.get('url', 'conectando')}")
+                      justificativa=f"Túnel remoto ativado: {res.get('url', 'conectando')} (PIN: {res.get('pin')})")
     return jsonify(res)
 
 @app.route("/api/tunel/parar", methods=["POST"])
 def api_tunel_parar():
-    """Encerra o túnel seguro da Cloudflare."""
+    """Encerra o túnel seguro."""
     user = session.get("user", {})
     res = parar_tunel()
     log_auditoria(user.get("username", "SISTEMA"), user.get("setor", "SISTEMA"), "PARAR_TUNEL_DCT", 
                   justificativa="Túnel remoto da DCT encerrado")
     return jsonify(res)
 
+@app.route("/api/tunel/validar_pin", methods=["POST"])
+def api_tunel_validar_pin():
+    """Valida o PIN de 4 dígitos digitado pelo operador remoto."""
+    data = request.get_json(silent=True) or {}
+    pin_digitado = str(data.get("pin", "")).strip()
+    if validar_pin(pin_digitado):
+        session["pin_autorizado"] = True
+        return jsonify({"sucesso": True, "mensagem": "PIN validado com sucesso! Acesso ao Módulo DCT liberado."})
+    return jsonify({"sucesso": False, "mensagem": "PIN incorreto. Solicite o código de 4 dígitos para a Triagem."}), 403
+
+@app.route("/api/tunel/gerar_pin", methods=["POST"])
+def api_tunel_gerar_pin():
+    """Gera um novo PIN de 4 dígitos na máquina servidora."""
+    novo_pin = gerar_novo_pin()
+    return jsonify({"sucesso": True, "pin": novo_pin})
+
+@app.route("/api/tunel/definir_pin", methods=["POST"])
+def api_tunel_definir_pin():
+    """Permite à Triagem definir um PIN manual de 4 dígitos."""
+    data = request.get_json(silent=True) or {}
+    novo_pin = data.get("pin", "")
+    res = definir_pin(novo_pin)
+    return jsonify(res)
+
 @app.route("/api/tunel/config", methods=["GET"])
 def api_tunel_get_config():
-    """Retorna a configuração salva do túnel (modo, token, url_fixa)."""
+    """Retorna a configuração salva do túnel."""
     return jsonify(obter_config_tunel())
 
 @app.route("/api/tunel/config", methods=["POST"])
 def api_tunel_save_config():
-    """Salva as preferências de modo (rápido vs token fixo) e credenciais do túnel."""
+    """Salva as preferências de subdomínio fixo e provedor."""
     data = request.get_json(silent=True) or {}
-    modo = data.get("modo", "rapido")
-    token = data.get("token", "")
-    url_fixa = data.get("url_fixa", "")
-    res = salvar_config_tunel(modo=modo, token=token, url_fixa=url_fixa)
+    provedor = data.get("provedor", "localtunnel")
+    subdominio = data.get("subdominio", "triagem-ait-caragua")
+    pin_padrao = data.get("pin_padrao", "")
+    res = salvar_config_tunel(provedor=provedor, subdominio=subdominio, pin_padrao=pin_padrao)
     return jsonify(res)
 
 @app.route("/cadastro", methods=["GET", "POST"])

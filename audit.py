@@ -4,13 +4,14 @@ import sys
 import socket
 
 def get_db_path():
-    net_dir = r"G:\Triagem AITs"
-    net_db = os.path.join(net_dir, "triagem_ait.db")
-    if os.path.exists(net_dir) and os.path.exists(net_db):
-        return net_db
-    if getattr(sys, 'frozen', False):
-        return os.path.join(os.path.dirname(sys.executable), "triagem_ait.db")
-    return os.path.join(os.path.dirname(os.path.abspath(__file__)), "triagem_ait.db")
+    try:
+        from app import get_base_path
+        return get_base_path()
+    except Exception:
+        if getattr(sys, 'frozen', False):
+            return os.path.join(os.path.dirname(sys.executable), "triagem_ait.db")
+        return os.path.join(os.path.dirname(os.path.abspath(__file__)), "triagem_ait.db")
+
 
 def log_auditoria(usuario, perfil, acao, tabela=None, registro_id=None, antes=None, depois=None, justificativa=None, ip=None):
     try:

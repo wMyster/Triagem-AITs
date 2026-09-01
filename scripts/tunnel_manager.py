@@ -1,14 +1,14 @@
 """
-Módulo de Gerenciamento de Conectividade Externa e Túnel Seguro (Cloudflare Tunnel)
-Suporta tanto o Modo Rápido (TryCloudflare) quanto o Modo Fixo Permanente com Token (Cloudflare Zero Trust).
-Permite que o setor DCT / Terceirizada acesse a aplicação em tempo real mesmo em redes separadas
-sem necessidade de privilégios de Administrador do Windows.
+Módulo de Gerenciamento de Conectividade Externa, Link Fixo e Proteção por PIN (Acesso DCT)
+Suporta Link Fixo Permanente via Localtunnel (subdomínio customizado) e Modo Rápido Cloudflare.
+Gera e gerencia PIN dinâmico de 4 dígitos para autenticação de operadores remotos da DCT.
 """
 
 import os
 import sys
 import re
 import json
+import random
 import socket
 import threading
 import subprocess
@@ -24,7 +24,9 @@ _tunnel_url = None
 _tunnel_status = "desconectado"  # 'desconectado', 'conectando', 'ativo', 'erro'
 _tunnel_error = None
 _tunnel_start_time = None
-_lock = threading.Lock()
+_tunnel_pin = None
+_lock = threading.RLock()
+
 
 
 def obter_caminho_base():
@@ -43,9 +45,9 @@ def obter_config_tunel():
     """Carrega as configurações salvas do túnel."""
     caminho = obter_caminho_config()
     default_config = {
-        "modo": "rapido",  # "rapido" ou "token_fixo"
-        "token": "",
-        "url_fixa": ""
+        "provedor": "localtunnel",  # "localtunnel" ou "cloudflare"
+        "subdominio": "triagem-ait-caragua",
+        "pin_padrao": ""
     }
     if os.path.exists(caminho):
         try:
@@ -57,24 +59,18 @@ def obter_config_tunel():
     return default_config
 
 
-def salvar_config_tunel(modo="rapido", token="", url_fixa=""):
-    """Salva as configurações de modo, token e url fixa do túnel."""
+def salvar_config_tunel(provedor="localtunnel", subdominio="triagem-ait-caragua", pin_padrao=""):
+    """Salva as configurações de provedor, subdomínio fixo e PIN padrão."""
     caminho = obter_caminho_config()
     
-    token_limpo = token.strip() if token else ""
-    # Se o usuário colou o comando inteiro da Cloudflare, extrai o token JWT (eyJh...)
-    match = re.search(r'(eyJh[a-zA-Z0-9_\-\.]+)', token_limpo)
-    if match:
-        token_limpo = match.group(1)
-
-    url_limpa = url_fixa.strip() if url_fixa else ""
-    if url_limpa and not url_limpa.startswith("http://") and not url_limpa.startswith("https://"):
-        url_limpa = "https://" + url_limpa
+    subdominio_limpo = re.sub(r'[^a-zA-Z0-9-]', '', subdominio.strip().lower()) if subdominio else "triagem-ait-caragua"
+    if not subdominio_limpo:
+        subdominio_limpo = "triagem-ait-caragua"
 
     config = {
-        "modo": "token_fixo" if modo == "token_fixo" else "rapido",
-        "token": token_limpo,
-        "url_fixa": url_limpa
+        "provedor": "cloudflare" if provedor == "cloudflare" else "localtunnel",
+        "subdominio": subdominio_limpo,
+        "pin_padrao": str(pin_padrao).strip()[:4] if pin_padrao else ""
     }
     try:
         with open(caminho, "w", encoding="utf-8") as f:
@@ -84,6 +80,52 @@ def salvar_config_tunel(modo="rapido", token="", url_fixa=""):
         return {"sucesso": False, "mensagem": f"Erro ao salvar configuração: {e}"}
 
 
+# ==========================================
+# Gerenciador de PIN de 4 Dígitos
+# ==========================================
+
+def gerar_novo_pin():
+    """Gera um novo PIN aleatório de 4 dígitos numéricos (ex: 7429)."""
+    global _tunnel_pin
+    with _lock:
+        _tunnel_pin = f"{random.randint(1000, 9999)}"
+        return _tunnel_pin
+
+
+def obter_pin_atual():
+    """Retorna o PIN atual de 4 dígitos (ou gera um novo se não existir)."""
+    global _tunnel_pin
+    with _lock:
+        if not _tunnel_pin:
+            cfg = obter_config_tunel()
+            if cfg.get("pin_padrao") and len(cfg.get("pin_padrao")) == 4:
+                _tunnel_pin = cfg.get("pin_padrao")
+            else:
+                _tunnel_pin = f"{random.randint(1000, 9999)}"
+        return _tunnel_pin
+
+
+def definir_pin(novo_pin):
+    """Define um PIN manual de 4 dígitos numéricos."""
+    global _tunnel_pin
+    pin_str = str(novo_pin).strip()
+    if len(pin_str) == 4 and pin_str.isdigit():
+        with _lock:
+            _tunnel_pin = pin_str
+        return {"sucesso": True, "pin": _tunnel_pin}
+    return {"sucesso": False, "mensagem": "O PIN deve conter exatamente 4 dígitos numéricos (0-9)."}
+
+
+def validar_pin(pin_digitado):
+    """Valida se o PIN informado confere com o PIN ativo da sessão."""
+    pin_atual = obter_pin_atual()
+    pin_limpo = str(pin_digitado).strip()
+    return pin_limpo == pin_atual
+
+
+# ==========================================
+# Descoberta de IP e Executáveis
+# ==========================================
 
 def obter_caminho_cloudflared():
     """Retorna o caminho do executável portátil cloudflared.exe."""
@@ -103,19 +145,21 @@ def obter_ip_local():
     """Descobre o endereço IP local desta máquina na rede (ex: 192.168.1.50)."""
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        s.settimeout(0.5)
-        s.connect(('8.8.8.8', 80))
+        s.settimeout(0.2)
+        s.connect(('10.255.255.255', 1))
         ip = s.getsockname()[0]
         s.close()
         return ip
     except Exception:
-        try:
-            return socket.gethostbyname(socket.gethostname())
-        except Exception:
-            return "127.0.0.1"
+        return "127.0.0.1"
 
 
-def _monitor_tunnel_output(proc, modo="rapido", url_fixa=""):
+
+# ==========================================
+# Inicialização e Monitoramento do Túnel
+# ==========================================
+
+def _monitor_tunnel_output(proc, provedor="localtunnel", subdominio=""):
     global _tunnel_url, _tunnel_status, _tunnel_error, _tunnel_start_time
     url_found = False
 
@@ -125,7 +169,18 @@ def _monitor_tunnel_output(proc, modo="rapido", url_fixa=""):
                 break
             line_str = line.strip()
 
-            if modo == "rapido":
+            if provedor == "localtunnel":
+                # Procura 'your url is: https://*.loca.lt'
+                match = re.search(r'https://[a-zA-Z0-9-]+\.loca\.lt', line_str)
+                if match and not url_found:
+                    with _lock:
+                        _tunnel_url = match.group(0)
+                        _tunnel_status = "ativo"
+                        _tunnel_start_time = time.time()
+                        url_found = True
+                    logger.info(f"[TÚNEL FIXO ATIVO - LOCALTUNNEL] URL DCT: {_tunnel_url}")
+            else:
+                # Procura 'https://*.trycloudflare.com'
                 match = re.search(r'https://[a-zA-Z0-9-]+\.trycloudflare\.com', line_str)
                 if match and not url_found:
                     with _lock:
@@ -133,16 +188,7 @@ def _monitor_tunnel_output(proc, modo="rapido", url_fixa=""):
                         _tunnel_status = "ativo"
                         _tunnel_start_time = time.time()
                         url_found = True
-                    logger.info(f"[TÚNEL ATIVO] URL pública para DCT: {_tunnel_url}")
-            else:
-                # Modo Token Fixo: Detecta quando a conexão é estabelecida
-                if ("Registered tunnel connection" in line_str or "Connection established" in line_str or "Connected to" in line_str) and not url_found:
-                    with _lock:
-                        _tunnel_url = url_fixa if url_fixa else "Túnel Conectado (Domínio Fixo Cloudflare)"
-                        _tunnel_status = "ativo"
-                        _tunnel_start_time = time.time()
-                        url_found = True
-                    logger.info(f"[TÚNEL FIXO ATIVO] Conectado via Token! URL: {_tunnel_url}")
+                    logger.info(f"[TÚNEL ATIVO - CLOUDFLARE] URL DCT: {_tunnel_url}")
 
         proc.stdout.close()
         proc.wait()
@@ -155,32 +201,12 @@ def _monitor_tunnel_output(proc, modo="rapido", url_fixa=""):
                 _tunnel_url = None
 
 
-def baixar_cloudflared_se_necessario():
-    """Verifica se o cloudflared.exe existe ou faz o download oficial automaticamente."""
-    caminho = obter_caminho_cloudflared()
-    if os.path.exists(caminho) and os.path.getsize(caminho) > 10000000:
-        return caminho
-
-    url = 'https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe'
-    try:
-        import urllib.request
-        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-        with urllib.request.urlopen(req, timeout=30) as response, open(caminho, 'wb') as out_file:
-            block_size = 1024 * 512
-            while True:
-                chunk = response.read(block_size)
-                if not chunk:
-                    break
-                out_file.write(chunk)
-        return caminho
-    except Exception as e:
-        logger.error(f"Erro ao baixar cloudflared.exe: {e}")
-        return None
-
-
 def iniciar_tunel(porta=5000):
-    """Inicia o túnel seguro da Cloudflare em segundo plano (Modo Rápido ou Token Fixo)."""
+    """Inicia o túnel seguro com subdomínio permanente e gera o PIN da sessão."""
     global _tunnel_process, _tunnel_url, _tunnel_status, _tunnel_error, _tunnel_start_time
+
+    # Garante a geração de um PIN para a sessão
+    pin_sessao = gerar_novo_pin()
 
     with _lock:
         if _tunnel_status in ["ativo", "conectando"] and _tunnel_process and _tunnel_process.poll() is None:
@@ -188,17 +214,8 @@ def iniciar_tunel(porta=5000):
                 "sucesso": True,
                 "status": _tunnel_status,
                 "url": _tunnel_url,
+                "pin": pin_sessao,
                 "mensagem": "Túnel já está em execução."
-            }
-
-        caminho_exe = baixar_cloudflared_se_necessario()
-        if not caminho_exe or not os.path.exists(caminho_exe):
-            _tunnel_status = "erro"
-            _tunnel_error = "Executável cloudflared.exe não encontrado e falha no download automático."
-            return {
-                "sucesso": False,
-                "status": "erro",
-                "mensagem": _tunnel_error
             }
 
         _tunnel_status = "conectando"
@@ -206,29 +223,20 @@ def iniciar_tunel(porta=5000):
         _tunnel_error = None
 
         config = obter_config_tunel()
-        modo = config.get("modo", "rapido")
-        token = config.get("token", "").strip()
-        url_fixa = config.get("url_fixa", "").strip()
+        provedor = config.get("provedor", "localtunnel")
+        subdominio = config.get("subdominio", "triagem-ait-caragua")
 
         try:
             creation_flags = 0
             if sys.platform == "win32":
                 creation_flags = subprocess.CREATE_NO_WINDOW
 
-            if modo == "token_fixo" and token:
-                cmd = [
-                    caminho_exe,
-                    "tunnel",
-                    "run",
-                    "--token", token
-                ]
+            if provedor == "localtunnel":
+                # Inicia localtunnel via npx
+                cmd = ["npx", "-y", "localtunnel", "--port", str(porta), "--subdomain", subdominio]
             else:
-                cmd = [
-                    caminho_exe,
-                    "tunnel",
-                    "--url", f"http://127.0.0.1:{porta}",
-                    "--no-autoupdate"
-                ]
+                caminho_cf = obter_caminho_cloudflared()
+                cmd = [caminho_cf, "tunnel", "--url", f"http://127.0.0.1:{porta}", "--no-autoupdate"]
 
             _tunnel_process = subprocess.Popen(
                 cmd,
@@ -239,7 +247,7 @@ def iniciar_tunel(porta=5000):
                 creationflags=creation_flags
             )
 
-            t = threading.Thread(target=_monitor_tunnel_output, args=(_tunnel_process, modo, url_fixa), daemon=True)
+            t = threading.Thread(target=_monitor_tunnel_output, args=(_tunnel_process, provedor, subdominio), daemon=True)
             t.start()
 
         except Exception as e:
@@ -248,25 +256,28 @@ def iniciar_tunel(porta=5000):
             return {
                 "sucesso": False,
                 "status": "erro",
-                "mensagem": f"Falha ao iniciar processo: {e}"
+                "pin": pin_sessao,
+                "mensagem": f"Falha ao iniciar túnel: {e}"
             }
 
-    # Aguarda até 12 segundos para a inicialização
+    # Aguarda até 10 segundos para a URL ser gerada
     start_wait = time.time()
-    while time.time() - start_wait < 12:
+    while time.time() - start_wait < 10:
         with _lock:
             if _tunnel_status == "ativo" and _tunnel_url:
                 return {
                     "sucesso": True,
                     "status": "ativo",
                     "url": _tunnel_url,
-                    "modo": modo,
+                    "pin": pin_sessao,
+                    "provedor": provedor,
                     "ip_local": f"http://{obter_ip_local()}:{porta}"
                 }
             if _tunnel_status == "erro":
                 return {
                     "sucesso": False,
                     "status": "erro",
+                    "pin": pin_sessao,
                     "mensagem": _tunnel_error
                 }
         time.sleep(0.5)
@@ -274,7 +285,8 @@ def iniciar_tunel(porta=5000):
     return {
         "sucesso": True,
         "status": "conectando",
-        "url": _tunnel_url or (url_fixa if modo == "token_fixo" else None),
+        "url": _tunnel_url or f"https://{subdominio}.loca.lt",
+        "pin": pin_sessao,
         "mensagem": "Túnel está sendo inicializado. Aguarde alguns instantes."
     }
 
@@ -307,20 +319,20 @@ def parar_tunel():
 
 
 def status_tunel():
-    """Retorna o estado atual do túnel, links de acesso e configurações salvas."""
+    """Retorna o estado atual do túnel, links de acesso e PIN de segurança."""
     with _lock:
         ip_local = obter_ip_local()
         uptime_segundos = int(time.time() - _tunnel_start_time) if _tunnel_start_time and _tunnel_status == "ativo" else 0
         config = obter_config_tunel()
         return {
             "status": _tunnel_status,
-            "url": _tunnel_url or (config.get("url_fixa") if _tunnel_status == "ativo" and config.get("modo") == "token_fixo" else None),
+            "url": _tunnel_url or (f"https://{config.get('subdominio')}.loca.lt" if config.get("provedor") == "localtunnel" else None),
+            "pin": obter_pin_atual(),
             "ip_local": f"http://{ip_local}:5000",
             "uptime_segundos": uptime_segundos,
             "erro": _tunnel_error,
-            "modo": config.get("modo", "rapido"),
-            "tem_token": bool(config.get("token")),
-            "url_fixa": config.get("url_fixa", "")
+            "provedor": config.get("provedor", "localtunnel"),
+            "subdominio": config.get("subdominio", "triagem-ait-caragua")
         }
 
 

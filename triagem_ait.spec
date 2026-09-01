@@ -24,8 +24,10 @@ a = Analysis(
         'audit',
         'sqlite3',
         'werkzeug.security',
-        'scripts.migrate_v3'
+        'scripts.migrate_v3',
+        'scripts.tunnel_manager'
     ],
+
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],

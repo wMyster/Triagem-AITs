@@ -289,11 +289,16 @@
         <div class="login-header-main">
             <i class="fa-solid fa-shield-halved main-icon"></i>
             <h1>TRIAGEM AIT — SISTEMA DE GESTÃO</h1>
-            <p>Selecione o módulo de trabalho e informe suas credenciais</p>
+            {% if is_remote %}
+                <p style="color: #60a5fa; font-weight: 600;"><i class="fa-solid fa-globe"></i> Conexão Remota — Módulo DCT (Conferência)</p>
+            {% else %}
+                <p>Selecione o módulo de trabalho e informe suas credenciais</p>
+            {% endif %}
         </div>
 
         <!-- Sector Panels Selection -->
-        <div class="sector-cards">
+        <div class="sector-cards" id="sector-cards-container">
+            {% if not is_remote %}
             <div class="sector-card active" id="card-transporte" onclick="selectSector('transporte')">
                 <div class="sector-card-icon icon-transporte">
                     <i class="fa-solid fa-file-signature"></i>
@@ -303,8 +308,9 @@
                     <p>Digitação e Lançamentos</p>
                 </div>
             </div>
+            {% endif %}
 
-            <div class="sector-card" id="card-dct" onclick="selectSector('dct')">
+            <div class="sector-card {% if is_remote %}active{% endif %}" id="card-dct" onclick="selectSector('dct')" style="{% if is_remote %}grid-column: 1 / -1; border-color: #3b82f6; background: rgba(30, 41, 59, 0.95);{% endif %}">
                 <div class="sector-card-icon icon-dct">
                     <i class="fa-solid fa-clipboard-check"></i>
                 </div>
@@ -314,6 +320,7 @@
                 </div>
             </div>
 
+            {% if not is_remote %}
             <div class="sector-card" id="card-admin" onclick="selectSector('admin')">
                 <div class="sector-card-icon icon-admin">
                     <i class="fa-solid fa-user-gear"></i>
@@ -323,9 +330,11 @@
                     <p>Gestão Geral e Sessões</p>
                 </div>
             </div>
+            {% endif %}
         </div>
 
-        <!-- Network & DCT Quick Status Pills -->
+        {% if not is_remote %}
+        <!-- Network & DCT Quick Status Pills (Apenas na máquina do servidor local) -->
         <div style="display: flex; justify-content: center; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem;">
             <div id="login-net-badge" style="background: rgba(16, 185, 129, 0.12); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 9999px; padding: 0.3rem 0.9rem; font-size: 0.8rem; color: #34d399; display: inline-flex; align-items: center; gap: 0.45rem; cursor: pointer; transition: all 0.2s ease;" onclick="abrirModalRede()" title="Clique para gerenciar ou testar a conexão com a Rede G:">
                 <span id="login-net-dot" style="height: 8px; width: 8px; background-color: #34d399; border-radius: 50%; display: inline-block; box-shadow: 0 0 6px #34d399;"></span>
@@ -333,11 +342,12 @@
                 <i class="fa-solid fa-network-wired" style="font-size: 0.75rem; opacity: 0.8; margin-left: 0.3rem; color: #60a5fa;"></i>
             </div>
 
-            <div id="login-tunel-badge" style="background: rgba(168, 85, 247, 0.12); border: 1px solid rgba(168, 85, 247, 0.3); border-radius: 9999px; padding: 0.3rem 0.9rem; font-size: 0.8rem; color: #c084fc; display: inline-flex; align-items: center; gap: 0.45rem; cursor: pointer; transition: all 0.2s ease;" onclick="abrirModalTunelDCT()" title="Gerar link de acesso seguro para a DCT (Terceirizada)">
+            <div id="login-tunel-badge" style="background: rgba(168, 85, 247, 0.12); border: 1px solid rgba(168, 85, 247, 0.3); border-radius: 9999px; padding: 0.3rem 0.9rem; font-size: 0.8rem; color: #c084fc; display: inline-flex; align-items: center; gap: 0.45rem; cursor: pointer; transition: all 0.2s ease;" onclick="abrirModalTunelDCT()" title="Gerenciar link de acesso seguro e PIN da DCT">
                 <i class="fa-solid fa-globe"></i>
                 <span id="login-tunel-text" style="font-weight: 600;">Acesso DCT</span>
             </div>
         </div>
+        {% endif %}
 
         <!-- Login Form Panel -->
         <div class="login-card">
@@ -352,15 +362,21 @@
                 {% endif %}
             {% endwith %}
 
-            <form action="{{ url_for('login') }}" method="POST">
+            <form action="{{ url_for('login') }}" method="POST" id="form-login-main">
                 <div class="form-group">
                     <label for="username" id="lbl-username">Selecione o Funcionário / Usuário *</label>
                     <div class="input-group">
                         <i class="fa-solid fa-user"></i>
                         <select id="username" name="username" required style="width: 100%; padding: 0.65rem 1rem 0.65rem 2.5rem; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 0.4rem; color: #ffffff; font-size: 0.875rem; box-sizing: border-box; cursor: pointer;">
-                            {% for u in triagem_users %}
-                                <option value="{{ u.username }}">{{ u.nome_completo }}</option>
-                            {% endfor %}
+                            {% if is_remote %}
+                                {% for u in dct_users %}
+                                    <option value="{{ u.username }}">{{ u.nome_completo }}</option>
+                                {% endfor %}
+                            {% else %}
+                                {% for u in triagem_users %}
+                                    <option value="{{ u.username }}">{{ u.nome_completo }}</option>
+                                {% endfor %}
+                            {% endif %}
                         </select>
                     </div>
                 </div>
@@ -373,13 +389,39 @@
                     </div>
                 </div>
 
-                <button type="submit" class="btn-login" id="btn-login-submit">
-                    Acessar Módulo Triagem <i class="fa-solid fa-right-to-bracket" style="margin-left: 0.5rem;"></i>
+                <button type="submit" class="btn-login" id="btn-login-submit" style="{% if is_remote %}background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);{% endif %}">
+                    {% if is_remote %}Acessar Módulo DCT{% else %}Acessar Módulo Triagem{% endif %} <i class="fa-solid fa-right-to-bracket" style="margin-left: 0.5rem;"></i>
                 </button>
             </form>
 
+            {% if not is_remote %}
             <button type="button" onclick="shutdownSystem()" class="btn-shutdown">
                 <i class="fa-solid fa-power-off"></i> Encerrar Servidor nesta Máquina
+            </button>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Modal de Desafio de PIN de Segurança (Apenas para Acesso Remoto Bloqueado) -->
+    <div id="modal-pin-challenge" class="modal-overlay" style="display: {% if is_remote and not pin_autorizado %}flex{% else %}none{% endif %}; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(15, 23, 42, 0.94); backdrop-filter: blur(14px); z-index: 10000; align-items: center; justify-content: center;">
+        <div style="background: rgba(30, 41, 59, 0.98); border: 1px solid rgba(168, 85, 247, 0.5); border-radius: 1.25rem; width: 92%; max-width: 440px; padding: 2.25rem 2rem; box-shadow: 0 25px 60px -10px rgba(0, 0, 0, 0.8), 0 0 35px rgba(168, 85, 247, 0.2); color: #ffffff; text-align: center;">
+            <div style="width: 62px; height: 62px; background: rgba(168, 85, 247, 0.15); border: 1px solid rgba(168, 85, 247, 0.4); border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 1.8rem; color: #c084fc; margin-bottom: 1rem;">
+                <i class="fa-solid fa-lock"></i>
+            </div>
+            <h2 style="font-family: 'Outfit', sans-serif; font-size: 1.35rem; font-weight: 700; margin: 0 0 0.4rem 0; color: #ffffff;">Acesso Remoto DCT Protegido</h2>
+            <p style="font-size: 0.85rem; color: #94a3b8; margin: 0 0 1.5rem 0;">Informe o PIN de segurança de 4 dígitos fornecido pelo setor de Triagem para desbloquear o sistema.</p>
+
+            <div style="display: flex; justify-content: center; gap: 0.65rem; margin-bottom: 1.25rem;" id="pin-inputs-container">
+                <input type="password" maxlength="1" class="pin-digit" id="pin-d1" inputmode="numeric" pattern="[0-9]*" autofocus style="width: 54px; height: 62px; text-align: center; font-size: 1.8rem; font-family: monospace; font-weight: 700; background: rgba(15, 23, 42, 0.8); border: 2px solid rgba(255, 255, 255, 0.2); border-radius: 0.6rem; color: #fef08a; outline: none; transition: all 0.2s ease;">
+                <input type="password" maxlength="1" class="pin-digit" id="pin-d2" inputmode="numeric" pattern="[0-9]*" style="width: 54px; height: 62px; text-align: center; font-size: 1.8rem; font-family: monospace; font-weight: 700; background: rgba(15, 23, 42, 0.8); border: 2px solid rgba(255, 255, 255, 0.2); border-radius: 0.6rem; color: #fef08a; outline: none; transition: all 0.2s ease;">
+                <input type="password" maxlength="1" class="pin-digit" id="pin-d3" inputmode="numeric" pattern="[0-9]*" style="width: 54px; height: 62px; text-align: center; font-size: 1.8rem; font-family: monospace; font-weight: 700; background: rgba(15, 23, 42, 0.8); border: 2px solid rgba(255, 255, 255, 0.2); border-radius: 0.6rem; color: #fef08a; outline: none; transition: all 0.2s ease;">
+                <input type="password" maxlength="1" class="pin-digit" id="pin-d4" inputmode="numeric" pattern="[0-9]*" style="width: 54px; height: 62px; text-align: center; font-size: 1.8rem; font-family: monospace; font-weight: 700; background: rgba(15, 23, 42, 0.8); border: 2px solid rgba(255, 255, 255, 0.2); border-radius: 0.6rem; color: #fef08a; outline: none; transition: all 0.2s ease;">
+            </div>
+
+            <div id="pin-error-msg" style="display: none; font-size: 0.82rem; color: #fca5a5; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 0.45rem; padding: 0.5rem 0.75rem; margin-bottom: 1.25rem;"></div>
+
+            <button type="button" id="btn-verificar-pin" onclick="submeterPINRemoto()" style="width: 100%; padding: 0.8rem; background: linear-gradient(135deg, #a855f7 0%, #7c3aed 100%); border: none; border-radius: 0.5rem; color: #ffffff; font-weight: 600; font-size: 0.95rem; cursor: pointer; transition: all 0.2s ease; box-shadow: 0 4px 14px rgba(168, 85, 247, 0.4);">
+                <i class="fa-solid fa-key"></i> Desbloquear Acesso
             </button>
         </div>
     </div>
@@ -460,29 +502,51 @@
 
     <!-- Modal de Conexão e Acesso Remoto DCT / Terceirizada -->
     <div id="modal-tunel-dct" class="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(15, 23, 42, 0.88); backdrop-filter: blur(8px); z-index: 9999; align-items: center; justify-content: center;">
-        <div style="background: rgba(30, 41, 59, 0.98); border: 1px solid rgba(168, 85, 247, 0.4); border-radius: 1rem; width: 92%; max-width: 600px; padding: 1.75rem; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7); color: #ffffff;">
+        <div style="background: rgba(30, 41, 59, 0.98); border: 1px solid rgba(168, 85, 247, 0.4); border-radius: 1rem; width: 92%; max-width: 620px; padding: 1.75rem; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7); color: #ffffff; max-height: 90vh; overflow-y: auto;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; border-bottom: 1px solid rgba(255, 255, 255, 0.1); padding-bottom: 0.75rem;">
                 <h3 style="margin: 0; font-size: 1.2rem; color: #c084fc; display: flex; align-items: center; gap: 0.5rem;">
-                    <i class="fa-solid fa-globe"></i> Acesso Remoto DCT / Terceirizada
+                    <i class="fa-solid fa-globe"></i> Acesso Remoto DCT (Link Fixo + Proteção por PIN)
                 </h3>
                 <i class="fa-solid fa-xmark" style="cursor: pointer; font-size: 1.2rem; color: #94a3b8;" onclick="fecharModalTunelDCT()"></i>
             </div>
 
+            <!-- PIN de Segurança em Destaque -->
+            <div style="background: linear-gradient(135deg, rgba(168, 85, 247, 0.15), rgba(59, 130, 246, 0.1)); border: 1px solid rgba(168, 85, 247, 0.4); border-radius: 0.75rem; padding: 1.1rem; margin-bottom: 1.2rem; text-align: center;">
+                <div style="font-size: 0.82rem; color: #cbd5e1; margin-bottom: 0.35rem; display: flex; align-items: center; justify-content: center; gap: 0.4rem;">
+                    <i class="fa-solid fa-shield-halved" style="color: #fef08a;"></i>
+                    <strong style="color: #e2e8f0;">PIN de Segurança da Sessão (4 Dígitos):</strong>
+                </div>
+                <div style="display: flex; align-items: center; justify-content: center; gap: 0.6rem; margin: 0.5rem 0; flex-wrap: wrap;">
+                    <div id="tunel-pin-display" style="font-size: 1.9rem; font-family: monospace; font-weight: 800; letter-spacing: 0.4rem; color: #fef08a; background: rgba(0,0,0,0.55); padding: 0.25rem 1.4rem; border-radius: 0.5rem; border: 1px dashed rgba(254, 240, 138, 0.6); text-shadow: 0 0 10px rgba(254, 240, 138, 0.3);">
+                        ----
+                    </div>
+                    <button type="button" id="btn-copiar-pin" class="btn btn-secondary" onclick="copiarTextoElemento('tunel-pin-display', 'btn-copiar-pin')" style="padding: 0.45rem 0.85rem; font-size: 0.82rem;">
+                        <i class="fa-solid fa-copy"></i> Copiar PIN
+                    </button>
+                    <button type="button" class="btn btn-secondary" onclick="gerarNovoPINTriagem()" title="Gerar outro PIN aleatório" style="padding: 0.45rem 0.85rem; font-size: 0.82rem; background: rgba(255,255,255,0.08);">
+                        <i class="fa-solid fa-arrows-rotate"></i> Novo PIN
+                    </button>
+                </div>
+                <div style="font-size: 0.76rem; color: #94a3b8;">
+                    🔒 O agente da DCT precisará digitar este PIN no Chrome para desbloquear o sistema.
+                </div>
+            </div>
+
             <!-- Status Card -->
-            <div style="background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 0.75rem; padding: 1.2rem; margin-bottom: 1.25rem;">
+            <div style="background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 0.75rem; padding: 1.1rem; margin-bottom: 1.2rem;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
-                    <span style="color: #94a3b8; font-size: 0.9rem;">Status do Acesso Remoto:</span>
+                    <span style="color: #94a3b8; font-size: 0.85rem;">Status do Acesso Remoto:</span>
                     <span id="tunel-status-tag" class="badge" style="background: rgba(148, 163, 184, 0.2); color: #94a3b8;">Desconectado</span>
                 </div>
 
-                <!-- Link Seguro Cloudflare -->
-                <div style="margin-bottom: 1rem;">
+                <!-- Link Seguro Fixo -->
+                <div style="margin-bottom: 0.9rem;">
                     <label style="display: block; font-size: 0.82rem; color: #a855f7; font-weight: 600; margin-bottom: 0.3rem;">
-                        <i class="fa-solid fa-shield-halved"></i> Link Seguro de Internet (Para o Google Chrome da Terceirizada):
+                        <i class="fa-solid fa-link"></i> Link Fixo Permanente (Para os Favoritos do Chrome da DCT):
                     </label>
                     <div style="display: flex; gap: 0.5rem; align-items: center;">
-                        <input type="text" id="tunel-url-input" readonly value="Túnel inativo. Clique em 'Iniciar Acesso DCT' abaixo." style="flex: 1; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.15); border-radius: 0.4rem; padding: 0.55rem 0.75rem; font-family: monospace; font-size: 0.85rem; color: #f8fafc;">
-                        <button type="button" id="btn-copiar-tunel" class="btn btn-secondary" onclick="copiarTextoDoInput('tunel-url-input', 'btn-copiar-tunel')" disabled style="padding: 0.55rem 0.85rem; white-space: nowrap;">
+                        <input type="text" id="tunel-url-input" readonly value="Carregando link..." style="flex: 1; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.15); border-radius: 0.4rem; padding: 0.55rem 0.75rem; font-family: monospace; font-size: 0.85rem; color: #f8fafc;">
+                        <button type="button" id="btn-copiar-tunel" class="btn btn-secondary" onclick="copiarTextoDoInput('tunel-url-input', 'btn-copiar-tunel')" style="padding: 0.55rem 0.85rem; white-space: nowrap;">
                             <i class="fa-solid fa-copy"></i> Copiar Link
                         </button>
                     </div>
@@ -491,7 +555,7 @@
                 <!-- IP Local -->
                 <div>
                     <label style="display: block; font-size: 0.82rem; color: #38bdf8; font-weight: 600; margin-bottom: 0.3rem;">
-                        <i class="fa-solid fa-network-wired"></i> Endereço na Rede Local (Para computadores no mesmo cabo ou Wi-Fi):
+                        <i class="fa-solid fa-network-wired"></i> Endereço na Rede Local (Cabo Ethernet / Wi-Fi da Prefeitura):
                     </label>
                     <div style="display: flex; gap: 0.5rem; align-items: center;">
                         <input type="text" id="tunel-ip-input" readonly value="Carregando..." style="flex: 1; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.15); border-radius: 0.4rem; padding: 0.55rem 0.75rem; font-family: monospace; font-size: 0.85rem; color: #38bdf8;">
@@ -502,14 +566,21 @@
                 </div>
             </div>
 
-            <!-- Instruções de Uso para o Operador -->
-            <div style="background: rgba(168, 85, 247, 0.08); border: 1px solid rgba(168, 85, 247, 0.25); border-radius: 0.6rem; padding: 0.85rem 1rem; margin-bottom: 1.25rem; font-size: 0.82rem; color: #e2e8f0; line-height: 1.45;">
-                <strong style="color: #c084fc; display: block; margin-bottom: 0.3rem;"><i class="fa-solid fa-circle-info"></i> Como a DCT acessa:</strong>
-                1. Clique em <strong>"Iniciar Acesso DCT"</strong> abaixo.<br>
-                2. Clique em <strong>"Copiar Link"</strong> e envie para o operador terceirizado da DCT.<br>
-                3. Ele abre o link no Google Chrome do computador dele, faz login com usuário <code>dct</code> e ambos trabalham em tempo real!
+            <!-- Personalização de Subdomínio Fixo (Opcional) -->
+            <div style="background: rgba(15, 23, 42, 0.45); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 0.6rem; padding: 0.75rem 1rem; margin-bottom: 1.2rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+                    <span style="font-size: 0.8rem; color: #cbd5e1;">Nome do Subdomínio Fixo:</span>
+                    <div style="display: flex; gap: 0.4rem; align-items: center;">
+                        <input type="text" id="cfg_subdominio" placeholder="triagem-ait-caragua" style="background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.15); border-radius: 0.35rem; padding: 0.35rem 0.6rem; color: #ffffff; font-size: 0.8rem; font-family: monospace; width: 190px;">
+                        <span style="font-size: 0.8rem; color: #94a3b8;">.loca.lt</span>
+                        <button type="button" class="btn btn-secondary" onclick="salvarSubdominioTunel()" style="padding: 0.35rem 0.65rem; font-size: 0.78rem;">
+                            <i class="fa-solid fa-floppy-disk"></i> Salvar
+                        </button>
+                    </div>
+                </div>
             </div>
 
+            <!-- Feedback -->
             <div id="tunel-feedback-msg" style="display: none; padding: 0.6rem 0.85rem; border-radius: 0.45rem; font-size: 0.85rem; margin-bottom: 1.25rem;"></div>
 
             <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
@@ -526,232 +597,243 @@
         </div>
     </div>
 
-
+    <!-- Scripts e Lógica da Tela de Login -->
     <script>
-        function shutdownSystem() {
-            if (confirm("Deseja realmente encerrar o servidor e fechar o sistema nesta máquina?")) {
-                // 1. Tenta fechar imediatamente via JavaScript
-                try { window.open('', '_self', ''); window.close(); } catch(e) {}
-                try { window.close(); } catch(e) {}
-                try { self.close(); } catch(e) {}
+        const triagemUsers = [
+            {% for u in triagem_users %}
+                { username: "{{ u.username }}", nome_completo: "{{ u.nome_completo }}" },
+            {% endfor %}
+        ];
 
-                // 2. Exibe overlay visual
-                document.body.innerHTML = `
-                    <div style="height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #0f172a; color: #ffffff; font-family: sans-serif; text-align: center; padding: 20px;">
-                        <div style="font-size: 3.5rem; color: #ef4444; margin-bottom: 1rem;">
-                            <i class="fa-solid fa-power-off"></i>
-                        </div>
-                        <h2 style="font-size: 1.6rem; margin-bottom: 0.5rem;">Servidor Encerrado com Sucesso!</h2>
-                        <p style="color: #94a3b8; font-size: 1rem; max-width: 450px; margin-bottom: 1.5rem;">
-                            O processo e a janela foram finalizados. Fechando...
-                        </p>
-                    </div>
-                `;
+        const dctUsers = [
+            {% for u in dct_users %}
+                { username: "{{ u.username }}", nome_completo: "{{ u.nome_completo }}" },
+            {% endfor %}
+        ];
 
-                // 3. Dispara o desligamento no backend
-                try {
-                    if (navigator.sendBeacon) {
-                        navigator.sendBeacon('/system/shutdown');
+        const adminUsers = [
+            {% for u in admin_users %}
+                { username: "{{ u.username }}", nome_completo: "{{ u.nome_completo }}" },
+            {% endfor %}
+        ];
+
+        let currentSector = "{{ 'dct' if is_remote else 'transporte' }}";
+
+        function selectSector(sector) {
+            {% if is_remote %}
+            // Se for acesso remoto, força sempre o Módulo DCT
+            sector = 'dct';
+            {% endif %}
+            currentSector = sector;
+
+            const cardTransp = document.getElementById("card-transporte");
+            const cardDct = document.getElementById("card-dct");
+            const cardAdmin = document.getElementById("card-admin");
+            const btnSubmit = document.getElementById("btn-login-submit");
+            const userSelect = document.getElementById("username");
+            const lblUser = document.getElementById("lbl-username");
+
+            if (cardTransp) cardTransp.classList.remove("active");
+            if (cardDct) cardDct.classList.remove("active");
+            if (cardAdmin) cardAdmin.classList.remove("active");
+
+            let targetUsers = [];
+            let submitText = "";
+            let submitGradient = "";
+
+            if (sector === "transporte") {
+                if (cardTransp) cardTransp.classList.add("active");
+                targetUsers = triagemUsers;
+                submitText = 'Acessar Módulo Triagem <i class="fa-solid fa-right-to-bracket" style="margin-left: 0.5rem;"></i>';
+                submitGradient = "linear-gradient(135deg, #f97316 0%, #ea580c 100%)";
+                if (lblUser) lblUser.textContent = "Selecione o Funcionário / Usuário *";
+            } else if (sector === "dct") {
+                if (cardDct) cardDct.classList.add("active");
+                targetUsers = dctUsers;
+                submitText = 'Acessar Módulo DCT <i class="fa-solid fa-right-to-bracket" style="margin-left: 0.5rem;"></i>';
+                submitGradient = "linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)";
+                if (lblUser) lblUser.textContent = "Selecione o Conferente / Terceirizada (DCT) *";
+            } else if (sector === "admin") {
+                if (cardAdmin) cardAdmin.classList.add("active");
+                targetUsers = adminUsers;
+                submitText = 'Acessar Administração <i class="fa-solid fa-right-to-bracket" style="margin-left: 0.5rem;"></i>';
+                submitGradient = "linear-gradient(135deg, #f43f5e 0%, #e11d48 100%)";
+                if (lblUser) lblUser.textContent = "Selecione o Administrador *";
+            }
+
+            if (btnSubmit) {
+                btnSubmit.innerHTML = submitText;
+                btnSubmit.style.background = submitGradient;
+            }
+
+            if (userSelect) {
+                userSelect.innerHTML = "";
+                targetUsers.forEach(u => {
+                    const opt = document.createElement("option");
+                    opt.value = u.username;
+                    opt.textContent = u.nome_completo;
+                    userSelect.appendChild(opt);
+                });
+            }
+
+            const pwdInput = document.getElementById("password");
+            if (pwdInput) pwdInput.focus();
+        }
+
+        // ==========================================
+        // Lógica do PIN de Desafio Remoto (4 Dígitos)
+        // ==========================================
+        function setupPinDigits() {
+            const digits = [
+                document.getElementById('pin-d1'),
+                document.getElementById('pin-d2'),
+                document.getElementById('pin-d3'),
+                document.getElementById('pin-d4')
+            ];
+
+            if (!digits[0]) return;
+
+            digits.forEach((input, index) => {
+                input.addEventListener('input', function(e) {
+                    const val = this.value;
+                    if (val.length === 1 && index < 3) {
+                        digits[index + 1].focus();
+                        digits[index + 1].select();
                     }
-                } catch(e) {}
-                try {
-                    fetch('/system/shutdown', { method: 'POST', keepalive: true }).catch(function() {});
-                } catch(e) {}
+                    verificarAutoSubmitPIN();
+                });
 
-                // 4. Executa fechamento via JavaScript
-                setTimeout(function() {
-                    try { window.open('', '_self', ''); window.close(); } catch(e) {}
-                    try { window.close(); } catch(e) {}
-                    try { self.close(); } catch(e) {}
-                }, 50);
+                input.addEventListener('keydown', function(e) {
+                    if (e.key === 'Backspace' && !this.value && index > 0) {
+                        digits[index - 1].focus();
+                        digits[index - 1].select();
+                    } else if (e.key === 'Enter') {
+                        submeterPINRemoto();
+                    }
+                });
+
+                input.addEventListener('paste', function(e) {
+                    e.preventDefault();
+                    const text = (e.clipboardData || window.clipboardData).getData('text').trim();
+                    const nums = text.replace(/[^0-9]/g, '');
+                    if (nums.length >= 4) {
+                        for (let i = 0; i < 4; i++) {
+                            if (digits[i]) digits[i].value = nums[i];
+                        }
+                        digits[3].focus();
+                        submeterPINRemoto();
+                    }
+                });
+            });
+
+            setTimeout(() => {
+                if (digits[0]) digits[0].focus();
+            }, 300);
+        }
+
+        function verificarAutoSubmitPIN() {
+            const d1 = document.getElementById('pin-d1')?.value || '';
+            const d2 = document.getElementById('pin-d2')?.value || '';
+            const d3 = document.getElementById('pin-d3')?.value || '';
+            const d4 = document.getElementById('pin-d4')?.value || '';
+
+            if (d1 && d2 && d3 && d4) {
+                submeterPINRemoto();
             }
         }
 
-        function checkNetworkStatus() {
-            fetch('/api/status_rede')
-                .then(res => res.json())
-                .then(data => {
-                    const badge = document.getElementById('login-net-badge');
-                    const dot = document.getElementById('login-net-dot');
-                    const text = document.getElementById('login-net-text');
+        function submeterPINRemoto() {
+            const d1 = document.getElementById('pin-d1')?.value || '';
+            const d2 = document.getElementById('pin-d2')?.value || '';
+            const d3 = document.getElementById('pin-d3')?.value || '';
+            const d4 = document.getElementById('pin-d4')?.value || '';
+            const pinCompleto = `${d1}${d2}${d3}${d4}`.trim();
+            const errorMsg = document.getElementById('pin-error-msg');
+            const btn = document.getElementById('btn-verificar-pin');
+            const container = document.getElementById('pin-inputs-container');
 
-                    if (data.status === 'online') {
-                        if (data.usando_rede) {
-                            const lat = data.rede_g_latencia_ms || 1.8;
-                            if (lat <= 300) {
-                                if (badge) { badge.style.borderColor = 'rgba(16, 185, 129, 0.3)'; badge.style.background = 'rgba(16, 185, 129, 0.1)'; }
-                                if (dot) { dot.style.backgroundColor = '#34d399'; dot.style.boxShadow = '0 0 8px #34d399'; }
-                                if (text) { text.textContent = `Rede G: Conectada (${lat}ms)`; text.style.color = '#34d399'; }
-                            } else {
-                                if (badge) { badge.style.borderColor = 'rgba(249, 115, 22, 0.4)'; badge.style.background = 'rgba(249, 115, 22, 0.1)'; }
-                                if (dot) { dot.style.backgroundColor = '#f97316'; dot.style.boxShadow = '0 0 8px #f97316'; }
-                                if (text) { text.textContent = `Rede G: Instável (${lat}ms)`; text.style.color = '#fb923c'; }
-                            }
-                        } else {
-                            if (badge) { badge.style.borderColor = 'rgba(59, 130, 246, 0.3)'; badge.style.background = 'rgba(59, 130, 246, 0.1)'; }
-                            if (dot) { dot.style.backgroundColor = '#60a5fa'; dot.style.boxShadow = '0 0 8px #60a5fa'; }
-                            if (text) { text.textContent = data.modo === 'LOCAL' ? 'Base Local (Forçada)' : 'Base Local Ativa'; text.style.color = '#60a5fa'; }
-                        }
-                    } else {
-                        if (badge) { badge.style.borderColor = 'rgba(239, 68, 68, 0.5)'; badge.style.background = 'rgba(239, 68, 68, 0.1)'; }
-                        if (dot) { dot.style.backgroundColor = '#ef4444'; dot.style.boxShadow = '0 0 8px #ef4444'; }
-                        if (text) { text.textContent = 'Servidor Offline'; text.style.color = '#f87171'; }
-                    }
-                })
-                .catch(() => {
-                    const text = document.getElementById('login-net-text');
-                    if (text) text.textContent = 'Servidor Indisponível';
-                });
-        }
-
-        function abrirModalRede() {
-            const m = document.getElementById('modal-gerenciamento-rede');
-            if (!m) return;
-            m.style.display = 'flex';
-            
-            const fb = document.getElementById('modal-rede-feedback');
-            if (fb) fb.style.display = 'none';
-
-            fetch('/api/status_rede')
-                .then(res => res.json())
-                .then(data => {
-                    const tag = document.getElementById('modal-rede-status-tag');
-                    const path = document.getElementById('modal-rede-caminho');
-                    const lat = document.getElementById('modal-rede-latencia');
-
-                    if (tag) {
-                        tag.textContent = data.status === 'online' ? (data.usando_rede ? 'Rede G: Conectada' : 'Base Local Ativa') : 'Desconectado';
-                        tag.className = 'badge ' + (data.status === 'online' ? 'badge-success' : 'badge-danger');
-                    }
-                    if (path) path.textContent = data.caminho_ativo || 'Não identificado';
-                    if (lat) {
-                        if (data.rede_g_disponivel) {
-                            const latVal = data.rede_g_latencia_ms || 0;
-                            if (latVal <= 300) {
-                                lat.textContent = `Disponível (${latVal}ms)`;
-                                lat.style.color = '#34d399';
-                            } else {
-                                lat.textContent = `Instável (${latVal}ms)`;
-                                lat.style.color = '#fb923c';
-                            }
-                        } else {
-                            lat.textContent = 'Indisponível (Drive G:\\ não acessível)';
-                            lat.style.color = '#f87171';
-                        }
-                    }
-
-                    const modo = data.modo || 'AUTO';
-                    if (modo === 'AUTO') document.getElementById('opt_modo_auto').checked = true;
-                    else if (modo === 'REDE_G') document.getElementById('opt_modo_rede_g').checked = true;
-                    else if (modo === 'LOCAL') document.getElementById('opt_modo_local').checked = true;
-                });
-        }
-
-        function fecharModalRede() {
-            const m = document.getElementById('modal-gerenciamento-rede');
-            if (m) m.style.display = 'none';
-        }
-
-        function testarConexaoRedeG() {
-            const btn = document.getElementById('btn-testar-rede-g');
-            const fb = document.getElementById('modal-rede-feedback');
-            const lat = document.getElementById('modal-rede-latencia');
-
-            if (btn) btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Testando G:\\...';
-            if (fb) fb.style.display = 'none';
-
-            fetch('/api/rede/testar', { method: 'POST' })
-                .then(res => res.json().then(data => ({ status: res.status, data })))
-                .then(({ status, data }) => {
-                    if (btn) btn.innerHTML = '<i class="fa-solid fa-stethoscope"></i> Testar Conexão G:\\';
-                    if (fb) {
-                        fb.style.display = 'block';
-                        fb.className = data.sucesso ? 'alert alert-success' : 'alert alert-danger';
-                        fb.innerHTML = `<i class="fa-solid ${data.sucesso ? 'fa-circle-check' : 'fa-circle-exclamation'}"></i> ${data.mensagem}`;
-                    }
-                    if (lat) {
-                        if (data.sucesso) {
-                            const latVal = data.latencia_ms || 0;
-                            if (latVal <= 300) {
-                                lat.textContent = `Disponível (${latVal}ms)`;
-                                lat.style.color = '#34d399';
-                            } else {
-                                lat.textContent = `Instável (${latVal}ms)`;
-                                lat.style.color = '#fb923c';
-                            }
-                        } else {
-                            lat.textContent = 'Indisponível';
-                            lat.style.color = '#f87171';
-                        }
-                    }
-                })
-                .catch(err => {
-                    if (btn) btn.innerHTML = '<i class="fa-solid fa-stethoscope"></i> Testar Conexão G:\\';
-                    if (fb) {
-                        fb.style.display = 'block';
-                        fb.className = 'alert alert-danger';
-                        fb.innerHTML = '<i class="fa-solid fa-circle-exclamation"></i> Falha ao comunicar com o servidor.';
-                    }
-                });
-        }
-
-        function aplicarModoRede() {
-            const radios = document.getElementsByName('modal_modo_conexao');
-            let selectedMode = 'AUTO';
-            for (let r of radios) {
-                if (r.checked) { selectedMode = r.value; break; }
+            if (pinCompleto.length !== 4) {
+                if (errorMsg) {
+                    errorMsg.style.display = 'block';
+                    errorMsg.textContent = 'Por favor, digite os 4 números do PIN de segurança.';
+                }
+                return;
             }
 
-            const fb = document.getElementById('modal-rede-feedback');
-            if (fb) fb.style.display = 'none';
+            if (btn) {
+                btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Validando PIN...';
+                btn.disabled = true;
+            }
 
-            fetch('/api/rede/conectar', {
+            fetch('/api/tunel/validar_pin', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ modo: selectedMode })
+                body: JSON.stringify({ pin: pinCompleto })
             })
             .then(res => res.json().then(data => ({ status: res.status, data })))
             .then(({ status, data }) => {
-                if (data.sucesso) {
-                    fecharModalRede();
-                    checkNetworkStatus();
-                    alert(`Configuração atualizada com sucesso!\n\nModo ativo: ${data.modo}\nBanco em uso: ${data.caminho_ativo}`);
-                    window.location.reload();
-                } else {
-                    if (fb) {
-                        fb.style.display = 'block';
-                        fb.className = 'alert alert-danger';
-                        fb.innerHTML = `<i class="fa-solid fa-circle-exclamation"></i> ${data.mensagem}`;
+                if (status === 200 && data.sucesso) {
+                    const modalPin = document.getElementById('modal-pin-challenge');
+                    if (modalPin) {
+                        modalPin.style.opacity = '0';
+                        modalPin.style.transition = 'opacity 0.4s ease';
+                        setTimeout(() => { modalPin.style.display = 'none'; }, 400);
                     }
+                    selectSector('dct');
+                    const pwd = document.getElementById('password');
+                    if (pwd) pwd.focus();
+                } else {
+                    if (errorMsg) {
+                        errorMsg.style.display = 'block';
+                        errorMsg.textContent = data.mensagem || 'PIN de segurança incorreto.';
+                    }
+                    if (container) {
+                        container.style.animation = 'shake 0.4s ease';
+                        setTimeout(() => { container.style.animation = ''; }, 500);
+                    }
+                    ['pin-d1', 'pin-d2', 'pin-d3', 'pin-d4'].forEach(id => {
+                        const el = document.getElementById(id);
+                        if (el) el.value = '';
+                    });
+                    const first = document.getElementById('pin-d1');
+                    if (first) first.focus();
                 }
             })
-            .catch(err => {
-                if (fb) {
-                    fb.style.display = 'block';
-                    fb.className = 'alert alert-danger';
-                    fb.innerHTML = '<i class="fa-solid fa-circle-exclamation"></i> Erro ao alterar configuração de rede.';
+            .catch(() => {
+                if (errorMsg) {
+                    errorMsg.style.display = 'block';
+                    errorMsg.textContent = 'Erro ao conectar ao servidor para validar o PIN.';
+                }
+            })
+            .finally(() => {
+                if (btn) {
+                    btn.innerHTML = '<i class="fa-solid fa-key"></i> Desbloquear Acesso';
+                    btn.disabled = false;
                 }
             });
         }
 
-        document.addEventListener("DOMContentLoaded", function() {
-            checkNetworkStatus();
-            setInterval(checkNetworkStatus, 15000);
-        });
-
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape') {
-                const m = document.getElementById('modal-gerenciamento-rede');
-                if (m) m.style.display = 'none';
-                const mt = document.getElementById('modal-tunel-dct');
-                if (mt) mt.style.display = 'none';
-            }
-        });
-
         // ==========================================
-        // Funções de Gerenciamento do Acesso DCT / Túnel Cloudflare
+        // Gerenciador de Túnel DCT & Rede
         // ==========================================
-        let _tunelModoSelecionado = 'token_fixo';
+        function copiarTextoElemento(elemId, btnId) {
+            const el = document.getElementById(elemId);
+            if (!el) return;
+            const text = el.innerText || el.textContent || '';
+            if (!text || text === '----') return;
+            navigator.clipboard.writeText(text.trim()).then(() => {
+                const btn = document.getElementById(btnId);
+                if (btn) {
+                    const origHtml = btn.innerHTML;
+                    btn.innerHTML = '<i class="fa-solid fa-check"></i> Copiado!';
+                    btn.style.color = '#34d399';
+                    setTimeout(() => {
+                        btn.innerHTML = origHtml;
+                        btn.style.color = '';
+                    }, 2000);
+                }
+            }).catch(() => {});
+        }
 
         function copiarTextoDoInput(inputId, btnId) {
             const input = document.getElementById(inputId);
@@ -773,54 +855,26 @@
             });
         }
 
-        function selecionarModoTunelUI(modo) {
-            _tunelModoSelecionado = modo;
-            const tabFixo = document.getElementById('tab-modo-fixo');
-            const tabRapido = document.getElementById('tab-modo-rapido');
-            const painelToken = document.getElementById('painel-config-token');
-            const painelRapido = document.getElementById('painel-info-rapido');
-            const lblLink = document.getElementById('lbl-link-tipo');
-
-            if (modo === 'token_fixo') {
-                if (tabFixo) { tabFixo.style.background = '#a855f7'; tabFixo.style.color = '#ffffff'; }
-                if (tabRapido) { tabRapido.style.background = 'transparent'; tabRapido.style.color = '#94a3b8'; }
-                if (painelToken) painelToken.style.display = 'block';
-                if (painelRapido) painelRapido.style.display = 'none';
-                if (lblLink) lblLink.innerHTML = '<i class="fa-solid fa-shield-halved"></i> Link Fixo e Permanente (Salvar nos Favoritos da DCT):';
-            } else {
-                if (tabRapido) { tabRapido.style.background = '#f59e0b'; tabRapido.style.color = '#ffffff'; }
-                if (tabFixo) { tabFixo.style.background = 'transparent'; tabFixo.style.color = '#94a3b8'; }
-                if (painelToken) painelToken.style.display = 'none';
-                if (painelRapido) painelRapido.style.display = 'block';
-                if (lblLink) lblLink.innerHTML = '<i class="fa-solid fa-shield-halved"></i> Link Temporário na Internet (Modo Rápido):';
-            }
-        }
-
         function carregarConfiguracaoTunel() {
             fetch('/api/tunel/config')
                 .then(res => res.json())
                 .then(cfg => {
-                    const inpToken = document.getElementById('cfg_token');
-                    const inpUrl = document.getElementById('cfg_url_fixa');
-                    if (inpToken && cfg.token) inpToken.value = cfg.token;
-                    if (inpUrl && cfg.url_fixa) inpUrl.value = cfg.url_fixa;
-                    selecionarModoTunelUI(cfg.modo || 'token_fixo');
+                    const inpSub = document.getElementById('cfg_subdominio');
+                    if (inpSub && cfg.subdominio) inpSub.value = cfg.subdominio;
                 })
                 .catch(() => {});
         }
 
-        function salvarConfiguracaoTunel() {
-            const token = document.getElementById('cfg_token')?.value || '';
-            const url_fixa = document.getElementById('cfg_url_fixa')?.value || '';
+        function salvarSubdominioTunel() {
+            const sub = document.getElementById('cfg_subdominio')?.value || 'triagem-ait-caragua';
             const fb = document.getElementById('tunel-feedback-msg');
 
             fetch('/api/tunel/config', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    modo: _tunelModoSelecionado,
-                    token: token,
-                    url_fixa: url_fixa
+                    provedor: 'localtunnel',
+                    subdominio: sub
                 })
             })
             .then(res => res.json())
@@ -829,19 +883,25 @@
                     if (fb) {
                         fb.style.display = 'block';
                         fb.className = 'alert alert-success';
-                        fb.innerHTML = '<i class="fa-solid fa-circle-check"></i> Configuração do Link Fixo salva com sucesso!';
+                        fb.innerHTML = '<i class="fa-solid fa-circle-check"></i> Subdomínio fixo salvo com sucesso!';
                         setTimeout(() => { fb.style.display = 'none'; }, 4000);
                     }
                     atualizarStatusTunelDCT();
-                } else {
-                    if (fb) {
-                        fb.style.display = 'block';
-                        fb.className = 'alert alert-danger';
-                        fb.innerHTML = `<i class="fa-solid fa-circle-exclamation"></i> ${data.mensagem}`;
-                    }
                 }
             })
             .catch(() => {});
+        }
+
+        function gerarNovoPINTriagem() {
+            fetch('/api/tunel/gerar_pin', { method: 'POST' })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.sucesso && data.pin) {
+                        const pinEl = document.getElementById('tunel-pin-display');
+                        if (pinEl) pinEl.textContent = data.pin;
+                    }
+                })
+                .catch(() => {});
         }
 
         function abrirModalTunelDCT() {
@@ -864,6 +924,7 @@
                     const tag = document.getElementById('tunel-status-tag');
                     const urlInput = document.getElementById('tunel-url-input');
                     const ipInput = document.getElementById('tunel-ip-input');
+                    const pinDisplay = document.getElementById('tunel-pin-display');
                     const btnCopiar = document.getElementById('btn-copiar-tunel');
                     const btnIniciar = document.getElementById('btn-iniciar-tunel');
                     const btnParar = document.getElementById('btn-parar-tunel');
@@ -871,10 +932,11 @@
                     const loginBadge = document.getElementById('login-tunel-badge');
 
                     if (ipInput) ipInput.value = data.ip_local || 'http://127.0.0.1:5000';
+                    if (pinDisplay && data.pin) pinDisplay.textContent = data.pin;
 
                     if (data.status === 'ativo' && data.url) {
                         if (tag) {
-                            tag.textContent = data.modo === 'token_fixo' ? 'Ativo (Link Fixo)' : 'Ativo (Online)';
+                            tag.textContent = '🟢 Ativo (Online)';
                             tag.style.background = 'rgba(16, 185, 129, 0.2)';
                             tag.style.color = '#34d399';
                         }
@@ -882,7 +944,7 @@
                         if (btnCopiar) btnCopiar.disabled = false;
                         if (btnIniciar) btnIniciar.style.display = 'none';
                         if (btnParar) btnParar.style.display = 'inline-flex';
-                        if (loginTag) loginTag.textContent = data.modo === 'token_fixo' ? 'Acesso DCT: Fixo Ativo' : 'Acesso DCT: Ativo';
+                        if (loginTag) loginTag.textContent = 'Acesso DCT: Ativo';
                         if (loginBadge) {
                             loginBadge.style.background = 'rgba(16, 185, 129, 0.15)';
                             loginBadge.style.borderColor = 'rgba(16, 185, 129, 0.4)';
@@ -894,8 +956,8 @@
                             tag.style.background = 'rgba(245, 158, 11, 0.2)';
                             tag.style.color = '#fbbf24';
                         }
-                        if (urlInput) urlInput.value = 'Conectando túnel seguro da Cloudflare...';
-                        if (btnCopiar) btnCopiar.disabled = true;
+                        if (urlInput) urlInput.value = data.url || 'Iniciando link fixo seguro...';
+                        if (btnCopiar) btnCopiar.disabled = false;
                         if (btnIniciar) {
                             btnIniciar.style.display = 'inline-flex';
                             btnIniciar.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Conectando...';
@@ -910,13 +972,9 @@
                             tag.style.color = '#94a3b8';
                         }
                         if (urlInput) {
-                            if (data.modo === 'token_fixo' && data.url_fixa) {
-                                urlInput.value = `Link Fixo: ${data.url_fixa} (Clique em Iniciar abaixo para conectar)`;
-                            } else {
-                                urlInput.value = 'Túnel inativo. Clique em "Iniciar Acesso DCT" abaixo.';
-                            }
+                            urlInput.value = data.url || `https://${data.subdominio || 'triagem-ait-caragua'}.loca.lt`;
                         }
-                        if (btnCopiar) btnCopiar.disabled = (data.modo !== 'token_fixo' || !data.url_fixa);
+                        if (btnCopiar) btnCopiar.disabled = false;
                         if (btnIniciar) {
                             btnIniciar.style.display = 'inline-flex';
                             btnIniciar.innerHTML = '<i class="fa-solid fa-play"></i> Iniciar Acesso DCT';
@@ -924,11 +982,6 @@
                         }
                         if (btnParar) btnParar.style.display = 'none';
                         if (loginTag) loginTag.textContent = 'Acesso DCT';
-                        if (loginBadge) {
-                            loginBadge.style.background = 'rgba(168, 85, 247, 0.12)';
-                            loginBadge.style.borderColor = 'rgba(168, 85, 247, 0.3)';
-                            loginBadge.style.color = '#c084fc';
-                        }
                     }
                 })
                 .catch(() => {});
@@ -943,57 +996,19 @@
             }
             if (fb) fb.style.display = 'none';
 
-            // Salva o modo selecionado antes de iniciar
-            const token = document.getElementById('cfg_token')?.value || '';
-            const url_fixa = document.getElementById('cfg_url_fixa')?.value || '';
-
-            fetch('/api/tunel/config', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ modo: _tunelModoSelecionado, token: token, url_fixa: url_fixa })
-            }).then(() => {
-                return fetch('/api/tunel/iniciar', { method: 'POST' });
-            })
-            .then(res => res.json())
-            .then(data => {
-                if (data.sucesso) {
-                    atualizarStatusTunelDCT();
-                    if (fb) {
-                        fb.style.display = 'block';
-                        fb.className = 'alert alert-success';
-                        fb.innerHTML = '<i class="fa-solid fa-circle-check"></i> Acesso DCT ativado! O operador terceirizado já pode acessar o sistema.';
-                    }
-                } else {
-                    if (fb) {
-                        fb.style.display = 'block';
-                        fb.className = 'alert alert-danger';
-                        fb.innerHTML = `<i class="fa-solid fa-circle-exclamation"></i> ${data.mensagem || 'Falha ao iniciar túnel.'}`;
-                    }
-                    atualizarStatusTunelDCT();
-                }
-            })
-            .catch(() => {
-                atualizarStatusTunelDCT();
-            });
-        }
-
-        function pararTunelDCT() {
-            const btnParar = document.getElementById('btn-parar-tunel');
-            const fb = document.getElementById('tunel-feedback-msg');
-            if (btnParar) {
-                btnParar.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Encerrando...';
-                btnParar.disabled = true;
-            }
-            if (fb) fb.style.display = 'none';
-
-            fetch('/api/tunel/parar', { method: 'POST' })
+            fetch('/api/tunel/iniciar', { method: 'POST' })
                 .then(res => res.json())
                 .then(data => {
-                    atualizarStatusTunelDCT();
-                    if (fb) {
-                        fb.style.display = 'block';
-                        fb.className = 'alert alert-info';
-                        fb.innerHTML = '<i class="fa-solid fa-info-circle"></i> Acesso DCT encerrado.';
+                    if (data.sucesso) {
+                        atualizarStatusTunelDCT();
+                        setTimeout(atualizarStatusTunelDCT, 2500);
+                    } else {
+                        if (fb) {
+                            fb.style.display = 'block';
+                            fb.className = 'alert alert-danger';
+                            fb.innerHTML = `<i class="fa-solid fa-circle-exclamation"></i> ${data.mensagem || 'Erro ao iniciar túnel.'}`;
+                        }
+                        atualizarStatusTunelDCT();
                     }
                 })
                 .catch(() => {
@@ -1001,65 +1016,199 @@
                 });
         }
 
+        function pararTunelDCT() {
+            const btnParar = document.getElementById('btn-parar-tunel');
+            if (btnParar) {
+                btnParar.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Encerrando...';
+                btnParar.disabled = true;
+            }
+            fetch('/api/tunel/parar', { method: 'POST' })
+                .then(res => res.json())
+                .then(() => {
+                    atualizarStatusTunelDCT();
+                })
+                .catch(() => {
+                    atualizarStatusTunelDCT();
+                });
+        }
+
+        function shutdownSystem() {
+            if (!confirm("Tem certeza que deseja encerrar o servidor Triagem AIT nesta máquina?\n\nIsso fechará todas as sessões ativas.")) {
+                return;
+            }
+            fetch("/system/shutdown", { method: "POST" })
+                .then(() => {
+                    document.body.innerHTML = `
+                        <div style="height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #0f172a; color: #f8fafc; font-family: 'Inter', sans-serif; text-align: center; padding: 2rem;">
+                            <div style="font-size: 3rem; color: #f43f5e; margin-bottom: 1rem;"><i class="fa-solid fa-power-off"></i></div>
+                            <h2 style="font-size: 1.5rem; margin-bottom: 0.5rem; font-weight: 700;">Servidor Triagem AIT Encerrado</h2>
+                            <p style="color: #94a3b8; max-width: 450px; font-size: 0.95rem;">A aplicação foi finalizada com sucesso. Você já pode fechar esta janela com segurança.</p>
+                        </div>
+                    `;
+                })
+                .catch(() => {
+                    document.body.innerHTML = `
+                        <div style="height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #0f172a; color: #f8fafc; font-family: 'Inter', sans-serif; text-align: center; padding: 2rem;">
+                            <div style="font-size: 3rem; color: #f43f5e; margin-bottom: 1rem;"><i class="fa-solid fa-power-off"></i></div>
+                            <h2 style="font-size: 1.5rem; margin-bottom: 0.5rem; font-weight: 700;">Servidor Triagem AIT Encerrado</h2>
+                            <p style="color: #94a3b8; max-width: 450px; font-size: 0.95rem;">A aplicação foi finalizada com sucesso. Você já pode fechar esta janela com segurança.</p>
+                        </div>
+                    `;
+                });
+        }
+
+        // ==========================================
+        // Funções de Gerenciamento e Troca de Modo de Rede
+        // ==========================================
+        function abrirModalRede() {
+            const m = document.getElementById('modal-gerenciamento-rede');
+            if (!m) return;
+            m.style.display = 'flex';
+            fetch('/api/rede/status')
+                .then(res => res.json())
+                .then(data => {
+                    const tag = document.getElementById('modal-rede-status-tag');
+                    const cam = document.getElementById('modal-rede-caminho');
+                    const lat = document.getElementById('modal-rede-latencia');
+                    if (tag) {
+                        tag.className = 'badge ' + (data.online ? 'badge-success' : 'badge-danger');
+                        tag.textContent = data.online ? 'Conectado' : 'Offline';
+                    }
+                    if (cam) cam.textContent = data.caminho_ativo;
+                    if (lat) {
+                        if (data.rede_g_disponivel) {
+                            lat.textContent = `Disponível (${data.latencia_ms} ms)`;
+                            lat.style.color = '#34d399';
+                        } else {
+                            lat.textContent = 'Indisponível (Sem acesso ao G:)';
+                            lat.style.color = '#f87171';
+                        }
+                    }
+                    const optAuto = document.getElementById('opt_modo_auto');
+                    const optRedeG = document.getElementById('opt_modo_rede_g');
+                    const optLocal = document.getElementById('opt_modo_local');
+                    if (data.modo_configurado === 'AUTO' && optAuto) optAuto.checked = true;
+                    if (data.modo_configurado === 'REDE_G' && optRedeG) optRedeG.checked = true;
+                    if (data.modo_configurado === 'LOCAL' && optLocal) optLocal.checked = true;
+                })
+                .catch(() => {});
+        }
+
+        function fecharModalRede() {
+            const m = document.getElementById('modal-gerenciamento-rede');
+            if (m) m.style.display = 'none';
+        }
+
+        function testarConexaoRedeG() {
+            const btn = document.getElementById('btn-testar-rede-g');
+            const fb = document.getElementById('modal-rede-feedback');
+            if (btn) {
+                btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Testando...';
+                btn.disabled = true;
+            }
+            fetch('/api/rede/testar_g')
+                .then(res => res.json())
+                .then(data => {
+                    if (fb) {
+                        fb.style.display = 'block';
+                        fb.className = 'alert ' + (data.sucesso ? 'alert-success' : 'alert-danger');
+                        fb.innerHTML = `<i class="fa-solid ${data.sucesso ? 'fa-circle-check' : 'fa-circle-exclamation'}"></i> ${data.mensagem}`;
+                    }
+                })
+                .catch(err => {
+                    if (fb) {
+                        fb.style.display = 'block';
+                        fb.className = 'alert alert-danger';
+                        fb.innerHTML = '<i class="fa-solid fa-circle-exclamation"></i> Falha de comunicação ao testar Rede G:.';
+                    }
+                })
+                .finally(() => {
+                    if (btn) {
+                        btn.innerHTML = '<i class="fa-solid fa-stethoscope"></i> Testar Conexão G:\\';
+                        btn.disabled = false;
+                    }
+                });
+        }
+
+        function aplicarModoRede() {
+            const selectedOpt = document.querySelector('input[name="modal_modo_conexao"]:checked');
+            if (!selectedOpt) return;
+            const selectedMode = selectedOpt.value;
+            const fb = document.getElementById('modal-rede-feedback');
+
+            fetch('/api/rede/conectar', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ modo: selectedMode })
+            })
+            .then(res => res.json().then(data => ({ status: res.status, data })))
+            .then(({ status, data }) => {
+                if (data.sucesso) {
+                    fecharModalRede();
+                    alert(`Configuração atualizada com sucesso!\n\nModo ativo: ${data.modo}\nBanco em uso: ${data.caminho_ativo}`);
+                    window.location.reload();
+                } else {
+                    if (fb) {
+                        fb.style.display = 'block';
+                        fb.className = 'alert alert-danger';
+                        fb.innerHTML = `<i class="fa-solid fa-circle-exclamation"></i> ${data.mensagem}`;
+                    }
+                }
+            })
+            .catch(() => {
+                if (fb) {
+                    fb.style.display = 'block';
+                    fb.className = 'alert alert-danger';
+                    fb.innerHTML = '<i class="fa-solid fa-circle-exclamation"></i> Erro ao alterar configuração de rede.';
+                }
+            });
+        }
+
+        function checkNetworkStatus() {
+            fetch('/api/network_status')
+                .then(r => r.json())
+                .then(data => {
+                    const dot = document.getElementById('login-net-dot');
+                    const text = document.getElementById('login-net-text');
+                    const badge = document.getElementById('login-net-badge');
+                    if (dot && text && badge) {
+                        if (data.online) {
+                            dot.style.backgroundColor = '#34d399';
+                            dot.style.boxShadow = '0 0 6px #34d399';
+                            text.textContent = data.modo === 'REDE_G' ? 'Rede G: Ativa' : (data.modo === 'LOCAL' ? 'Base Local Ativa' : 'Rede G: Sincronizada');
+                            badge.style.borderColor = 'rgba(16, 185, 129, 0.3)';
+                            badge.style.color = '#34d399';
+                        } else {
+                            dot.style.backgroundColor = '#f87171';
+                            dot.style.boxShadow = '0 0 6px #f87171';
+                            text.textContent = 'Rede G: Offline (Base Local)';
+                            badge.style.borderColor = 'rgba(239, 68, 68, 0.3)';
+                            badge.style.color = '#f87171';
+                        }
+                    }
+                })
+                .catch(() => {});
+        }
+
         document.addEventListener("DOMContentLoaded", function() {
+            {% if is_remote %}
+            selectSector('dct');
+            setupPinDigits();
+            {% else %}
+            selectSector('transporte');
             checkNetworkStatus();
             setInterval(checkNetworkStatus, 15000);
-            
-            atualizarStatusTunelDCT();
-            setInterval(atualizarStatusTunelDCT, 10000);
+            {% endif %}
         });
 
-        const usersData = {
-            transporte: [
-                {% for u in triagem_users %}
-                    { username: "{{ u.username }}", name: "{{ u.nome_completo }}" },
-                {% endfor %}
-            ],
-            dct: [
-                {% for u in dct_users %}
-                    { username: "{{ u.username }}", name: "{{ u.nome_completo }}" },
-                {% endfor %}
-            ],
-            admin: [
-                {% for u in admin_users %}
-                    { username: "{{ u.username }}", name: "{{ u.nome_completo }}" },
-                {% endfor %}
-            ]
-        };
-
-        function selectSector(sector) {
-            document.querySelectorAll('.sector-card').forEach(c => c.classList.remove('active'));
-            document.getElementById(`card-${sector}`).classList.add('active');
-            
-            const userSelect = document.getElementById('username');
-            const submitBtn = document.getElementById('btn-login-submit');
-
-            userSelect.innerHTML = '';
-            const list = usersData[sector] || [];
-
-            if (list.length === 0) {
-                const opt = document.createElement('option');
-                opt.value = sector === 'transporte' ? 'triagem' : sector;
-                opt.textContent = sector === 'transporte' ? 'Operador Triagem' : (sector === 'dct' ? 'Conferente DCT' : 'Administrador Geral');
-                userSelect.appendChild(opt);
-            } else {
-                list.forEach(u => {
-                    const opt = document.createElement('option');
-                    opt.value = u.username;
-                    opt.textContent = u.name;
-                    userSelect.appendChild(opt);
-                });
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                const m = document.getElementById('modal-gerenciamento-rede');
+                if (m) m.style.display = 'none';
+                const mt = document.getElementById('modal-tunel-dct');
+                if (mt) mt.style.display = 'none';
             }
-
-            if (sector === 'transporte') {
-                submitBtn.innerHTML = 'Acessar Módulo Triagem <i class="fa-solid fa-right-to-bracket" style="margin-left: 0.5rem;"></i>';
-            } else if (sector === 'dct') {
-                submitBtn.innerHTML = 'Acessar Módulo DCT <i class="fa-solid fa-right-to-bracket" style="margin-left: 0.5rem;"></i>';
-            } else if (sector === 'admin') {
-                submitBtn.innerHTML = 'Acessar Painel Administração <i class="fa-solid fa-right-to-bracket" style="margin-left: 0.5rem;"></i>';
-            }
-            document.getElementById('password').focus();
-        }
+        });
     </script>
 </body>
 </html>
