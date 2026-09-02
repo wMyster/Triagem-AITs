@@ -402,31 +402,9 @@
         </div>
     </div>
 
-    <!-- Modal de Desafio de PIN de Segurança (Apenas para Acesso Remoto Bloqueado) -->
-    <div id="modal-pin-challenge" class="modal-overlay" style="display: {% if is_remote and not pin_autorizado %}flex{% else %}none{% endif %}; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(15, 23, 42, 0.94); backdrop-filter: blur(14px); z-index: 10000; align-items: center; justify-content: center;">
-        <div style="background: rgba(30, 41, 59, 0.98); border: 1px solid rgba(168, 85, 247, 0.5); border-radius: 1.25rem; width: 92%; max-width: 440px; padding: 2.25rem 2rem; box-shadow: 0 25px 60px -10px rgba(0, 0, 0, 0.8), 0 0 35px rgba(168, 85, 247, 0.2); color: #ffffff; text-align: center;">
-            <div style="width: 62px; height: 62px; background: rgba(168, 85, 247, 0.15); border: 1px solid rgba(168, 85, 247, 0.4); border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 1.8rem; color: #c084fc; margin-bottom: 1rem;">
-                <i class="fa-solid fa-lock"></i>
-            </div>
-            <h2 style="font-family: 'Outfit', sans-serif; font-size: 1.35rem; font-weight: 700; margin: 0 0 0.4rem 0; color: #ffffff;">Acesso Remoto DCT Protegido</h2>
-            <p style="font-size: 0.85rem; color: #94a3b8; margin: 0 0 1.5rem 0;">Informe o PIN de segurança de 4 dígitos fornecido pelo setor de Triagem para desbloquear o sistema.</p>
-
-            <div style="display: flex; justify-content: center; gap: 0.65rem; margin-bottom: 1.25rem;" id="pin-inputs-container">
-                <input type="password" maxlength="1" class="pin-digit" id="pin-d1" inputmode="numeric" pattern="[0-9]*" autofocus style="width: 54px; height: 62px; text-align: center; font-size: 1.8rem; font-family: monospace; font-weight: 700; background: rgba(15, 23, 42, 0.8); border: 2px solid rgba(255, 255, 255, 0.2); border-radius: 0.6rem; color: #fef08a; outline: none; transition: all 0.2s ease;">
-                <input type="password" maxlength="1" class="pin-digit" id="pin-d2" inputmode="numeric" pattern="[0-9]*" style="width: 54px; height: 62px; text-align: center; font-size: 1.8rem; font-family: monospace; font-weight: 700; background: rgba(15, 23, 42, 0.8); border: 2px solid rgba(255, 255, 255, 0.2); border-radius: 0.6rem; color: #fef08a; outline: none; transition: all 0.2s ease;">
-                <input type="password" maxlength="1" class="pin-digit" id="pin-d3" inputmode="numeric" pattern="[0-9]*" style="width: 54px; height: 62px; text-align: center; font-size: 1.8rem; font-family: monospace; font-weight: 700; background: rgba(15, 23, 42, 0.8); border: 2px solid rgba(255, 255, 255, 0.2); border-radius: 0.6rem; color: #fef08a; outline: none; transition: all 0.2s ease;">
-                <input type="password" maxlength="1" class="pin-digit" id="pin-d4" inputmode="numeric" pattern="[0-9]*" style="width: 54px; height: 62px; text-align: center; font-size: 1.8rem; font-family: monospace; font-weight: 700; background: rgba(15, 23, 42, 0.8); border: 2px solid rgba(255, 255, 255, 0.2); border-radius: 0.6rem; color: #fef08a; outline: none; transition: all 0.2s ease;">
-            </div>
-
-            <div id="pin-error-msg" style="display: none; font-size: 0.82rem; color: #fca5a5; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 0.45rem; padding: 0.5rem 0.75rem; margin-bottom: 1.25rem;"></div>
-
-            <button type="button" id="btn-verificar-pin" onclick="submeterPINRemoto()" style="width: 100%; padding: 0.8rem; background: linear-gradient(135deg, #a855f7 0%, #7c3aed 100%); border: none; border-radius: 0.5rem; color: #ffffff; font-weight: 600; font-size: 0.95rem; cursor: pointer; transition: all 0.2s ease; box-shadow: 0 4px 14px rgba(168, 85, 247, 0.4);">
-                <i class="fa-solid fa-key"></i> Desbloquear Acesso
-            </button>
-        </div>
-    </div>
 
     <!-- Modal de Gerenciamento e Conexão de Rede (G:\ vs Local) -->
+
     <div id="modal-gerenciamento-rede" class="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(15, 23, 42, 0.88); backdrop-filter: blur(8px); z-index: 9999; align-items: center; justify-content: center;">
         <div style="background: rgba(30, 41, 59, 0.98); border: 1px solid rgba(59, 130, 246, 0.4); border-radius: 1rem; width: 92%; max-width: 580px; padding: 1.75rem; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6); color: #ffffff;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; border-bottom: 1px solid rgba(255, 255, 255, 0.1); padding-bottom: 0.75rem;">
@@ -505,30 +483,17 @@
         <div style="background: rgba(30, 41, 59, 0.98); border: 1px solid rgba(168, 85, 247, 0.4); border-radius: 1rem; width: 92%; max-width: 620px; padding: 1.75rem; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7); color: #ffffff; max-height: 90vh; overflow-y: auto;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; border-bottom: 1px solid rgba(255, 255, 255, 0.1); padding-bottom: 0.75rem;">
                 <h3 style="margin: 0; font-size: 1.2rem; color: #c084fc; display: flex; align-items: center; gap: 0.5rem;">
-                    <i class="fa-solid fa-globe"></i> Acesso Remoto DCT (Link Fixo + Proteção por PIN)
+                    <i class="fa-solid fa-globe"></i> Acesso Remoto DCT (Link Fixo Permanente)
                 </h3>
                 <i class="fa-solid fa-xmark" style="cursor: pointer; font-size: 1.2rem; color: #94a3b8;" onclick="fecharModalTunelDCT()"></i>
             </div>
 
-            <!-- PIN de Segurança em Destaque -->
-            <div style="background: linear-gradient(135deg, rgba(168, 85, 247, 0.15), rgba(59, 130, 246, 0.1)); border: 1px solid rgba(168, 85, 247, 0.4); border-radius: 0.75rem; padding: 1.1rem; margin-bottom: 1.2rem; text-align: center;">
-                <div style="font-size: 0.82rem; color: #cbd5e1; margin-bottom: 0.35rem; display: flex; align-items: center; justify-content: center; gap: 0.4rem;">
-                    <i class="fa-solid fa-shield-halved" style="color: #fef08a;"></i>
-                    <strong style="color: #e2e8f0;">PIN de Segurança da Sessão (4 Dígitos):</strong>
-                </div>
-                <div style="display: flex; align-items: center; justify-content: center; gap: 0.6rem; margin: 0.5rem 0; flex-wrap: wrap;">
-                    <div id="tunel-pin-display" style="font-size: 1.9rem; font-family: monospace; font-weight: 800; letter-spacing: 0.4rem; color: #fef08a; background: rgba(0,0,0,0.55); padding: 0.25rem 1.4rem; border-radius: 0.5rem; border: 1px dashed rgba(254, 240, 138, 0.6); text-shadow: 0 0 10px rgba(254, 240, 138, 0.3);">
-                        ----
-                    </div>
-                    <button type="button" id="btn-copiar-pin" class="btn btn-secondary" onclick="copiarTextoElemento('tunel-pin-display', 'btn-copiar-pin')" style="padding: 0.45rem 0.85rem; font-size: 0.82rem;">
-                        <i class="fa-solid fa-copy"></i> Copiar PIN
-                    </button>
-                    <button type="button" class="btn btn-secondary" onclick="gerarNovoPINTriagem()" title="Gerar outro PIN aleatório" style="padding: 0.45rem 0.85rem; font-size: 0.82rem; background: rgba(255,255,255,0.08);">
-                        <i class="fa-solid fa-arrows-rotate"></i> Novo PIN
-                    </button>
-                </div>
-                <div style="font-size: 0.76rem; color: #94a3b8;">
-                    🔒 O agente da DCT precisará digitar este PIN no Chrome para desbloquear o sistema.
+            <!-- Auto-start info banner -->
+            <div style="background: rgba(168, 85, 247, 0.12); border: 1px solid rgba(168, 85, 247, 0.35); border-radius: 0.75rem; padding: 0.9rem 1.1rem; margin-bottom: 1.2rem; display: flex; align-items: center; gap: 0.75rem;">
+                <i class="fa-solid fa-bolt" style="color: #c084fc; font-size: 1.3rem;"></i>
+                <div style="font-size: 0.83rem; color: #cbd5e1;">
+                    <strong style="color: #ffffff;">Túnel com Auto-Start Ativo</strong><br>
+                    O operador da DCT acessa pelo link fixo abaixo e faz login direto com seu <strong>Usuário e Senha</strong> (sem necessidade de PIN).
                 </div>
             </div>
 
@@ -536,17 +501,17 @@
             <div style="background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 0.75rem; padding: 1.1rem; margin-bottom: 1.2rem;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
                     <span style="color: #94a3b8; font-size: 0.85rem;">Status do Acesso Remoto:</span>
-                    <span id="tunel-status-tag" class="badge" style="background: rgba(148, 163, 184, 0.2); color: #94a3b8;">Desconectado</span>
+                    <span id="tunel-status-tag" class="badge" style="background: rgba(16, 185, 129, 0.2); color: #34d399;">🟢 Ativo (Online)</span>
                 </div>
 
                 <!-- Link Seguro de Internet -->
                 <div style="margin-bottom: 0.9rem;">
                     <label style="display: block; font-size: 0.82rem; color: #a855f7; font-weight: 600; margin-bottom: 0.3rem;">
-                        <i class="fa-solid fa-shield-halved"></i> Link Seguro de Internet (Para o Google Chrome da DCT):
+                        <i class="fa-solid fa-link"></i> Link Seguro Permanente (Para a DCT salvar nos Favoritos):
                     </label>
                     <div style="display: flex; gap: 0.5rem; align-items: center;">
-                        <input type="text" id="tunel-url-input" readonly value="Túnel inativo. Clique em 'Iniciar Acesso DCT' abaixo." style="flex: 1; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.15); border-radius: 0.4rem; padding: 0.55rem 0.75rem; font-family: monospace; font-size: 0.85rem; color: #f8fafc;">
-                        <button type="button" id="btn-copiar-tunel" class="btn btn-secondary" onclick="copiarTextoDoInput('tunel-url-input', 'btn-copiar-tunel')" disabled style="padding: 0.55rem 0.85rem; white-space: nowrap;">
+                        <input type="text" id="tunel-url-input" readonly value="https://triagem-caragua-dct.loca.lt" style="flex: 1; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.15); border-radius: 0.4rem; padding: 0.55rem 0.75rem; font-family: monospace; font-size: 0.85rem; color: #f8fafc;">
+                        <button type="button" id="btn-copiar-tunel" class="btn btn-secondary" onclick="copiarTextoDoInput('tunel-url-input', 'btn-copiar-tunel')" style="padding: 0.55rem 0.85rem; white-space: nowrap;">
                             <i class="fa-solid fa-copy"></i> Copiar Link
                         </button>
                     </div>
@@ -569,7 +534,6 @@
             <!-- Feedback -->
             <div id="tunel-feedback-msg" style="display: none; padding: 0.6rem 0.85rem; border-radius: 0.45rem; font-size: 0.85rem; margin-bottom: 1.25rem;"></div>
 
-
             <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
                 <button type="button" class="btn btn-secondary" onclick="fecharModalTunelDCT()">Fechar</button>
                 <div style="display: flex; gap: 0.75rem;">
@@ -583,6 +547,7 @@
             </div>
         </div>
     </div>
+
 
     <!-- Scripts e Lógica da Tela de Login -->
     <script>
@@ -668,141 +633,9 @@
         }
 
         // ==========================================
-        // Lógica do PIN de Desafio Remoto (4 Dígitos)
-        // ==========================================
-        function setupPinDigits() {
-            const digits = [
-                document.getElementById('pin-d1'),
-                document.getElementById('pin-d2'),
-                document.getElementById('pin-d3'),
-                document.getElementById('pin-d4')
-            ];
-
-            if (!digits[0]) return;
-
-            digits.forEach((input, index) => {
-                input.addEventListener('input', function(e) {
-                    const val = this.value;
-                    if (val.length === 1 && index < 3) {
-                        digits[index + 1].focus();
-                        digits[index + 1].select();
-                    }
-                    verificarAutoSubmitPIN();
-                });
-
-                input.addEventListener('keydown', function(e) {
-                    if (e.key === 'Backspace' && !this.value && index > 0) {
-                        digits[index - 1].focus();
-                        digits[index - 1].select();
-                    } else if (e.key === 'Enter') {
-                        submeterPINRemoto();
-                    }
-                });
-
-                input.addEventListener('paste', function(e) {
-                    e.preventDefault();
-                    const text = (e.clipboardData || window.clipboardData).getData('text').trim();
-                    const nums = text.replace(/[^0-9]/g, '');
-                    if (nums.length >= 4) {
-                        for (let i = 0; i < 4; i++) {
-                            if (digits[i]) digits[i].value = nums[i];
-                        }
-                        digits[3].focus();
-                        submeterPINRemoto();
-                    }
-                });
-            });
-
-            setTimeout(() => {
-                if (digits[0]) digits[0].focus();
-            }, 300);
-        }
-
-        function verificarAutoSubmitPIN() {
-            const d1 = document.getElementById('pin-d1')?.value || '';
-            const d2 = document.getElementById('pin-d2')?.value || '';
-            const d3 = document.getElementById('pin-d3')?.value || '';
-            const d4 = document.getElementById('pin-d4')?.value || '';
-
-            if (d1 && d2 && d3 && d4) {
-                submeterPINRemoto();
-            }
-        }
-
-        function submeterPINRemoto() {
-            const d1 = document.getElementById('pin-d1')?.value || '';
-            const d2 = document.getElementById('pin-d2')?.value || '';
-            const d3 = document.getElementById('pin-d3')?.value || '';
-            const d4 = document.getElementById('pin-d4')?.value || '';
-            const pinCompleto = `${d1}${d2}${d3}${d4}`.trim();
-            const errorMsg = document.getElementById('pin-error-msg');
-            const btn = document.getElementById('btn-verificar-pin');
-            const container = document.getElementById('pin-inputs-container');
-
-            if (pinCompleto.length !== 4) {
-                if (errorMsg) {
-                    errorMsg.style.display = 'block';
-                    errorMsg.textContent = 'Por favor, digite os 4 números do PIN de segurança.';
-                }
-                return;
-            }
-
-            if (btn) {
-                btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Validando PIN...';
-                btn.disabled = true;
-            }
-
-            fetch('/api/tunel/validar_pin', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ pin: pinCompleto })
-            })
-            .then(res => res.json().then(data => ({ status: res.status, data })))
-            .then(({ status, data }) => {
-                if (status === 200 && data.sucesso) {
-                    const modalPin = document.getElementById('modal-pin-challenge');
-                    if (modalPin) {
-                        modalPin.style.opacity = '0';
-                        modalPin.style.transition = 'opacity 0.4s ease';
-                        setTimeout(() => { modalPin.style.display = 'none'; }, 400);
-                    }
-                    selectSector('dct');
-                    const pwd = document.getElementById('password');
-                    if (pwd) pwd.focus();
-                } else {
-                    if (errorMsg) {
-                        errorMsg.style.display = 'block';
-                        errorMsg.textContent = data.mensagem || 'PIN de segurança incorreto.';
-                    }
-                    if (container) {
-                        container.style.animation = 'shake 0.4s ease';
-                        setTimeout(() => { container.style.animation = ''; }, 500);
-                    }
-                    ['pin-d1', 'pin-d2', 'pin-d3', 'pin-d4'].forEach(id => {
-                        const el = document.getElementById(id);
-                        if (el) el.value = '';
-                    });
-                    const first = document.getElementById('pin-d1');
-                    if (first) first.focus();
-                }
-            })
-            .catch(() => {
-                if (errorMsg) {
-                    errorMsg.style.display = 'block';
-                    errorMsg.textContent = 'Erro ao conectar ao servidor para validar o PIN.';
-                }
-            })
-            .finally(() => {
-                if (btn) {
-                    btn.innerHTML = '<i class="fa-solid fa-key"></i> Desbloquear Acesso';
-                    btn.disabled = false;
-                }
-            });
-        }
-
-        // ==========================================
         // Gerenciador de Túnel DCT & Rede
         // ==========================================
+
         function copiarTextoElemento(elemId, btnId) {
             const el = document.getElementById(elemId);
             if (!el) return;
@@ -1189,13 +1022,15 @@
         document.addEventListener("DOMContentLoaded", function() {
             {% if is_remote %}
             selectSector('dct');
-            setupPinDigits();
+            const pwd = document.getElementById('password');
+            if (pwd) pwd.focus();
             {% else %}
             selectSector('transporte');
             checkNetworkStatus();
             setInterval(checkNetworkStatus, 15000);
             {% endif %}
         });
+
 
         document.addEventListener('keydown', function(e) {
             if (e.key === 'Escape') {

@@ -90,3 +90,14 @@ if os.path.exists(src_cf):
     except Exception as e:
         print(f"[ERROR] Não foi possível copiar cloudflared.exe: {e}")
 
+# Sincronização automática do config_tunel.json
+src_cfg = os.path.join(spec_dir, 'config_tunel.json')
+dst_cfg = os.path.join(dist_dir, 'config_tunel.json')
+if os.path.exists(src_cfg):
+    try:
+        shutil.copy2(src_cfg, dst_cfg)
+        print(f"[INFO] config_tunel.json sincronizado para dist!\n")
+    except Exception as e:
+        print(f"[ERROR] Não foi possível copiar config_tunel.json: {e}")
+
+

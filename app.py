@@ -11,9 +11,9 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from audit import log_auditoria
 from scripts.tunnel_manager import (
     iniciar_tunel, parar_tunel, status_tunel, obter_ip_local,
-    obter_config_tunel, salvar_config_tunel, gerar_novo_pin,
-    obter_pin_atual, definir_pin, validar_pin
+    obter_config_tunel, salvar_config_tunel, iniciar_tunel_auto_start
 )
+
 
 def is_remote_request():
     """Verifica se a requisição está vindo por túnel externo ou IP remoto."""
@@ -110,6 +110,12 @@ try:
     iniciar_agendador_backups()
 except Exception as e:
     print(f"[BACKUP AGENDADOR AVISO]: {e}")
+
+try:
+    iniciar_tunel_auto_start(porta=5000)
+except Exception as e:
+    print(f"[TUNEL AUTO-START AVISO]: {e}")
+
 
 def with_db_retry(max_retries=5, delay=0.4):
     def decorator(f):
@@ -373,14 +379,8 @@ def api_rede_testar():
 @app.route("/login", methods=["GET", "POST"])
 def login():
     remote = is_remote_request()
-    pin_autorizado = session.get("pin_autorizado", False) if remote else True
 
     if request.method == "POST":
-        # Se for acesso remoto e o PIN ainda não foi validado, bloqueia
-        if remote and not pin_autorizado:
-            flash("Acesso bloqueado por PIN de segurança. Digite o PIN de 4 dígitos para continuar.", "danger")
-            return redirect(url_for("login"))
-
         username = request.form.get("username", "").strip()
         password = request.form.get("password", "").strip()
 
@@ -394,7 +394,6 @@ def login():
             flash("Acesso Remoto Restrito: O link externo permite acesso exclusivo ao Módulo DCT.", "danger")
             return redirect(url_for("login"))
 
-
         if user and check_password_hash(user["senha_hash"], password):
             session["user"] = {
                 "id": user["id"],
@@ -406,7 +405,10 @@ def login():
             session["_last_seen_ts"] = time.time()
             log_auditoria(user["username"], user["setor"], "LOGIN_SUCESSO")
             flash(f"Bem-vindo(a), {user['nome_completo']}!", "success")
+            if remote:
+                return redirect(url_for("dct_conferencia"))
             return redirect(url_for("index"))
+
         else:
             log_auditoria(username, "DESCONHECIDO", "LOGIN_FALHA", justificativa="Senha ou usuário incorreto")
             flash("Usuário ou senha inválidos.", "danger")
@@ -421,8 +423,8 @@ def login():
                            triagem_users=triagem_users, 
                            dct_users=dct_users, 
                            admin_users=admin_users,
-                           is_remote=remote,
-                           pin_autorizado=pin_autorizado)
+                           is_remote=remote)
+
 
 @app.route("/logout")
 def logout():
@@ -901,15 +903,9 @@ def api_sync_version():
         return jsonify({"status": "error", "message": str(e)}), 500
 
 @app.route("/api/tunel/status", methods=["GET"])
-
-
 def api_tunel_status():
-    """Retorna o status atual do túnel seguro e o PIN da sessão."""
-    st = status_tunel()
-    # Se a requisição for remota e o PIN ainda não foi validado, esconde o PIN por segurança
-    if is_remote_request() and not session.get("pin_autorizado"):
-        st["pin"] = "****"
-    return jsonify(st)
+    """Retorna o status atual do túnel de Acesso DCT."""
+    return jsonify(status_tunel())
 
 @app.route("/api/tunel/iniciar", methods=["POST"])
 def api_tunel_iniciar():
@@ -918,7 +914,7 @@ def api_tunel_iniciar():
     res = iniciar_tunel(porta=5000)
     if res.get("sucesso"):
         log_auditoria(user.get("username", "SISTEMA"), user.get("setor", "SISTEMA"), "INICIAR_TUNEL_DCT", 
-                      justificativa=f"Túnel remoto ativado: {res.get('url', 'conectando')} (PIN: {res.get('pin')})")
+                      justificativa=f"Túnel remoto ativado: {res.get('url', 'conectando')}")
     return jsonify(res)
 
 @app.route("/api/tunel/parar", methods=["POST"])
@@ -930,30 +926,6 @@ def api_tunel_parar():
                   justificativa="Túnel remoto da DCT encerrado")
     return jsonify(res)
 
-@app.route("/api/tunel/validar_pin", methods=["POST"])
-def api_tunel_validar_pin():
-    """Valida o PIN de 4 dígitos digitado pelo operador remoto."""
-    data = request.get_json(silent=True) or {}
-    pin_digitado = str(data.get("pin", "")).strip()
-    if validar_pin(pin_digitado):
-        session["pin_autorizado"] = True
-        return jsonify({"sucesso": True, "mensagem": "PIN validado com sucesso! Acesso ao Módulo DCT liberado."})
-    return jsonify({"sucesso": False, "mensagem": "PIN incorreto. Solicite o código de 4 dígitos para a Triagem."}), 403
-
-@app.route("/api/tunel/gerar_pin", methods=["POST"])
-def api_tunel_gerar_pin():
-    """Gera um novo PIN de 4 dígitos na máquina servidora."""
-    novo_pin = gerar_novo_pin()
-    return jsonify({"sucesso": True, "pin": novo_pin})
-
-@app.route("/api/tunel/definir_pin", methods=["POST"])
-def api_tunel_definir_pin():
-    """Permite à Triagem definir um PIN manual de 4 dígitos."""
-    data = request.get_json(silent=True) or {}
-    novo_pin = data.get("pin", "")
-    res = definir_pin(novo_pin)
-    return jsonify(res)
-
 @app.route("/api/tunel/config", methods=["GET"])
 def api_tunel_get_config():
     """Retorna a configuração salva do túnel."""
@@ -961,13 +933,14 @@ def api_tunel_get_config():
 
 @app.route("/api/tunel/config", methods=["POST"])
 def api_tunel_save_config():
-    """Salva as preferências de subdomínio fixo e provedor."""
+    """Salva as preferências de subdomínio fixo e auto-start."""
     data = request.get_json(silent=True) or {}
     provedor = data.get("provedor", "localtunnel")
-    subdominio = data.get("subdominio", "triagem-ait-caragua")
-    pin_padrao = data.get("pin_padrao", "")
-    res = salvar_config_tunel(provedor=provedor, subdominio=subdominio, pin_padrao=pin_padrao)
+    subdominio = data.get("subdominio", "triagem-caragua-dct")
+    auto_start = data.get("auto_start", True)
+    res = salvar_config_tunel(provedor=provedor, subdominio=subdominio, auto_start=auto_start)
     return jsonify(res)
+
 
 @app.route("/cadastro", methods=["GET", "POST"])
 @app.route("/cadastro/<int:ait_id>", methods=["GET", "POST"])
