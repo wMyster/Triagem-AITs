@@ -48,8 +48,8 @@ def obter_config_tunel():
     caminho = obter_caminho_config()
     default_config = {
         "provedor": "cloudflare",
-        "url_fixa": "https://dct-triagem.com",
-        "subdominio": "dct-triagem.com",
+        "url_fixa": "https://www.dct-triagem.com",
+        "subdominio": "www.dct-triagem.com",
         "pin_padrao": ""
     }
     if os.path.exists(caminho):
@@ -62,7 +62,7 @@ def obter_config_tunel():
     return default_config
 
 
-def salvar_config_tunel(provedor="cloudflare", url_fixa="https://dct-triagem.com", subdominio="dct-triagem.com", pin_padrao=""):
+def salvar_config_tunel(provedor="cloudflare", url_fixa="https://www.dct-triagem.com", subdominio="www.dct-triagem.com", pin_padrao=""):
     """Salva as configurações de provedor, URL fixa e PIN padrão."""
     caminho = obter_caminho_config()
     
@@ -72,8 +72,8 @@ def salvar_config_tunel(provedor="cloudflare", url_fixa="https://dct-triagem.com
 
     config = {
         "provedor": provedor or "cloudflare",
-        "url_fixa": url_limpa or "https://dct-triagem.com",
-        "subdominio": subdominio or "dct-triagem.com",
+        "url_fixa": url_limpa or "https://www.dct-triagem.com",
+        "subdominio": subdominio or "www.dct-triagem.com",
         "pin_padrao": str(pin_padrao).strip()[:4] if pin_padrao else ""
     }
     try:
@@ -82,6 +82,7 @@ def salvar_config_tunel(provedor="cloudflare", url_fixa="https://dct-triagem.com
         return {"sucesso": True, "config": config}
     except Exception as e:
         return {"sucesso": False, "mensagem": f"Erro ao salvar configuração: {e}"}
+
 
 
 
@@ -356,19 +357,20 @@ def status_tunel():
         elif provedor == "localtunnel":
             url_retorno = f"https://{config.get('subdominio', 'triagem-ait-caragua')}.loca.lt"
         else:
-            url_retorno = config.get("url_fixa", "https://dct-triagem.com")
+            url_retorno = config.get("url_fixa", "https://www.dct-triagem.com")
 
         return {
             "status": _tunnel_status,
             "url": url_retorno,
-            "url_fixa": config.get("url_fixa", "https://dct-triagem.com"),
+            "url_fixa": config.get("url_fixa", "https://www.dct-triagem.com"),
             "pin": obter_pin_atual(),
             "ip_local": f"http://{ip_local}:5000",
             "uptime_segundos": uptime_segundos,
             "erro": _tunnel_error,
             "provedor": provedor,
-            "subdominio": config.get("subdominio", "dct-triagem.com")
+            "subdominio": config.get("subdominio", "www.dct-triagem.com")
         }
+
 
 
 
