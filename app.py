@@ -258,7 +258,9 @@ def quem_esta_logado():
 STATUS_OPTIONS = ["DCT PROCESSAR", "PROCESSADO DCT", "CANCELADO", "AIT SUBSTITUIDA", "RENAINF"]
 
 # --- API Status e Gerenciamento de Rede ---
-@app.route("/api/status_rede")
+@app.route("/api/network_status", methods=["GET"])
+@app.route("/api/rede/status", methods=["GET"])
+@app.route("/api/status_rede", methods=["GET"])
 def api_status_rede():
     net_dir = _DB_SETTINGS["net_dir"]
     net_db = get_net_db_path()
@@ -285,14 +287,19 @@ def api_status_rede():
     
     return jsonify({
         "status": "online" if (active_path and os.path.exists(active_path)) else "offline",
+        "online": True if (active_path and os.path.exists(active_path)) else False,
         "modo": current_mode,
+        "modo_configurado": current_mode,
+        "modo_ativo": "REDE_G" if is_using_net else "LOCAL",
         "usando_rede": is_using_net,
         "caminho_ativo": active_path,
         "rede_g_disponivel": net_available,
         "rede_g_caminho": net_db,
+        "latencia_ms": latency_ms or 0,
         "rede_g_latencia_ms": latency_ms,
         "rede_g_erro": net_error,
-        "local_caminho": local_path
+        "local_caminho": local_path,
+        "descricao": "Rede G: Conectada" if is_using_net else "Modo Local (Offline G:)"
     }), 200
 
 @app.route("/api/rede/conectar", methods=["POST"])
@@ -325,9 +332,11 @@ def api_rede_conectar():
         "caminho_ativo": active_path
     }), 200
 
+@app.route("/api/rede/testar_g", methods=["POST", "GET"])
 @app.route("/api/rede/testar", methods=["POST", "GET"])
 def api_rede_testar():
     net_dir = _DB_SETTINGS["net_dir"]
+
     net_db = get_net_db_path()
     start_t = time.time()
     
@@ -878,6 +887,7 @@ def api_sync_version():
 
         return jsonify({
             "status": "ok",
+
             "data_version": data_version,
             "last_log": log_data,
             "counts": {
@@ -891,6 +901,8 @@ def api_sync_version():
         return jsonify({"status": "error", "message": str(e)}), 500
 
 @app.route("/api/tunel/status", methods=["GET"])
+
+
 def api_tunel_status():
     """Retorna o status atual do túnel seguro e o PIN da sessão."""
     st = status_tunel()

@@ -921,16 +921,26 @@
                     if (ipInput) ipInput.value = data.ip_local || 'http://127.0.0.1:5000';
                     if (pinDisplay && data.pin) pinDisplay.textContent = data.pin;
 
-                    if (data.status === 'ativo' && data.url) {
+                    const urlExibicao = data.url || data.url_fixa || 'https://www.dct-triagem.com';
+                    if (urlInput) urlInput.value = urlExibicao;
+                    if (btnCopiar) btnCopiar.disabled = false;
+
+                    if (data.status === 'ativo') {
                         if (tag) {
                             tag.textContent = '🟢 Ativo (Online)';
                             tag.style.background = 'rgba(16, 185, 129, 0.2)';
                             tag.style.color = '#34d399';
                         }
-                        if (urlInput) urlInput.value = data.url;
-                        if (btnCopiar) btnCopiar.disabled = false;
-                        if (btnIniciar) btnIniciar.style.display = 'none';
-                        if (btnParar) btnParar.style.display = 'inline-flex';
+                        if (btnIniciar) {
+                            btnIniciar.style.display = 'none';
+                            btnIniciar.disabled = false;
+                            btnIniciar.innerHTML = '<i class="fa-solid fa-play"></i> Iniciar Acesso DCT';
+                        }
+                        if (btnParar) {
+                            btnParar.style.display = 'inline-flex';
+                            btnParar.innerHTML = '<i class="fa-solid fa-stop"></i> Encerrar Acesso DCT';
+                            btnParar.disabled = false;
+                        }
                         if (loginTag) loginTag.textContent = 'Acesso DCT: Ativo';
                         if (loginBadge) {
                             loginBadge.style.background = 'rgba(16, 185, 129, 0.15)';
@@ -943,14 +953,15 @@
                             tag.style.background = 'rgba(245, 158, 11, 0.2)';
                             tag.style.color = '#fbbf24';
                         }
-                        if (urlInput) urlInput.value = data.url || 'Iniciando link fixo seguro...';
-                        if (btnCopiar) btnCopiar.disabled = false;
                         if (btnIniciar) {
                             btnIniciar.style.display = 'inline-flex';
                             btnIniciar.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Conectando...';
                             btnIniciar.disabled = true;
                         }
-                        if (btnParar) btnParar.style.display = 'none';
+                        if (btnParar) {
+                            btnParar.style.display = 'none';
+                            btnParar.disabled = false;
+                        }
                         if (loginTag) loginTag.textContent = 'Acesso DCT: Conectando...';
                     } else {
                         if (tag) {
@@ -958,17 +969,22 @@
                             tag.style.background = 'rgba(148, 163, 184, 0.2)';
                             tag.style.color = '#94a3b8';
                         }
-                        if (urlInput) {
-                            urlInput.value = data.url || 'Túnel inativo. Clique em "Iniciar Acesso DCT" abaixo.';
-                        }
-                        if (btnCopiar) btnCopiar.disabled = !data.url;
                         if (btnIniciar) {
                             btnIniciar.style.display = 'inline-flex';
                             btnIniciar.innerHTML = '<i class="fa-solid fa-play"></i> Iniciar Acesso DCT';
                             btnIniciar.disabled = false;
                         }
-                        if (btnParar) btnParar.style.display = 'none';
+                        if (btnParar) {
+                            btnParar.style.display = 'none';
+                            btnParar.innerHTML = '<i class="fa-solid fa-stop"></i> Encerrar Acesso DCT';
+                            btnParar.disabled = false;
+                        }
                         if (loginTag) loginTag.textContent = 'Acesso DCT';
+                        if (loginBadge) {
+                            loginBadge.style.background = 'rgba(168, 85, 247, 0.12)';
+                            loginBadge.style.borderColor = 'rgba(168, 85, 247, 0.3)';
+                            loginBadge.style.color = '#c084fc';
+                        }
                     }
 
                 })
@@ -987,17 +1003,7 @@
             fetch('/api/tunel/iniciar', { method: 'POST' })
                 .then(res => res.json())
                 .then(data => {
-                    if (data.sucesso) {
-                        atualizarStatusTunelDCT();
-                        setTimeout(atualizarStatusTunelDCT, 2500);
-                    } else {
-                        if (fb) {
-                            fb.style.display = 'block';
-                            fb.className = 'alert alert-danger';
-                            fb.innerHTML = `<i class="fa-solid fa-circle-exclamation"></i> ${data.mensagem || 'Erro ao iniciar túnel.'}`;
-                        }
-                        atualizarStatusTunelDCT();
-                    }
+                    atualizarStatusTunelDCT();
                 })
                 .catch(() => {
                     atualizarStatusTunelDCT();
@@ -1019,6 +1025,7 @@
                     atualizarStatusTunelDCT();
                 });
         }
+
 
         function shutdownSystem() {
             if (!confirm("Tem certeza que deseja encerrar o servidor Triagem AIT nesta máquina?\n\nIsso fechará todas as sessões ativas.")) {
@@ -1153,17 +1160,17 @@
         }
 
         function checkNetworkStatus() {
-            fetch('/api/network_status')
+            fetch('/api/status_rede')
                 .then(r => r.json())
                 .then(data => {
                     const dot = document.getElementById('login-net-dot');
                     const text = document.getElementById('login-net-text');
                     const badge = document.getElementById('login-net-badge');
                     if (dot && text && badge) {
-                        if (data.online) {
+                        if (data.status === 'online' || data.online || data.rede_g_disponivel) {
                             dot.style.backgroundColor = '#34d399';
                             dot.style.boxShadow = '0 0 6px #34d399';
-                            text.textContent = data.modo === 'REDE_G' ? 'Rede G: Ativa' : (data.modo === 'LOCAL' ? 'Base Local Ativa' : 'Rede G: Sincronizada');
+                            text.textContent = data.modo === 'REDE_G' ? 'Rede G: Ativa' : (data.modo === 'LOCAL' ? 'Base Local Ativa' : 'Rede G: Conectada');
                             badge.style.borderColor = 'rgba(16, 185, 129, 0.3)';
                             badge.style.color = '#34d399';
                         } else {
@@ -1177,6 +1184,7 @@
                 })
                 .catch(() => {});
         }
+
 
         document.addEventListener("DOMContentLoaded", function() {
             {% if is_remote %}

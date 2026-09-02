@@ -351,18 +351,21 @@ def status_tunel():
         uptime_segundos = int(time.time() - _tunnel_start_time) if _tunnel_start_time and _tunnel_status == "ativo" else 0
         config = obter_config_tunel()
         provedor = config.get("provedor", "cloudflare")
+        url_fixa = config.get("url_fixa", "https://www.dct-triagem.com")
         
         if _tunnel_url:
             url_retorno = _tunnel_url
+        elif url_fixa:
+            url_retorno = url_fixa
         elif provedor == "localtunnel":
-            url_retorno = f"https://{config.get('subdominio', 'triagem-ait-caragua')}.loca.lt"
+            url_retorno = f"https://{config.get('subdominio', 'www.dct-triagem.com')}.loca.lt"
         else:
-            url_retorno = config.get("url_fixa", "https://www.dct-triagem.com")
+            url_retorno = "https://www.dct-triagem.com"
 
         return {
             "status": _tunnel_status,
             "url": url_retorno,
-            "url_fixa": config.get("url_fixa", "https://www.dct-triagem.com"),
+            "url_fixa": url_fixa,
             "pin": obter_pin_atual(),
             "ip_local": f"http://{ip_local}:5000",
             "uptime_segundos": uptime_segundos,
@@ -370,6 +373,7 @@ def status_tunel():
             "provedor": provedor,
             "subdominio": config.get("subdominio", "www.dct-triagem.com")
         }
+
 
 
 

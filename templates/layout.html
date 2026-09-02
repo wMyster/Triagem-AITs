@@ -807,16 +807,26 @@
                     if (ipInput) ipInput.value = data.ip_local || 'http://127.0.0.1:5000';
                     if (pinDisplay && data.pin) pinDisplay.textContent = data.pin;
 
-                    if (data.status === 'ativo' && data.url) {
+                    const urlExibicao = data.url || data.url_fixa || 'https://www.dct-triagem.com';
+                    if (urlInput) urlInput.value = urlExibicao;
+                    if (btnCopiar) btnCopiar.disabled = false;
+
+                    if (data.status === 'ativo') {
                         if (tag) {
                             tag.textContent = '🟢 Ativo (Online)';
                             tag.style.background = 'rgba(16, 185, 129, 0.2)';
                             tag.style.color = '#34d399';
                         }
-                        if (urlInput) urlInput.value = data.url;
-                        if (btnCopiar) btnCopiar.disabled = false;
-                        if (btnIniciar) btnIniciar.style.display = 'none';
-                        if (btnParar) btnParar.style.display = 'inline-flex';
+                        if (btnIniciar) {
+                            btnIniciar.style.display = 'none';
+                            btnIniciar.disabled = false;
+                            btnIniciar.innerHTML = '<i class="fa-solid fa-play"></i> Iniciar Acesso DCT';
+                        }
+                        if (btnParar) {
+                            btnParar.style.display = 'inline-flex';
+                            btnParar.innerHTML = '<i class="fa-solid fa-stop"></i> Encerrar Acesso DCT';
+                            btnParar.disabled = false;
+                        }
                         if (navBadge) {
                             navBadge.style.display = 'inline-block';
                             navBadge.style.backgroundColor = '#10b981';
@@ -827,32 +837,34 @@
                             tag.style.background = 'rgba(245, 158, 11, 0.2)';
                             tag.style.color = '#fbbf24';
                         }
-                        if (urlInput) urlInput.value = data.url || 'Iniciando link fixo seguro...';
-                        if (btnCopiar) btnCopiar.disabled = false;
                         if (btnIniciar) {
                             btnIniciar.style.display = 'inline-flex';
                             btnIniciar.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Conectando...';
                             btnIniciar.disabled = true;
                         }
-                        if (btnParar) btnParar.style.display = 'none';
+                        if (btnParar) {
+                            btnParar.style.display = 'none';
+                            btnParar.disabled = false;
+                        }
                     } else {
                         if (tag) {
                             tag.textContent = 'Desconectado';
                             tag.style.background = 'rgba(148, 163, 184, 0.2)';
                             tag.style.color = '#94a3b8';
                         }
-                        if (urlInput) {
-                            urlInput.value = data.url || 'Túnel inativo. Clique em "Iniciar Acesso DCT" abaixo.';
-                        }
-                        if (btnCopiar) btnCopiar.disabled = !data.url;
                         if (btnIniciar) {
                             btnIniciar.style.display = 'inline-flex';
                             btnIniciar.innerHTML = '<i class="fa-solid fa-play"></i> Iniciar Acesso DCT';
                             btnIniciar.disabled = false;
                         }
-                        if (btnParar) btnParar.style.display = 'none';
+                        if (btnParar) {
+                            btnParar.style.display = 'none';
+                            btnParar.innerHTML = '<i class="fa-solid fa-stop"></i> Encerrar Acesso DCT';
+                            btnParar.disabled = false;
+                        }
                         if (navBadge) navBadge.style.display = 'none';
                     }
+
 
                 })
                 .catch(() => {});
