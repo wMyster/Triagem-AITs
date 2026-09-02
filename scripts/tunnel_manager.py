@@ -47,8 +47,9 @@ def obter_config_tunel():
     """Carrega as configurações salvas do túnel."""
     caminho = obter_caminho_config()
     default_config = {
-        "provedor": "cloudflare",  # Motor nativo portátil integrado (Zero dependências)
-        "subdominio": "triagem-ait-caragua",
+        "provedor": "cloudflare",
+        "url_fixa": "https://dct-triagem.com",
+        "subdominio": "dct-triagem.com",
         "pin_padrao": ""
     }
     if os.path.exists(caminho):
@@ -61,18 +62,18 @@ def obter_config_tunel():
     return default_config
 
 
-
-def salvar_config_tunel(provedor="localtunnel", subdominio="triagem-ait-caragua", pin_padrao=""):
-    """Salva as configurações de provedor, subdomínio fixo e PIN padrão."""
+def salvar_config_tunel(provedor="cloudflare", url_fixa="https://dct-triagem.com", subdominio="dct-triagem.com", pin_padrao=""):
+    """Salva as configurações de provedor, URL fixa e PIN padrão."""
     caminho = obter_caminho_config()
     
-    subdominio_limpo = re.sub(r'[^a-zA-Z0-9-]', '', subdominio.strip().lower()) if subdominio else "triagem-ait-caragua"
-    if not subdominio_limpo:
-        subdominio_limpo = "triagem-ait-caragua"
+    url_limpa = url_fixa.strip() if url_fixa else ""
+    if url_limpa and not url_limpa.startswith("http"):
+        url_limpa = f"https://{url_limpa}"
 
     config = {
-        "provedor": "cloudflare" if provedor == "cloudflare" else "localtunnel",
-        "subdominio": subdominio_limpo,
+        "provedor": provedor or "cloudflare",
+        "url_fixa": url_limpa or "https://dct-triagem.com",
+        "subdominio": subdominio or "dct-triagem.com",
         "pin_padrao": str(pin_padrao).strip()[:4] if pin_padrao else ""
     }
     try:
@@ -81,6 +82,7 @@ def salvar_config_tunel(provedor="localtunnel", subdominio="triagem-ait-caragua"
         return {"sucesso": True, "config": config}
     except Exception as e:
         return {"sucesso": False, "mensagem": f"Erro ao salvar configuração: {e}"}
+
 
 
 # ==========================================
@@ -226,13 +228,30 @@ def iniciar_tunel(porta=5000):
         _tunnel_error = None
 
         config = obter_config_tunel()
+        url_fixa = config.get("url_fixa")
         provedor = config.get("provedor", "cloudflare")
-        subdominio = config.get("subdominio", "triagem-ait-caragua")
+        subdominio = config.get("subdominio", "dct-triagem.com")
+
+        # Se já temos uma URL fixa configurada (ex: Cloudflare permanente), ativa ela diretamente
+        if url_fixa:
+            _tunnel_url = url_fixa
+            _tunnel_status = "ativo"
+            _tunnel_start_time = time.time()
+            return {
+                "sucesso": True,
+                "status": "ativo",
+                "url": _tunnel_url,
+                "pin": pin_sessao,
+                "provedor": provedor,
+                "ip_local": f"http://{obter_ip_local()}:{porta}",
+                "mensagem": "Link fixo permanente ativo!"
+            }
 
         try:
             creation_flags = 0
             if sys.platform == "win32":
                 creation_flags = subprocess.CREATE_NO_WINDOW
+
 
             if provedor == "localtunnel" and shutil.which("npx"):
                 cmd = ["npx", "-y", "localtunnel", "--port", str(porta), "--subdomain", subdominio]
@@ -330,16 +349,28 @@ def status_tunel():
         ip_local = obter_ip_local()
         uptime_segundos = int(time.time() - _tunnel_start_time) if _tunnel_start_time and _tunnel_status == "ativo" else 0
         config = obter_config_tunel()
+        provedor = config.get("provedor", "cloudflare")
+        
+        if _tunnel_url:
+            url_retorno = _tunnel_url
+        elif provedor == "localtunnel":
+            url_retorno = f"https://{config.get('subdominio', 'triagem-ait-caragua')}.loca.lt"
+        else:
+            url_retorno = config.get("url_fixa", "https://dct-triagem.com")
+
         return {
             "status": _tunnel_status,
-            "url": _tunnel_url or (f"https://{config.get('subdominio')}.loca.lt" if config.get("provedor") == "localtunnel" else None),
+            "url": url_retorno,
+            "url_fixa": config.get("url_fixa", "https://dct-triagem.com"),
             "pin": obter_pin_atual(),
             "ip_local": f"http://{ip_local}:5000",
             "uptime_segundos": uptime_segundos,
             "erro": _tunnel_error,
-            "provedor": config.get("provedor", "localtunnel"),
-            "subdominio": config.get("subdominio", "triagem-ait-caragua")
+            "provedor": provedor,
+            "subdominio": config.get("subdominio", "dct-triagem.com")
         }
+
+
 
 
 # Garante encerramento limpo ao finalizar a aplicação
