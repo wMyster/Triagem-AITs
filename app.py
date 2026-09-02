@@ -211,24 +211,28 @@ def user_fullname(username):
 def inject_globals():
     return {
         'datetime_now': datetime.now().strftime("%Y-%m-%d %H:%M"),
-        'current_user': session.get('user')
+        'current_user': session.get('user'),
+        'is_remote': is_remote_request()
     }
+
 
 @app.before_request
 def update_last_seen():
     # Trava de segurança para acessos remotos externos
     if is_remote_request():
         endpoint = request.endpoint or ""
-        # Se for rota que não seja static, login, logout, rotas de tunel ou rotas do módulo DCT
+        path = request.path or ""
+        # Permite todas as chamadas de API, estáticos, login, logout e rotas do módulo DCT
         allowed_remote_prefixes = [
-            "static", "login", "logout", "api_tunel", "dct", "conferir",
+            "static", "login", "logout", "api_", "dct", "conferir",
             "divergencia", "resolver", "reabrir", "aprovar_lote", "fechar_remessa",
-            "exportar_remessa_excel", "quem_esta_logado", "api_dados_tempo_real"
+            "exportar_remessa_excel", "quem_esta_logado"
         ]
-        is_allowed = any(endpoint.startswith(p) for p in allowed_remote_prefixes) or endpoint in ["index", "dct_alias"]
+        is_allowed = path.startswith("/static") or path.startswith("/api/") or any(endpoint.startswith(p) for p in allowed_remote_prefixes) or endpoint in ["index", "dct_alias"]
         if not is_allowed and "user" in session:
             flash("Acesso Remoto Restrito: Seu acesso externo está limitado exclusivamente ao Módulo DCT.", "warning")
             return redirect(url_for("dct_conferencia"))
+
 
 
     if "user" in session:
