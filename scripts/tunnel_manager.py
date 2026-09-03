@@ -44,7 +44,7 @@ def obter_config_tunel():
     """Carrega as configurações salvas do túnel."""
     caminho = obter_caminho_config()
     default_config = {
-        "provedor": "localtunnel",
+        "provedor": "cloudflare",
         "subdominio": "triagem-caragua-dct",
         "auto_start": True,
         "url_fixa": ""
@@ -59,11 +59,11 @@ def obter_config_tunel():
     return default_config
 
 
-def salvar_config_tunel(provedor="localtunnel", subdominio="triagem-caragua-dct", auto_start=True, url_fixa=""):
+def salvar_config_tunel(provedor="cloudflare", subdominio="triagem-caragua-dct", auto_start=True, url_fixa=""):
     """Salva as configurações de provedor, subdomínio e inicialização automática."""
     caminho = obter_caminho_config()
     config = {
-        "provedor": provedor or "localtunnel",
+        "provedor": provedor or "cloudflare",
         "subdominio": (subdominio or "triagem-caragua-dct").strip().lower(),
         "auto_start": bool(auto_start),
         "url_fixa": url_fixa.strip() if url_fixa else ""
@@ -77,22 +77,40 @@ def salvar_config_tunel(provedor="localtunnel", subdominio="triagem-caragua-dct"
 
 
 def obter_caminho_cloudflared():
-    """Retorna o caminho do executável portátil cloudflared.exe."""
+    """Retorna o caminho do executável portátil cloudflared.exe com busca em múltiplos locais."""
+    # 1. Se estiver rodando dentro do PyInstaller (descompactado em _MEIPASS)
+    if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
+        meipass_cf = os.path.join(sys._MEIPASS, "cloudflared.exe")
+        if os.path.exists(meipass_cf):
+            return meipass_cf
+
+    # 2. Checa no diretório do executável / pasta raiz da aplicação
     base_dir = obter_caminho_base()
     caminho = os.path.join(base_dir, "cloudflared.exe")
     if os.path.exists(caminho):
         return caminho
 
+    # 3. Checa dentro da subpasta scripts/
     caminho_scripts = os.path.join(base_dir, "scripts", "cloudflared.exe")
     if os.path.exists(caminho_scripts):
         return caminho_scripts
+
+    # 4. Checa no diretório de trabalho atual
+    if os.path.exists("cloudflared.exe"):
+        return os.path.abspath("cloudflared.exe")
+
+    # 5. Checa no PATH global do Windows
+    which_cf = shutil.which("cloudflared.exe") or shutil.which("cloudflared")
+    if which_cf:
+        return which_cf
 
     return caminho
 
 
 def obter_caminho_npx():
-    """Retorna o executável do npx no sistema."""
-    return shutil.which("npx.cmd") or shutil.which("npx") or "npx"
+    """Retorna o executável do npx no sistema se existir."""
+    return shutil.which("npx.cmd") or shutil.which("npx")
+
 
 
 def obter_ip_local():
@@ -172,7 +190,7 @@ def iniciar_tunel(porta=5000):
         _tunnel_error = None
 
         config = obter_config_tunel()
-        provedor = config.get("provedor", "localtunnel")
+        provedor = config.get("provedor", "cloudflare")
         subdominio = config.get("subdominio", "triagem-caragua-dct")
         url_fixa = config.get("url_fixa")
 
@@ -196,7 +214,12 @@ def iniciar_tunel(porta=5000):
                 creation_flags = subprocess.CREATE_NO_WINDOW
 
             npx_exe = obter_caminho_npx()
-            if provedor == "localtunnel":
+            # Se configurado para localtunnel mas a máquina não tiver Node.js/npx, faz fallback automático para cloudflared
+            if provedor == "localtunnel" and not npx_exe:
+                logger.warning("[TÚNEL] Node.js/npx não instalado nesta máquina. Alternando automaticamente para Cloudflare Tunnel portátil.")
+                provedor = "cloudflare"
+
+            if provedor == "localtunnel" and npx_exe:
                 cmd = [npx_exe, "-y", "localtunnel", "--port", str(porta), "--subdomain", subdominio]
             else:
                 caminho_cf = obter_caminho_cloudflared()
@@ -225,9 +248,9 @@ def iniciar_tunel(porta=5000):
                 "mensagem": f"Falha ao iniciar túnel: {e}"
             }
 
-    # Aguarda até 8 segundos para a URL ser confirmada
+    # Aguarda até 10 segundos para a URL ser confirmada
     start_wait = time.time()
-    while time.time() - start_wait < 8:
+    while time.time() - start_wait < 10:
         with _lock:
             if _tunnel_status == "ativo" and _tunnel_url:
                 return {
@@ -245,13 +268,14 @@ def iniciar_tunel(porta=5000):
                 }
         time.sleep(0.4)
 
-    url_padrao = f"https://{subdominio}.loca.lt" if provedor == "localtunnel" else _tunnel_url
+    url_padrao = _tunnel_url or (f"https://{subdominio}.loca.lt" if provedor == "localtunnel" else "Conectando ao Cloudflare...")
     return {
         "sucesso": True,
         "status": "ativo" if _tunnel_process and _tunnel_process.poll() is None else "conectando",
         "url": url_padrao,
         "mensagem": "Túnel inicializado."
     }
+
 
 
 def parar_tunel():

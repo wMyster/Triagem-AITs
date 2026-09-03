@@ -11,8 +11,10 @@ a = Analysis(
         ('static', 'static'),
         ('audit.py', '.'),
         ('scripts', 'scripts'),
-        ('app_icon.ico', '.')
+        ('app_icon.ico', '.'),
+        ('cloudflared.exe', '.')
     ],
+
     hiddenimports=[
         'pystray',
         'pystray._win32',

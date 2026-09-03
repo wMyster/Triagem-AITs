@@ -507,15 +507,16 @@
                 <!-- Link Seguro de Internet -->
                 <div style="margin-bottom: 0.9rem;">
                     <label style="display: block; font-size: 0.82rem; color: #a855f7; font-weight: 600; margin-bottom: 0.3rem;">
-                        <i class="fa-solid fa-link"></i> Link Seguro Permanente (Para a DCT salvar nos Favoritos):
+                        <i class="fa-solid fa-link"></i> Link Seguro de Internet (Para o Google Chrome da DCT):
                     </label>
                     <div style="display: flex; gap: 0.5rem; align-items: center;">
-                        <input type="text" id="tunel-url-input" readonly value="https://triagem-caragua-dct.loca.lt" style="flex: 1; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.15); border-radius: 0.4rem; padding: 0.55rem 0.75rem; font-family: monospace; font-size: 0.85rem; color: #f8fafc;">
+                        <input type="text" id="tunel-url-input" readonly value="Carregando link do túnel..." style="flex: 1; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.15); border-radius: 0.4rem; padding: 0.55rem 0.75rem; font-family: monospace; font-size: 0.85rem; color: #f8fafc;">
                         <button type="button" id="btn-copiar-tunel" class="btn btn-secondary" onclick="copiarTextoDoInput('tunel-url-input', 'btn-copiar-tunel')" style="padding: 0.55rem 0.85rem; white-space: nowrap;">
                             <i class="fa-solid fa-copy"></i> Copiar Link
                         </button>
                     </div>
                 </div>
+
 
                 <!-- IP Local -->
                 <div>
@@ -754,9 +755,10 @@
                     if (ipInput) ipInput.value = data.ip_local || 'http://127.0.0.1:5000';
                     if (pinDisplay && data.pin) pinDisplay.textContent = data.pin;
 
-                    const urlExibicao = data.url || data.url_fixa || 'https://www.dct-triagem.com';
+                    const urlExibicao = data.url || data.url_fixa || (data.status === 'conectando' ? 'Conectando ao túnel seguro...' : 'Túnel Desconectado');
                     if (urlInput) urlInput.value = urlExibicao;
-                    if (btnCopiar) btnCopiar.disabled = false;
+                    if (btnCopiar) btnCopiar.disabled = !data.url;
+
 
                     if (data.status === 'ativo') {
                         if (tag) {
