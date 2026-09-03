@@ -134,16 +134,26 @@ def _monitor_tunnel_output(proc, provedor="cloudflare", subdominio="triagem-cara
     global _tunnel_url, _tunnel_status, _tunnel_error, _tunnel_start_time
     url_found = False
     recent_logs = []
+    debug_log_path = os.path.join(obter_caminho_base(), "tunnel_debug.log")
 
     try:
+        with open(debug_log_path, "a", encoding="utf-8") as f_log:
+            f_log.write(f"\n--- Iniciando túnel [{provedor}] em {time.strftime('%Y-%m-%d %H:%M:%S')} ---\n")
+
         for line in iter(proc.stdout.readline, ''):
             if not line:
                 break
             line_str = line.strip()
             if line_str:
                 recent_logs.append(line_str)
-                if len(recent_logs) > 20:
+                if len(recent_logs) > 25:
                     recent_logs.pop(0)
+
+                try:
+                    with open(debug_log_path, "a", encoding="utf-8") as f_log:
+                        f_log.write(line_str + "\n")
+                except Exception:
+                    pass
 
             # Procura por qualquer URL pública válida (Cloudflare ou Localtunnel)
             match = re.search(r'https://[a-zA-Z0-9-]+\.(trycloudflare\.com|loca\.lt)', line_str)
@@ -161,8 +171,10 @@ def _monitor_tunnel_output(proc, provedor="cloudflare", subdominio="triagem-cara
         if not url_found:
             with _lock:
                 _tunnel_status = "erro"
-                log_excerpt = " | ".join(recent_logs[-3:]) if recent_logs else f"Código: {rc}"
-                _tunnel_error = f"O processo do túnel encerrou (saída {rc}): {log_excerpt}"
+                # Pega as últimas linhas relevantes do erro
+                filtered_err = [l for l in recent_logs if "ERR" in l or "WRN" in l or "failed" in l.lower() or "error" in l.lower()]
+                log_excerpt = " | ".join(filtered_err[-2:]) if filtered_err else (" | ".join(recent_logs[-2:]) if recent_logs else f"Código: {rc}")
+                _tunnel_error = f"O túnel encerrou (saída {rc}): {log_excerpt}"
     except Exception as e:
         logger.error(f"[TÚNEL] Erro na leitura dos logs: {e}")
         with _lock:
@@ -176,6 +188,7 @@ def _monitor_tunnel_output(proc, provedor="cloudflare", subdominio="triagem-cara
                     _tunnel_status = "erro"
                     _tunnel_error = "Túnel finalizou sem gerar uma URL pública."
                 _tunnel_url = None
+
 
 
 def iniciar_tunel(porta=5000):
@@ -231,7 +244,16 @@ def iniciar_tunel(porta=5000):
                 caminho_cf = obter_caminho_cloudflared()
                 if not os.path.exists(caminho_cf):
                     raise FileNotFoundError(f"Arquivo cloudflared.exe não encontrado em {caminho_cf}")
-                cmd = [caminho_cf, "tunnel", "--url", f"http://127.0.0.1:{porta}", "--no-autoupdate"]
+                # Parâmetros otimizados para redes corporativas/governamentais (Prefeituras):
+                # --protocol http2: usa TCP 443 (HTTPS padrão) em vez de QUIC UDP 7844 (bloqueado em firewalls corporativos)
+                # --edge-ip-version 4: evita falhas em redes com IPv6 incompleto/sem rota
+                cmd = [
+                    caminho_cf, "tunnel",
+                    "--url", f"http://127.0.0.1:{porta}",
+                    "--protocol", "http2",
+                    "--edge-ip-version", "4",
+                    "--no-autoupdate"
+                ]
 
             _tunnel_process = subprocess.Popen(
                 cmd,
@@ -241,6 +263,7 @@ def iniciar_tunel(porta=5000):
                 bufsize=1,
                 creationflags=creation_flags
             )
+
 
             t = threading.Thread(target=_monitor_tunnel_output, args=(_tunnel_process, provedor, subdominio), daemon=True)
             t.start()
