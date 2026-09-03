@@ -130,58 +130,64 @@ def obter_ip_local():
 # Inicialização e Monitoramento do Túnel
 # ==========================================
 
-def _monitor_tunnel_output(proc, provedor="localtunnel", subdominio="triagem-caragua-dct"):
+def _monitor_tunnel_output(proc, provedor="cloudflare", subdominio="triagem-caragua-dct"):
     global _tunnel_url, _tunnel_status, _tunnel_error, _tunnel_start_time
     url_found = False
+    recent_logs = []
 
     try:
         for line in iter(proc.stdout.readline, ''):
             if not line:
                 break
             line_str = line.strip()
+            if line_str:
+                recent_logs.append(line_str)
+                if len(recent_logs) > 20:
+                    recent_logs.pop(0)
 
-            if provedor == "localtunnel":
-                # Procura 'your url is: https://*.loca.lt'
-                match = re.search(r'https://[a-zA-Z0-9-]+\.loca\.lt', line_str)
-                if match and not url_found:
-                    with _lock:
-                        _tunnel_url = match.group(0)
-                        _tunnel_status = "ativo"
-                        _tunnel_start_time = time.time()
-                        url_found = True
-                    logger.info(f"[TÚNEL FIXO ATIVO - LOCALTUNNEL] URL DCT: {_tunnel_url}")
-            else:
-                # Procura 'https://*.trycloudflare.com'
-                match = re.search(r'https://[a-zA-Z0-9-]+\.trycloudflare\.com', line_str)
-                if match and not url_found:
-                    with _lock:
-                        _tunnel_url = match.group(0)
-                        _tunnel_status = "ativo"
-                        _tunnel_start_time = time.time()
-                        url_found = True
-                    logger.info(f"[TÚNEL ATIVO - CLOUDFLARE] URL DCT: {_tunnel_url}")
+            # Procura por qualquer URL pública válida (Cloudflare ou Localtunnel)
+            match = re.search(r'https://[a-zA-Z0-9-]+\.(trycloudflare\.com|loca\.lt)', line_str)
+            if match and not url_found:
+                with _lock:
+                    _tunnel_url = match.group(0)
+                    _tunnel_status = "ativo"
+                    _tunnel_error = None
+                    _tunnel_start_time = time.time()
+                    url_found = True
+                logger.info(f"[TÚNEL ATIVO] URL DCT gerada com sucesso: {_tunnel_url}")
 
         proc.stdout.close()
-        proc.wait()
+        rc = proc.wait()
+        if not url_found:
+            with _lock:
+                _tunnel_status = "erro"
+                log_excerpt = " | ".join(recent_logs[-3:]) if recent_logs else f"Código: {rc}"
+                _tunnel_error = f"O processo do túnel encerrou (saída {rc}): {log_excerpt}"
     except Exception as e:
         logger.error(f"[TÚNEL] Erro na leitura dos logs: {e}")
+        with _lock:
+            if not url_found:
+                _tunnel_status = "erro"
+                _tunnel_error = str(e)
     finally:
         with _lock:
-            if _tunnel_process == proc:
-                _tunnel_status = "desconectado"
+            if _tunnel_process == proc and not url_found:
+                if _tunnel_status != "erro":
+                    _tunnel_status = "erro"
+                    _tunnel_error = "Túnel finalizou sem gerar uma URL pública."
                 _tunnel_url = None
 
 
 def iniciar_tunel(porta=5000):
-    """Inicia o túnel seguro com o subdomínio fixo permanente da DCT."""
+    """Inicia o túnel seguro com subdomínio permanente ou Cloudflare portátil."""
     global _tunnel_process, _tunnel_url, _tunnel_status, _tunnel_error, _tunnel_start_time
 
     with _lock:
-        if _tunnel_status in ["ativo", "conectando"] and _tunnel_process and _tunnel_process.poll() is None:
+        if _tunnel_status == "ativo" and _tunnel_url and _tunnel_process and _tunnel_process.poll() is None:
             return {
                 "sucesso": True,
-                "status": _tunnel_status,
-                "url": _tunnel_url or f"https://{obter_config_tunel().get('subdominio', 'triagem-caragua-dct')}.loca.lt",
+                "status": "ativo",
+                "url": _tunnel_url,
                 "mensagem": "Túnel já está em execução."
             }
 
@@ -194,7 +200,7 @@ def iniciar_tunel(porta=5000):
         subdominio = config.get("subdominio", "triagem-caragua-dct")
         url_fixa = config.get("url_fixa")
 
-        # Se houver URL externa manual fixa
+        # Se houver URL externa manual fixa configurada
         if url_fixa:
             _tunnel_url = url_fixa
             _tunnel_status = "ativo"
@@ -248,9 +254,9 @@ def iniciar_tunel(porta=5000):
                 "mensagem": f"Falha ao iniciar túnel: {e}"
             }
 
-    # Aguarda até 10 segundos para a URL ser confirmada
+    # Aguarda até 15 segundos para a URL ser confirmada
     start_wait = time.time()
-    while time.time() - start_wait < 10:
+    while time.time() - start_wait < 15:
         with _lock:
             if _tunnel_status == "ativo" and _tunnel_url:
                 return {
@@ -264,23 +270,31 @@ def iniciar_tunel(porta=5000):
                 return {
                     "sucesso": False,
                     "status": "erro",
+                    "mensagem": _tunnel_error or "Erro ao iniciar túnel."
+                }
+            if _tunnel_process and _tunnel_process.poll() is not None:
+                rc = _tunnel_process.poll()
+                _tunnel_status = "erro"
+                _tunnel_error = f"O processo do túnel encerrou prematuramente com código {rc}."
+                return {
+                    "sucesso": False,
+                    "status": "erro",
                     "mensagem": _tunnel_error
                 }
         time.sleep(0.4)
 
-    url_padrao = _tunnel_url or (f"https://{subdominio}.loca.lt" if provedor == "localtunnel" else "Conectando ao Cloudflare...")
     return {
         "sucesso": True,
-        "status": "ativo" if _tunnel_process and _tunnel_process.poll() is None else "conectando",
-        "url": url_padrao,
-        "mensagem": "Túnel inicializado."
+        "status": _tunnel_status,
+        "url": _tunnel_url or "",
+        "ip_local": f"http://{obter_ip_local()}:{porta}",
+        "mensagem": "Túnel em inicialização..."
     }
-
 
 
 def parar_tunel():
     """Encerra o túnel seguro."""
-    global _tunnel_process, _tunnel_url, _tunnel_status, _tunnel_start_time
+    global _tunnel_process, _tunnel_url, _tunnel_status, _tunnel_start_time, _tunnel_error
 
     with _lock:
         if _tunnel_process:
@@ -296,6 +310,7 @@ def parar_tunel():
 
         _tunnel_status = "desconectado"
         _tunnel_url = None
+        _tunnel_error = None
         _tunnel_start_time = None
 
     return {
@@ -307,22 +322,34 @@ def parar_tunel():
 
 def status_tunel():
     """Retorna o estado atual do túnel e o link de acesso."""
+    global _tunnel_status, _tunnel_url, _tunnel_error
+
     with _lock:
         ip_local = obter_ip_local()
         uptime_segundos = int(time.time() - _tunnel_start_time) if _tunnel_start_time and _tunnel_status == "ativo" else 0
         config = obter_config_tunel()
-        provedor = config.get("provedor", "localtunnel")
+        provedor = config.get("provedor", "cloudflare")
         subdominio = config.get("subdominio", "triagem-caragua-dct")
         url_fixa = config.get("url_fixa")
+
+        # Verifica se o processo morreu inesperadamente
+        if _tunnel_process and _tunnel_process.poll() is not None:
+            if not _tunnel_url:
+                _tunnel_status = "erro"
+                if not _tunnel_error:
+                    _tunnel_error = f"Processo do túnel encerrou (código {_tunnel_process.poll()})."
+            else:
+                _tunnel_status = "desconectado"
+                _tunnel_url = None
 
         if _tunnel_url:
             url_retorno = _tunnel_url
         elif url_fixa:
             url_retorno = url_fixa
-        elif provedor == "localtunnel":
-            url_retorno = f"https://{subdominio}.loca.lt"
+        elif _tunnel_status == "conectando":
+            url_retorno = ""
         else:
-            url_retorno = f"https://{subdominio}.loca.lt"
+            url_retorno = ""
 
         return {
             "status": _tunnel_status,
@@ -334,6 +361,7 @@ def status_tunel():
             "subdominio": subdominio,
             "auto_start": config.get("auto_start", True)
         }
+
 
 
 def iniciar_tunel_auto_start(porta=5000):

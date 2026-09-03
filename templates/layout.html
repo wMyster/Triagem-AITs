@@ -753,6 +753,17 @@
             if (m) m.style.display = 'none';
         }
 
+        let _pollTunelLayoutTimer = null;
+
+        function agendarVerificacaoTunelLayout() {
+            if (_pollTunelLayoutTimer) clearTimeout(_pollTunelLayoutTimer);
+            _pollTunelLayoutTimer = setTimeout(() => {
+                _pollTunelLayoutTimer = null;
+                atualizarStatusTunelDCT();
+            }, 1200);
+        }
+
+
         function atualizarStatusTunelDCT() {
             fetch('/api/tunel/status')
                 .then(res => res.json())
@@ -764,16 +775,13 @@
                     const btnIniciar = document.getElementById('btn-iniciar-tunel');
                     const btnParar = document.getElementById('btn-parar-tunel');
                     const navBadge = document.getElementById('nav-tunel-badge');
+                    const fb = document.getElementById('tunel-feedback-msg');
 
                     if (ipInput) ipInput.value = data.ip_local || 'http://127.0.0.1:5000';
 
-                    const urlExibicao = data.url || data.url_fixa || (data.status === 'conectando' ? 'Conectando ao túnel seguro...' : 'Túnel Desconectado');
-                    if (urlInput) urlInput.value = urlExibicao;
-                    if (btnCopiar) btnCopiar.disabled = !data.url;
-
-
-
-                    if (data.status === 'ativo') {
+                    if (data.status === 'ativo' && data.url) {
+                        if (urlInput) urlInput.value = data.url;
+                        if (btnCopiar) btnCopiar.disabled = false;
                         if (tag) {
                             tag.textContent = '🟢 Ativo (Online)';
                             tag.style.background = 'rgba(16, 185, 129, 0.2)';
@@ -793,7 +801,11 @@
                             navBadge.style.display = 'inline-block';
                             navBadge.style.backgroundColor = '#10b981';
                         }
+                        if (fb) fb.style.display = 'none';
+                        if (_pollTunelLayoutTimer) { clearTimeout(_pollTunelLayoutTimer); _pollTunelLayoutTimer = null; }
                     } else if (data.status === 'conectando') {
+                        if (urlInput) urlInput.value = data.url || 'Conectando ao túnel seguro...';
+                        if (btnCopiar) btnCopiar.disabled = true;
                         if (tag) {
                             tag.textContent = 'Conectando...';
                             tag.style.background = 'rgba(245, 158, 11, 0.2)';
@@ -808,7 +820,33 @@
                             btnParar.style.display = 'none';
                             btnParar.disabled = false;
                         }
+                        agendarVerificacaoTunelLayout();
+                    } else if (data.status === 'erro') {
+                        if (urlInput) urlInput.value = 'Falha ao conectar';
+                        if (btnCopiar) btnCopiar.disabled = true;
+                        if (tag) {
+                            tag.textContent = 'Erro';
+                            tag.style.background = 'rgba(239, 68, 68, 0.2)';
+                            tag.style.color = '#f87171';
+                        }
+                        if (btnIniciar) {
+                            btnIniciar.style.display = 'inline-flex';
+                            btnIniciar.innerHTML = '<i class="fa-solid fa-rotate-right"></i> Tentar Novamente';
+                            btnIniciar.disabled = false;
+                        }
+                        if (btnParar) btnParar.style.display = 'none';
+                        if (fb && data.erro) {
+                            fb.style.display = 'block';
+                            fb.style.background = 'rgba(239, 68, 68, 0.2)';
+                            fb.style.color = '#fca5a5';
+                            fb.style.border = '1px solid rgba(239, 68, 68, 0.4)';
+                            fb.textContent = data.erro;
+                        }
+                        if (_pollTunelLayoutTimer) { clearTimeout(_pollTunelLayoutTimer); _pollTunelLayoutTimer = null; }
                     } else {
+                        // Desconectado
+                        if (urlInput) urlInput.value = '';
+                        if (btnCopiar) btnCopiar.disabled = true;
                         if (tag) {
                             tag.textContent = 'Desconectado';
                             tag.style.background = 'rgba(148, 163, 184, 0.2)';
@@ -825,9 +863,9 @@
                             btnParar.disabled = false;
                         }
                         if (navBadge) navBadge.style.display = 'none';
+                        if (fb) fb.style.display = 'none';
+                        if (_pollTunelLayoutTimer) { clearTimeout(_pollTunelLayoutTimer); _pollTunelLayoutTimer = null; }
                     }
-
-
                 })
                 .catch(() => {});
         }
@@ -835,26 +873,27 @@
         function iniciarTunelDCT() {
             const btnIniciar = document.getElementById('btn-iniciar-tunel');
             const fb = document.getElementById('tunel-feedback-msg');
+            const tag = document.getElementById('tunel-status-tag');
+            const urlInput = document.getElementById('tunel-url-input');
+
             if (btnIniciar) {
-                btnIniciar.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Iniciando...';
+                btnIniciar.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Conectando...';
                 btnIniciar.disabled = true;
             }
+            if (tag) {
+                tag.textContent = 'Conectando...';
+                tag.style.background = 'rgba(245, 158, 11, 0.2)';
+                tag.style.color = '#fbbf24';
+            }
+            if (urlInput) urlInput.value = 'Iniciando túnel seguro...';
             if (fb) fb.style.display = 'none';
+
+            agendarVerificacaoTunelLayout();
 
             fetch('/api/tunel/iniciar', { method: 'POST' })
                 .then(res => res.json())
                 .then(data => {
-                    if (data.sucesso) {
-                        atualizarStatusTunelDCT();
-                        setTimeout(atualizarStatusTunelDCT, 2500);
-                    } else {
-                        if (fb) {
-                            fb.style.display = 'block';
-                            fb.className = 'alert alert-danger';
-                            fb.innerHTML = `<i class="fa-solid fa-circle-exclamation"></i> ${data.mensagem || 'Erro ao iniciar túnel.'}`;
-                        }
-                        atualizarStatusTunelDCT();
-                    }
+                    atualizarStatusTunelDCT();
                 })
                 .catch(() => {
                     atualizarStatusTunelDCT();
@@ -862,6 +901,7 @@
         }
 
         function pararTunelDCT() {
+
             const btnParar = document.getElementById('btn-parar-tunel');
             const fb = document.getElementById('tunel-feedback-msg');
             if (btnParar) {
