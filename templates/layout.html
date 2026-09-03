@@ -327,19 +327,20 @@
         <div style="background: rgba(30, 41, 59, 0.98); border: 1px solid rgba(168, 85, 247, 0.4); border-radius: 1rem; width: 92%; max-width: 620px; padding: 1.75rem; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7); color: #ffffff; max-height: 90vh; overflow-y: auto;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; border-bottom: 1px solid rgba(255, 255, 255, 0.1); padding-bottom: 0.75rem;">
                 <h3 style="margin: 0; font-size: 1.2rem; color: #c084fc; display: flex; align-items: center; gap: 0.5rem;">
-                    <i class="fa-solid fa-globe"></i> Acesso Remoto DCT (Link Fixo Permanente)
+                    <i class="fa-solid fa-globe"></i> Acesso Remoto DCT (Link Seguro Cloudflare)
                 </h3>
                 <i class="fa-solid fa-xmark" style="cursor: pointer; font-size: 1.2rem; color: #94a3b8;" onclick="fecharModalTunelDCT()"></i>
             </div>
 
             <!-- Auto-start info banner -->
             <div style="background: rgba(168, 85, 247, 0.12); border: 1px solid rgba(168, 85, 247, 0.35); border-radius: 0.75rem; padding: 0.9rem 1.1rem; margin-bottom: 1.2rem; display: flex; align-items: center; gap: 0.75rem;">
-                <i class="fa-solid fa-bolt" style="color: #c084fc; font-size: 1.3rem;"></i>
+                <i class="fa-solid fa-shield-halved" style="color: #c084fc; font-size: 1.3rem;"></i>
                 <div style="font-size: 0.83rem; color: #cbd5e1;">
-                    <strong style="color: #ffffff;">Túnel com Auto-Start Ativo</strong><br>
-                    O operador da DCT acessa pelo link fixo abaixo e faz login direto com seu <strong>Usuário e Senha</strong> (sem necessidade de PIN).
+                    <strong style="color: #ffffff;">Conexão Segura para o Setor de DCT</strong><br>
+                    Gera um link seguro HTTPS para o operador da DCT acessar de qualquer computador pela internet, fazendo login direto com <strong>Usuário e Senha</strong> (sem precisar de acesso à rede G:).
                 </div>
             </div>
+
 
             <!-- Status Card -->
             <div style="background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 0.75rem; padding: 1.1rem; margin-bottom: 1.2rem;">
@@ -703,52 +704,15 @@
             });
         }
 
-        function carregarConfiguracaoTunel() {
-            fetch('/api/tunel/config')
-                .then(res => res.json())
-                .then(cfg => {
-                    const inpSub = document.getElementById('cfg_subdominio');
-                    if (inpSub && cfg.subdominio) inpSub.value = cfg.subdominio;
-                })
-                .catch(() => {});
-        }
-
-        function salvarSubdominioTunel() {
-            const sub = document.getElementById('cfg_subdominio')?.value || 'triagem-caragua-dct';
-            const fb = document.getElementById('tunel-feedback-msg');
-
-            fetch('/api/tunel/config', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    provedor: 'localtunnel',
-                    subdominio: sub
-                })
-            })
-            .then(res => res.json())
-            .then(data => {
-                if (data.sucesso) {
-                    if (fb) {
-                        fb.style.display = 'block';
-                        fb.className = 'alert alert-success';
-                        fb.innerHTML = '<i class="fa-solid fa-circle-check"></i> Subdomínio fixo salvo com sucesso!';
-                        setTimeout(() => { fb.style.display = 'none'; }, 4000);
-                    }
-                    atualizarStatusTunelDCT();
-                }
-            })
-            .catch(() => {});
-        }
-
         function abrirModalTunelDCT() {
             const m = document.getElementById('modal-tunel-dct');
             if (!m) return;
             m.style.display = 'flex';
-            carregarConfiguracaoTunel();
             atualizarStatusTunelDCT();
         }
 
         function fecharModalTunelDCT() {
+
             const m = document.getElementById('modal-tunel-dct');
             if (m) m.style.display = 'none';
         }
