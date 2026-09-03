@@ -75,22 +75,30 @@ def salvar_config_tunel(modo="rapido", auto_start=True):
 
 def obter_caminho_cloudflared():
     """Retorna o caminho do executável portátil cloudflared.exe com busca em múltiplos locais."""
-    # 1. Se estiver rodando dentro do PyInstaller (descompactado em _MEIPASS)
-    if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
-        meipass_cf = os.path.join(sys._MEIPASS, "cloudflared.exe")
-        if os.path.exists(meipass_cf):
-            return meipass_cf
-
-    # 2. Checa no diretório do executável / pasta raiz da aplicação
     base_dir = obter_caminho_base()
     caminho = os.path.join(base_dir, "cloudflared.exe")
+
+    # 1. Checa primeiro no diretório da aplicação / junto ao executável
     if os.path.exists(caminho):
         return caminho
 
-    # 3. Checa dentro da subpasta scripts/
+    # 2. Checa dentro da subpasta scripts/
     caminho_scripts = os.path.join(base_dir, "scripts", "cloudflared.exe")
     if os.path.exists(caminho_scripts):
         return caminho_scripts
+
+    # 3. Se estiver rodando dentro do PyInstaller (descompactado em _MEIPASS)
+    if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
+        meipass_cf = os.path.join(sys._MEIPASS, "cloudflared.exe")
+        if os.path.exists(meipass_cf):
+            # Se possível, copia para o base_dir para evitar bloqueios de execução em %TEMP% da prefeitura
+            try:
+                if not os.path.exists(caminho):
+                    shutil.copy2(meipass_cf, caminho)
+                    return caminho
+            except Exception:
+                pass
+            return meipass_cf
 
     # 4. Checa no diretório de trabalho atual
     if os.path.exists("cloudflared.exe"):
@@ -102,6 +110,7 @@ def obter_caminho_cloudflared():
         return which_cf
 
     return caminho
+
 
 
 def obter_ip_local():

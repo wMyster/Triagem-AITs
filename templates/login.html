@@ -498,40 +498,41 @@
             </div>
 
 
-            <!-- Status Card -->
-            <div style="background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 0.75rem; padding: 1.1rem; margin-bottom: 1.2rem;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
-                    <span style="color: #94a3b8; font-size: 0.85rem;">Status do Acesso Remoto:</span>
-                    <span id="tunel-status-tag" class="badge" style="background: rgba(16, 185, 129, 0.2); color: #34d399;">🟢 Ativo (Online)</span>
+            <!-- OPÇÃO 1: REDE LOCAL DA PREFEITURA -->
+            <div style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.35); border-radius: 0.75rem; padding: 1.1rem; margin-bottom: 1.1rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem;">
+                    <span style="color: #34d399; font-size: 0.88rem; font-weight: 700;">
+                        <i class="fa-solid fa-network-wired"></i> OPÇÃO 1: REDE DA PREFEITURA (RECOMENDADO)
+                    </span>
+                    <span class="badge" style="background: rgba(16, 185, 129, 0.2); color: #34d399;">Sem Internet / Direto</span>
                 </div>
-
-                <!-- Link Seguro de Internet -->
-                <div style="margin-bottom: 0.9rem;">
-                    <label style="display: block; font-size: 0.82rem; color: #a855f7; font-weight: 600; margin-bottom: 0.3rem;">
-                        <i class="fa-solid fa-link"></i> Link Seguro de Internet (Para o Google Chrome da DCT):
-                    </label>
-                    <div style="display: flex; gap: 0.5rem; align-items: center;">
-                        <input type="text" id="tunel-url-input" readonly value="Carregando link do túnel..." style="flex: 1; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.15); border-radius: 0.4rem; padding: 0.55rem 0.75rem; font-family: monospace; font-size: 0.85rem; color: #f8fafc;">
-                        <button type="button" id="btn-copiar-tunel" class="btn btn-secondary" onclick="copiarTextoDoInput('tunel-url-input', 'btn-copiar-tunel')" style="padding: 0.55rem 0.85rem; white-space: nowrap;">
-                            <i class="fa-solid fa-copy"></i> Copiar Link
-                        </button>
-                    </div>
-                </div>
-
-
-                <!-- IP Local -->
-                <div>
-                    <label style="display: block; font-size: 0.82rem; color: #38bdf8; font-weight: 600; margin-bottom: 0.3rem;">
-                        <i class="fa-solid fa-network-wired"></i> Endereço na Rede Local (Cabo Ethernet / Wi-Fi da Prefeitura):
-                    </label>
-                    <div style="display: flex; gap: 0.5rem; align-items: center;">
-                        <input type="text" id="tunel-ip-input" readonly value="Carregando..." style="flex: 1; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.15); border-radius: 0.4rem; padding: 0.55rem 0.75rem; font-family: monospace; font-size: 0.85rem; color: #38bdf8;">
-                        <button type="button" id="btn-copiar-ip" class="btn btn-secondary" onclick="copiarTextoDoInput('tunel-ip-input', 'btn-copiar-ip')" style="padding: 0.55rem 0.85rem; white-space: nowrap;">
-                            <i class="fa-solid fa-copy"></i> Copiar IP
-                        </button>
-                    </div>
+                <p style="font-size: 0.8rem; color: #94a3b8; margin: 0 0 0.6rem 0;">
+                    Como a DCT está no mesmo prédio, basta abrir o Google Chrome no PC da DCT e digitar este endereço:
+                </p>
+                <div style="display: flex; gap: 0.5rem; align-items: center;">
+                    <input type="text" id="tunel-ip-input" readonly value="Carregando..." style="flex: 1; background: rgba(0,0,0,0.4); border: 1px solid rgba(16, 185, 129, 0.4); border-radius: 0.4rem; padding: 0.6rem 0.75rem; font-family: monospace; font-size: 0.95rem; font-weight: 600; color: #34d399;">
+                    <button type="button" id="btn-copiar-ip" class="btn btn-success" onclick="copiarTextoDoInput('tunel-ip-input', 'btn-copiar-ip')" style="padding: 0.6rem 0.95rem; white-space: nowrap; background: #059669; border-color: #059669;">
+                        <i class="fa-solid fa-copy"></i> Copiar Endereço
+                    </button>
                 </div>
             </div>
+
+            <!-- OPÇÃO 2: LINK DE INTERNET EXTERNO -->
+            <div style="background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 0.75rem; padding: 1.1rem; margin-bottom: 1.2rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                    <span style="color: #c084fc; font-size: 0.85rem; font-weight: 600;">
+                        <i class="fa-solid fa-globe"></i> OPÇÃO 2: LINK PELA INTERNET (ACESSO EXTERNO)
+                    </span>
+                    <span id="tunel-status-tag" class="badge" style="background: rgba(16, 185, 129, 0.2); color: #34d399;">🟢 Ativo</span>
+                </div>
+                <div style="display: flex; gap: 0.5rem; align-items: center;">
+                    <input type="text" id="tunel-url-input" readonly value="Carregando link do túnel..." style="flex: 1; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.15); border-radius: 0.4rem; padding: 0.55rem 0.75rem; font-family: monospace; font-size: 0.85rem; color: #f8fafc;">
+                    <button type="button" id="btn-copiar-tunel" class="btn btn-secondary" onclick="copiarTextoDoInput('tunel-url-input', 'btn-copiar-tunel')" style="padding: 0.55rem 0.85rem; white-space: nowrap;">
+                        <i class="fa-solid fa-copy"></i> Copiar Link
+                    </button>
+                </div>
+            </div>
+
 
             <!-- Feedback -->
             <div id="tunel-feedback-msg" style="display: none; padding: 0.6rem 0.85rem; border-radius: 0.45rem; font-size: 0.85rem; margin-bottom: 1.25rem;"></div>
