@@ -91,13 +91,6 @@ def obter_caminho_cloudflared():
     if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
         meipass_cf = os.path.join(sys._MEIPASS, "cloudflared.exe")
         if os.path.exists(meipass_cf):
-            # Se possível, copia para o base_dir para evitar bloqueios de execução em %TEMP% da prefeitura
-            try:
-                if not os.path.exists(caminho):
-                    shutil.copy2(meipass_cf, caminho)
-                    return caminho
-            except Exception:
-                pass
             return meipass_cf
 
     # 4. Checa no diretório de trabalho atual
@@ -112,18 +105,20 @@ def obter_caminho_cloudflared():
     return caminho
 
 
-
 def obter_ip_local():
     """Descobre o endereço IP local desta máquina na rede (ex: 192.168.100.83)."""
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        s.settimeout(0.2)
-        s.connect(('10.255.255.255', 1))
+        s.settimeout(0.5)
+        s.connect(('8.8.8.8', 80))
         ip = s.getsockname()[0]
         s.close()
         return ip
     except Exception:
-        return "127.0.0.1"
+        try:
+            return socket.gethostbyname(socket.gethostname())
+        except Exception:
+            return "127.0.0.1"
 
 
 # ==========================================
@@ -146,7 +141,7 @@ def _monitor_tunnel_output(proc):
             line_str = line.strip()
             if line_str:
                 recent_logs.append(line_str)
-                if len(recent_logs) > 25:
+                if len(recent_logs) > 30:
                     recent_logs.pop(0)
 
                 try:
@@ -171,7 +166,7 @@ def _monitor_tunnel_output(proc):
         if not url_found:
             with _lock:
                 _tunnel_status = "erro"
-                filtered_err = [l for l in recent_logs if "ERR" in l or "WRN" in l or "failed" in l.lower() or "error" in l.lower()]
+                filtered_err = [l for l in recent_logs if "ERR" in l or "WRN" in l or "failed" in l.lower() or "error" in l.lower() or "timeout" in l.lower()]
                 log_excerpt = " | ".join(filtered_err[-2:]) if filtered_err else (" | ".join(recent_logs[-2:]) if recent_logs else f"Código: {rc}")
                 _tunnel_error = f"O túnel encerrou (código {rc}): {log_excerpt}"
     except Exception as e:
@@ -224,8 +219,6 @@ def iniciar_tunel(porta=5000):
             cmd = [
                 caminho_cf, "tunnel",
                 "--url", f"http://127.0.0.1:{porta}",
-                "--protocol", "http2",
-                "--edge-ip-version", "4",
                 "--no-autoupdate"
             ]
 
@@ -234,11 +227,13 @@ def iniciar_tunel(porta=5000):
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 bufsize=1,
                 creationflags=creation_flags
             )
 
-            t = threading.Thread(target=_monitor_tunnel_output, args=(_tunnel_process,), daemon=True)
+            t = threading.Thread(target=_monitor_tunnel_output, args=(_tunnel_process,), daemon=True, name="CloudflareMonitor")
             t.start()
 
         except Exception as e:
@@ -247,12 +242,12 @@ def iniciar_tunel(porta=5000):
             return {
                 "sucesso": False,
                 "status": "erro",
-                "mensagem": f"Falha ao iniciar túnel: {e}"
+                "mensagem": f"Falha ao iniciar cloudflared: {e}"
             }
 
-    # Aguarda até 15 segundos para a URL ser confirmada
+    # Aguarda até 10 segundos para a URL ser gerada
     start_wait = time.time()
-    while time.time() - start_wait < 15:
+    while time.time() - start_wait < 10:
         with _lock:
             if _tunnel_status == "ativo" and _tunnel_url:
                 return {
@@ -325,15 +320,10 @@ def status_tunel():
         uptime_segundos = int(time.time() - _tunnel_start_time) if _tunnel_start_time and _tunnel_status == "ativo" else 0
         config = obter_config_tunel()
 
-        # Verifica se o processo morreu inesperadamente
-        if _tunnel_process and _tunnel_process.poll() is not None:
-            if not _tunnel_url:
-                _tunnel_status = "erro"
-                if not _tunnel_error:
-                    _tunnel_error = f"Processo do túnel encerrou (código {_tunnel_process.poll()})."
-            else:
-                _tunnel_status = "desconectado"
-                _tunnel_url = None
+        # Se o processo encerrou após já estar ativo, reseta para desconectado
+        if _tunnel_process and _tunnel_process.poll() is not None and _tunnel_url:
+            _tunnel_status = "desconectado"
+            _tunnel_url = None
 
         return {
             "status": _tunnel_status,
